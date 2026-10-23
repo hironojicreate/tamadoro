@@ -1,0 +1,198 @@
+[
+  {
+    "ID": "1",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "にゃ！",
+    "frequency": "5"
+  },
+  {
+    "ID": "2",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "にゃにゃ！",
+    "frequency": "5"
+  },
+  {
+    "ID": "3",
+    "areaType": "S",
+    "imageSize": "70%",
+    "text": "うにゃ～ん",
+    "frequency": "5"
+  },
+  {
+    "ID": "4",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "ほにゅ？",
+    "frequency": "5"
+  },
+  {
+    "ID": "5",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "ふにゃ",
+    "frequency": "5"
+  },
+  {
+    "ID": "6",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "にゅ",
+    "frequency": "5"
+  },
+  {
+    "ID": "7",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "みゅ",
+    "frequency": "5"
+  },
+  {
+    "ID": "8",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "にゃぁ",
+    "frequency": "5"
+  },
+  {
+    "ID": "9",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "ふみ",
+    "frequency": "5"
+  },
+  {
+    "ID": "10",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "ぷみ",
+    "frequency": "5"
+  },
+  {
+    "ID": "11",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "む～",
+    "frequency": "1"
+  },
+  {
+    "ID": "12",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "むきゅ",
+    "frequency": "5"
+  },
+  {
+    "ID": "13",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "シャッ！",
+    "frequency": "1"
+  },
+  {
+    "ID": "14",
+    "areaType": "S",
+    "imageSize": "60%",
+    "text": "うにゃん",
+    "frequency": "5"
+  },
+  {
+    "ID": "15",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "おはようにゃん！<br>がんばるにゃん！",
+    "frequency": "3"
+  },
+  {
+    "ID": "16",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "すこしずつにゃん。<br>あきらめにゃいにゃん！",
+    "frequency": "3"
+  },
+  {
+    "ID": "17",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "ふにゃあ<br>ちょっとやすむにゃん…",
+    "frequency": "3"
+  },
+  {
+    "ID": "18",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "レベルはぜんぶで<br>10あるらしいにゃん！",
+    "frequency": "3"
+  },
+  {
+    "ID": "19",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "レベルによって<br>ドロップのいろが<br>ちがうのにゃ！",
+    "frequency": "3"
+  },
+  {
+    "ID": "20",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "そろそろもんだいに<br>ちょうせんすると<br>いいにゃん",
+    "frequency": "0"
+  },
+  {
+    "ID": "21",
+    "areaType": "L",
+    "imageSize": "90%",
+    "text": "いっかいもまちがえないと<br>きんのドロップが<br>もらえるにゃ！<br>きあいいれるにゃ！",
+    "frequency": "3"
+  },
+  {
+    "ID": "22",
+    "areaType": "L",
+    "imageSize": "90%",
+    "text": "たま～に、ドロップの<br>データをほぞんするにゃ！<br>みぎしたのボタンにゃ！",
+    "frequency": "2"
+  },
+  {
+    "ID": "23",
+    "areaType": "L",
+    "imageSize": "90%",
+    "text": "もんだいがめんのドロップは<br>10こぶんしかおぼえられないにゃ<br>10こはがんばっておぼえるので<br>ゆるしてほしいにゃ！",
+    "frequency": "2"
+  },
+  {
+    "ID": "24",
+    "areaType": "L",
+    "imageSize": "90%",
+    "text": "ドロップのデータが<br>なくなっちゃったときは<br>みぎしたボタンから<br>おとなにたのんでrescueにゃ！",
+    "frequency": "1"
+  },
+  {
+    "ID": "25",
+    "areaType": "L",
+    "imageSize": "90%",
+    "text": "Lv10もんだいのクリア<br>おめでとう！<br>まちがいがひとつもなかったよ！<br>とってもすごいから<b>コレあげる！</b>",
+    "frequency": "0"
+  },
+  {
+    "ID": "26",
+    "areaType": "L",
+    "imageSize": "90%",
+    "text": "にゃんと！オニもんだい<br><b>ノーミスクリアおめでとう！</b><br>ホントにすごすぎるにゃ！<br>すごすぎるから<b>コレあげる！</b>",
+    "frequency": "0"
+  },
+  {
+    "ID": "27",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "ドロップをタッチすると<br>ゲットした日が<br>わかるにゃん！",
+    "frequency": "3"
+  },
+  {
+    "ID": "28",
+    "areaType": "M",
+    "imageSize": "70%",
+    "text": "おたすけだんごは<br>べんりなだんご。<br>たくさんつかうにゃん！",
+    "frequency": "4"
+  }
+]

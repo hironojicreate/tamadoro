@@ -1,0 +1,821 @@
+/* ブラウザのデフォルトのマージンとパディングをリセット */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* スクロールバーが出ないように設定 */
+    height: 100%; /* bodyとhtmlの高さを画面に合わせる */
+}
+
+h1 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0; /* デフォルトの余白をリセット */
+    padding: 0px; /* 必要なら適切なパディングを追加 */
+    font-size: 24px; /* 必要に応じてフォントサイズを調整 */
+}
+
+/* オープニングスクリーンのスタイル設定 */
+#openingScreen {
+    background-image: url('img/keisan_hyaku_tasu.png');
+    background-size: auto 100vh; /* 高さを画面に合わせ、幅は自動調整 */
+    background-position: center; /* 画像を中央に配置 */
+    background-repeat: no-repeat; /* 画像を繰り返さない */
+    height: 100vh; /* 要素の高さを画面の高さに設定 */
+    width: 100vw; /* 要素の幅を画面の幅に設定 */
+    display: block;
+    overflow: hidden; /* はみ出た部分を隠す */
+}
+
+#main-title {
+    font-family: 'Arial', sans-serif; /* フォントを指定 */
+    color: #FF6347; /* テキストの色 */
+    text-shadow: 2px 2px 4px #FFD700; /* テキストに影をつける */
+    font-size: 48px; /* フォントサイズ */
+    text-align: center; /* テキストを中央寄せ */
+    margin-top: 20px; /* 上のマージン */
+    margin-bottom: 20px; /* 下のマージン */
+}
+
+
+/* select画面ボタン*/
+.select-level-buttons {
+    position: absolute; /* 要素を絶対位置で配置 */
+    top: 24%; /* 上からの位置を12%に設定 */
+    left: 50%; /* 左から50%の位置に設定 */
+    transform: translateX(-50%); /* X軸方向に自身の幅の50%移動して中央揃え */
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3列のグリッド */
+    gap: 10px; /* グリッド間のギャップ */
+    width: calc(100% - 40px); /* 全幅から左右のマージンを除いた幅 */
+    margin: 0 auto; /* 上下のマージンを0、左右を自動で中央揃え */
+}
+
+.level-pair {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.level-pair.empty {
+    visibility: hidden; /* 拡張用空欄は非表示に */
+}
+
+.coin-container {
+    margin-top: 5px; /* コインコンテナとボタンの間隔 */
+    font-size: 14px;
+}
+
+/* select画面ボタン*/
+.select-level-buttons button {
+    width: 18vw;
+    height: 7vh;
+    padding: 10px 20px; /* パディングは内側の余白を追加 */
+    border-radius: 20px;
+    background-color: #FFC0CB; /* ピンク色 */
+    color: Purple;
+    border: 2px solid #8B0000; /* 濃い赤色の外枠 */
+    font-size: 20px;
+    font-weight: bold;
+    box-shadow: 4px 4px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center; /* テキストを中央に配置 */
+    text-align: center;
+}
+
+
+.select-level-buttons button:hover {
+    transform: scale(1.1);
+    box-shadow: 6px 6px 7px rgba(0, 0, 0, 0.3);
+}
+
+.select-level-buttons button:active {
+    transform: scale(0.9);
+}
+
+
+
+.keypad {
+    position: fixed;
+    bottom: 0px;
+    right: 0px;
+    background-color: #f0f0f0;
+    padding: 5px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2); /* パッド自体に影を追加 */
+}
+
+.key-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 5px; /* キー間の間隔 */
+}
+
+.keypad button {
+    background: none;
+    border: none;
+    padding: 5px;
+    margin: 5px; /* ボタン間の間隔 */
+    cursor: pointer;
+    transition: transform 0.1s ease; /* キーを押したときの動作 */
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.3); /* キーに影を追加 */
+}
+
+.keypad button:active {
+    transform: scale(0.9); /* キーを押したときに縮小させる */
+}
+
+.keypad button:active img {
+    transform: scale(0.9); /* タップ時の画像も縮小させる */
+}
+
+.keypad button.active {
+    transform: scale(0.9); /* キーを押したときに縮小させる */
+}
+
+.keypad button.active img {
+    transform: scale(0.9); /* タップ時の画像も縮小させる */
+}
+
+.keypad button img {
+    height: 11vh; /* 画面の高さの1/9 */
+    max-height: 70px; /* 最大高さを80pxに制限 */
+    min-height: 40px; /* 最小高さを40pxに保証 */
+    transition: transform 0.1s ease; /* トランジション効果を追加 */
+    will-change: transform;
+}
+
+
+/* 百マスの要素の配置*/
+
+#calculation-grid {
+    border-collapse: collapse;
+    width: auto;
+    text-align: center;
+    position: absolute;
+    top: 7%; /* 画面上から10% */
+}
+
+#calculation-grid td {
+    border: 1px solid #000;
+    width: 50px; /* セルの幅 */
+    height: 50px; /* セルの高さ */
+    text-align: center;
+    vertical-align: middle;
+
+}
+
+/* 1列目の色をとても薄い黄色 */
+#calculation-grid td:first-child {
+    background-color: #ffffe0; /* 薄い黄色 */
+    font-weight: bold; /* 数字を太字にする */
+}
+
+/* 1行目の色をとても薄い青 */
+#calculation-grid tr:first-child td {
+    /*background-color: #e0f7ff; /* 薄い青 */
+    background-color: #ffffe0; /* 薄い青 */
+    font-weight: bold; /* 数字を太字にする */
+}
+
+/* 左上セルの色 (交差部分) */
+#calculation-grid tr:first-child td:first-child {
+    /* background-color: #ffd9d9; /* 淡い赤色 */
+    background-color: #ffffff; /* 淡い赤色 */
+    font-weight: normal; /* 左上セルは太字にしない */
+}
+
+
+.fixed {
+    background-color: #f0e68c; /* 固定セルの色 */
+}
+
+.answer-cell[data-input="false"] {
+    background-color: #fff; /* 初期状態のセル */
+}
+
+.answer-cell[data-input="true"] {
+    background-color: #d1ffd1; /* 有効化されたセル */
+}
+
+
+
+/* セル内のカーソル*/
+.cursor {
+    border: 2px solid #ff6347; /* 赤色の枠線 */
+    background-color: #ffe4e1; /* 薄いピンク色 */
+}
+
+/* 入力対象セルのスタイル */
+.input-target {
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.3), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+    background-color: #fec8c8 !important; /* 少し明るい背景色 */
+}
+
+/* 問題セルを濃い色で強調 */
+.problem-number-top {
+    /*background-color: #8ac2ff !important; /* 濃い青 (1行目) */
+    background-color: #c2da69 !important; /* 濃い青 (1行目) */
+    /*color: #fff !important;*/
+    font-weight: bold !important;
+}
+
+.problem-number {
+    /*background-color: #ffdf61 !important; /* 濃い黄色 (1列目) */
+    background-color: #ffdf61 !important; /* 濃い黄色 (1列目) */
+    /*color: #f03333 !important;*/
+    font-weight: bold !important;
+}
+
+/* 灰色のライン */
+.line-highlight {
+    background-color: rgba(200, 200, 200, 0.2) !important; /* 半透明の灰色 */
+}
+
+
+/* Lv10 の色変更 */
+.color-red {
+    color: #d4e4f7;
+    background-color: #bcd7f5;
+}
+
+.color-yellow {
+    color: #dedede;
+    background-color: #ffffff;
+}
+
+
+
+/* 十の位が入力された状態を示す */
+.partial-input {
+    background-color: rgba(255, 255, 0, 0.3) !important; /* 薄い黄色 */
+}
+
+
+/* 正誤判定 */
+.correct {
+    color: red !important;
+    font-size: 1.5em !important;
+    animation: correctAnimation 0.5s ease-in-out !important;
+}
+
+@keyframes correctAnimation {
+    0% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.incorrect {
+    background-color: #c2c2c2 !important;
+    color: #ffffff !important;
+    font-weight: normal !important;
+}
+
+
+/* 式の要素の配置*/
+
+.calculation-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute; /* 要素を絶対位置指定する */
+    bottom: 58%; /* 上から10%の位置に配置 */
+    left: 50%; /* 左端を画面の中央に配置 */
+    transform: translateX(-50%); /* 水平方向に中央に移動 */
+    white-space: nowrap; /* テキストの折り返しを防ぐ */
+}
+
+  #recordDisplay {
+      position: relative; /* 必須 */
+      z-index: 4; /* 前面に表示 */
+  }
+
+  #customize-level6 {
+      position: absolute; /* 必須 */
+      z-index: 3; /* 背面に表示 */
+  }
+
+#recordList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: right;
+    color: #555;
+    max-height: 0; /* 初期状態で高さ0 */
+    overflow: hidden; /* はみ出した内容を隠す */
+    transition: max-height 0.5s ease; /* アニメーションで展開 */
+}
+
+
+#recordList.show {
+    max-height: 500px; /* 展開後の最大高さを適宜設定 */
+}
+
+
+#congrats-panel button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#congrats-panel button:hover {
+    background-color: #f0f0f0;
+}
+
+
+
+
+
+/*
+.calculation-symbol {
+    margin-top: 0px;
+    margin-right: 0px;
+    margin-bottom: -8%;
+    margin-left: 0px;
+}
+*/
+
+.number-image {
+    height: 15vh;
+    margin-bottom: 0px;
+}
+
+.symbol-image {
+    height: 15vh;
+}
+
+.calculation-symbol {
+  align-self: flex-end;  /* 底面を揃える */
+  margin-bottom: 4%;
+}
+
+
+.number-set {
+    display: flex;
+    flex-direction: row;  /* 横に並べる */
+    align-items: center;
+    justify-content: center;
+    border: 1px solid grey;  /* 灰色の1px枠 */
+    border-radius: 10px;    /* 角を丸く */
+    vertical-align: bottom; /* 底面を揃える */
+    padding: 10px;
+    margin: 10px;
+}
+
+.num-container {
+    position: relative;
+    width: 12vh;   /* 必要に応じて調整 */
+    height: 16vh;  /* 必要に応じて調整 */
+    background-size: cover;  /* 背景画像をカバー */
+    background-position: center;  /* 背景画像を中央に配置 */
+  /*margin: 5 5px; */
+}
+
+.cover-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    display: none;  /* 初期状態で非表示 */
+}
+
+
+
+
+.dot-set{
+  display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+
+
+.num-big-container {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;  /* 底面を揃える */
+    padding: 10px;
+    margin: 10px;
+}
+
+
+/*ドットの配置*/
+.allDots {
+    display: flex;
+    flex-wrap: wrap;        /* 折り返し */
+    justify-content: center;
+    align-items: center;
+}
+
+.dots {
+    font-size: 130%;
+    margin: 3px;/* 各ドットに余白を設定 */
+}
+
+
+
+/* rreturnボタン*/
+.returnButton {
+    position: absolute;
+    bottom: 5px;
+    left: 10px;
+    /*z-index: 1;  ボタンを最前面に配置するための値 */
+    padding: 5px 10px;
+    border-radius: 20px;
+    background-color: #FFC0CB; /* ピンク色 */
+    color: Purple;
+    font-size: 20px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.returnButton:hover {
+    transform: scale(1.1);
+    box-shadow: 6px 6px 7px rgba(0, 0, 0, 0.3);
+}
+
+.returnButton:active {
+    transform: scale(0.9);
+}
+
+/* 汎用ボタン*/
+ .universalButton {
+    /*z-index: 1;  ボタンを最前面に配置するための値 */
+    padding: 5px 10px;
+    border-radius: 20px;
+    background-color: #FFC0CB; /* ピンク色 */
+    color: Purple;
+    font-size: 20px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.universalButton:hover {
+    transform: scale(1.1);
+    box-shadow: 6px 6px 7px rgba(0, 0, 0, 0.3);
+}
+
+.universalButton:active {
+    transform: scale(0.9);
+}
+
+.comment {
+    font-weight: bold;
+}
+
+.help-checkbox {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+}
+
+
+
+@keyframes dropAndShrink {
+    0% {
+        transform: translateY(-50px) scale(3);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.falling-and-shrinking-image {
+    animation: dropAndShrink 0.1s ease-out;
+    width: 12vh;    /* 必要に応じて調整 */
+    height: 16vh;   /* 必要に応じて調整 */
+    position: absolute;   /* 親要素内での位置を調整 */
+}
+
+
+@keyframes spin-and-bounce {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--random-x, 0), var(--random-y, 0)) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+.bouncing-and-spinning-image {
+    animation: spin-and-bounce 0.2s ease-out forwards;
+    transform-origin: center;
+}
+
+
+
+
+.misplaced-image {
+    /* このアニメーションはJavaScriptで動的に追加されます */
+}
+
+
+
+/*的の正解の挙動*/
+@keyframes expand-and-fade {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.expand-and-fade {
+    animation: expand-and-fade 0.8s forwards;
+}
+
+/*的の不正解の挙動*/
+@keyframes fall-and-fade {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+        filter: saturate(100%) brightness(100%);
+    }
+    5% {
+        transform: translateY(0) rotate(-20deg);
+        opacity: 1;
+        filter: saturate(80%) brightness(90%);
+    }
+    30% {
+        transform: translateY(0) rotate(-20deg);
+        opacity: 1;
+        filter: saturate(60%) brightness(80%);
+    }
+    100% {
+        transform: translateY(100px) rotate(-40deg);
+        opacity: 0;
+        filter: saturate(0%) brightness(50%);
+    }
+}
+
+
+.fall-and-fade {
+    animation: fall-and-fade 0.7s forwards;
+}
+
+/*レベル選択ボタン*/
+.level-buttons {
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    display: flex;
+    gap: 5px;
+}
+
+.level-buttons button {
+    padding: 5px 10px;
+}
+
+/*チップ表示*/
+.notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #4caf50; /* 緑色 */
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: 10; /* 他の要素より前面に */
+}
+
+/*残りの問題数*/
+.remaining-problems {
+    position: fixed;
+    top: 30px;
+    left: 3px;
+    color: #2c3e50; /* 濃い青 */
+    padding: 0px 0px;
+    border-radius: 5px;
+    font-size: 20px;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.coin {
+  position: fixed;
+  width: 50px; /* コインの大きさ */
+  z-index: 6; /* 他の要素より前面に */
+  will-change: transform; /* アニメーションのパフォーマンス改善 */
+  /*animation: rotate 0.5s linear infinite;  回転速度を調整してください */
+}
+
+/*ご褒美コインの挙動。*/
+
+
+.reward-coin {
+    z-index: 6;
+}
+
+#deleteModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+
+/*レスキューモーダル
+#rescue {
+    width: 150px;
+    height: 140px;
+    position: fixed;
+    bottom: 40px;
+    right: 0px;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+#rescue:hover {
+    background-color: #0056b3;
+}*/
+
+#rescueModal input[type="range"] {
+    width: 100%;
+}
+
+
+#touchArea {
+    width: 20px;
+    height: 100px;
+    border: 0px solid black;
+    position: absolute;
+    top: 40px;
+    left: 48%;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+
+#feedback {
+    text-align: center;
+    position: absolute;
+    top: 150px;
+    width: 100%;
+}
+
+
+/* 吹き出し設定 */
+#commentArea {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.speech-bubble {
+    position: absolute;
+    width: 300px; /* 吹き出しのサイズを設定 */
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 4;
+    opacity: 1; /* 最初は完全に不透明 */
+    transition: opacity 0.3s ease-out; /* 透明度の変化をアニメーション化 */
+}
+
+.bubble-image {
+    width: 100%; /* 親要素に合わせてサイズ調整 */
+    height: 100%;
+    object-fit: contain; /* アスペクト比を維持しながら全体を表示 */
+    filter: drop-shadow(10px 10px 10px rgba(0,0,0,0.5)); /* 形状に合わせた影を適用 */
+    /*pointer-events: none;        ポインターイベントを無効化し、ドラッグなどを防ぎます */
+}
+
+
+.speech-bubble p {
+    position: absolute;
+    width: 100%; /* コンテナの幅に合わせて広げる */
+    color: black;
+    font-size: 14px;
+    margin: 0;
+    top: 48%; /* 垂直中心に配置 */
+    left: 47%; /* 水平中心に配置 */
+    transform: translate(-50%, -50%);
+    text-align: center; /* テキストを中央揃えにする */
+    z-index: 4;
+}
+
+.unselectable {
+    -webkit-user-select: none;  /* Chrome, Safari, Opera */
+    -moz-user-select: none;     /* Firefox */
+    -ms-user-select: none;      /* Internet Explorer/Edge */
+    user-select: none;          /* 非プレフィックスバージョン、すべてのブラウザに対応 */
+}
+
+
+#masterButton {
+    display: none; /* JavaScriptで制御するためにここでは非表示に設定 */
+    position: fixed; /* 位置を固定 */
+    bottom: 20px; /* 画面の下から20pxの位置に設定 */
+    left: 50%; /* 左端から50%の位置（親要素基準）に設定 */
+    transform: translateX(-50%); /* X軸に対して-50%移動してセンターに来るように調整 */
+    padding: 10px 20px; /* ボタン内のパディング */
+    font-size: 16px; /* フォントサイズ */
+    background-color: #007BFF; /* 背景色 */
+    color: white; /* テキストカラー */
+    border: none; /* ボーダーなし */
+    border-radius: 5px; /* 角丸の設定 */
+    cursor: pointer; /* カーソルをポインターに設定 */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* 影をつける */
+}
+
+footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    padding: 5px 0;
+    background-color: rgba(248, 248, 248, 0.8); /* 半透明の背景色 */
+
+}
+
+footer p {
+    margin: 0;
+    color: gray;
+    font-size: 0.8em; /* 小さい文字 */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* おしゃれなフォント */
+}
+
+#goToSub {
+    position: fixed;
+    right: 5px;
+    bottom: 35px;
+    background-color: rgba(0, 123, 255, 0.7); /* 爽やかな青色、80%の透明度 */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s, transform 0.3s;
+}
+
+#goToSub:hover {
+    background-color: rgba(0, 86, 179, 0.8); /* 少し濃い青色、80%の透明度 */
+    transform: scale(1.05); /* 少し大きく */
+}
+
+#goToSub:active {
+    background-color: rgba(0, 68, 148, 0.8); /* さらに濃い青色、80%の透明度 */
+    transform: scale(0.95); /* 少し小さく */
+}
+
+#goToIndex {
+    position: fixed;
+    right: 5px;
+    bottom: 35px;
+    background-color: rgba(34, 193, 195, 0.7); /* 爽やかな青緑色、70%の透明度 */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s, transform 0.3s;
+}
+
+#goToIndex:hover {
+    background-color: rgba(34, 153, 155, 0.8); /* 少し濃い青緑色、80%の透明度 */
+    transform: scale(1.05); /* 少し大きく */
+}
+
+#goToIndex:active {
+    background-color: rgba(26, 122, 123, 0.8); /* さらに濃い青緑色、80%の透明度 */
+    transform: scale(0.95); /* 少し小さく */
+}

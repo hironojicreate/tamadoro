@@ -1,0 +1,178 @@
+body {
+    background-image: url('/img/keisan_main.jpg');
+    background-size: cover;
+    background-position: center;
+    margin: 0;
+    overflow: hidden;
+    /* スクロールバーが出ないように設定 */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: #333;
+}
+
+h1 {
+    margin-top: 20px;
+    text-align: center;
+    color: #333;
+}
+
+.main-container {
+    position: absolute;
+    top: 46%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: auto;
+    /* 中身にフィット */
+}
+
+.main-container::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    /* コンテナの上部に影を追加 */
+    left: 0;
+    width: 100%;
+    height: 10px;
+    box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+    /* 上部にのみ影を追加 */
+    z-index: -1;
+    /* コンテナの背面に配置 */
+}
+
+
+.button-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    /* 1行に3列 */
+    grid-gap: 10px;
+    /* ボタン間の隙間 */
+    justify-items: center;
+    /* ボタンを中央揃え */
+    align-items: center;
+    /* 縦方向の中央揃え */
+    margin: 20px;
+    /* コンテナ全体の余白 */
+}
+
+
+#goToAdd,
+#goToSub,
+#goToMulti,
+#goToHundredgrid {
+    width: calc(500px * 2 / 5);
+    /* 横幅を3分の2に */
+    height: calc(160px * 2 / 5);
+    /* 縦幅を3分の2に */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-color: transparent;
+    /* 背景を透過 */
+    border: none;
+    margin: 0 20px;
+    cursor: pointer;
+    transition: transform 0.3s, filter 0.3s;
+}
+
+
+#goToAdd {
+    background-image: url('/img/tasizan.png');
+}
+
+#goToSub {
+    background-image: url('/img/hikizan.png');
+}
+
+#goToMulti {
+    background-image: url('/img/kakezan.png');
+}
+
+#goToHundredgrid {
+    background-image: url('/img/hyakutasi.png');
+    /* display: none; 非表示 */
+}
+
+#goToAdd:hover,
+#goToSub:hover,
+#goToMulti:hover,
+#goToHundredgrid:hover {
+    transform: scale(1.1);
+    filter: brightness(1.2);
+}
+
+#instructions {
+    width: 50%;
+    height: 135px;
+    resize: none;
+    margin: 10px 0;
+    padding: 5px;
+    font-size: 13px;
+    line-height: 1.5;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.6);
+    font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+    /* 楽しくなるフォント */
+}
+
+
+/*チップ表示*/
+.notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #4caf50;
+    /* 緑色 */
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: 3;
+    /* 他の要素より前面に */
+}
+
+
+footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    padding: 5px 0;
+    background-color: rgba(248, 248, 248, 0.8);
+}
+
+footer p {
+    margin: 0;
+    color: gray;
+    font-size: 0.8em;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+
+#Disclaimer {
+    position: absolute;
+    bottom: 30px;
+    /* 画面下から30pxの位置に表示 */
+    width: 100%;
+    text-align: center;
+    font-size: 12px;
+    /* 小さめの文字サイズ */
+    color: gray;
+    /* 灰色の文字 */
+    font-family: Arial, sans-serif;
+    /* はっきりとした書体 */
+    padding: 0 10px;
+    /* 左右に少し余白を追加 */
+}
+
+#Disclaimer p {
+    margin: 0;
+}

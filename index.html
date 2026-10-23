@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タマの【けいさん】ドロップス</title>
+    <meta name="description" content="楽しい計算ゲーム。タマと一緒に学びましょう！カラフルドロップを集めて計算マスターだ！">
+    <meta name="keywords" content="たしざん, ひきざん, ゲーム, 教育, 子供, 学習, タマ, 足し算, 引き算">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="canonical" href="https://addsubmaster.web.app/">
+    <link href="style.css?_=<?php echo time(); ?>" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2&display=swap" rel="stylesheet">
+    
+      <link rel="manifest" href="manifest.json">
+    
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/tama_16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/tama_32x32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="/img/tama_48x48.png">
+
+      <!-- 57x57ピクセルのアイコン -->
+      <link rel="apple-touch-icon" sizes="57x57" href="/img/tama_57x57.png">
+      <!-- 72x72ピクセルのアイコン -->
+      <link rel="apple-touch-icon" sizes="72x72" href="/img/tama_72x72.png">
+      <!-- 114x114ピクセルのアイコン -->
+      <link rel="apple-touch-icon" sizes="114x114" href="/img/tama_114x114.png">
+      <!-- 144x144ピクセルのアイコン -->
+      <link rel="apple-touch-icon" sizes="144x144" href="/img/tama_144x144.png">
+      <!-- 152x152ピクセルのアイコン -->
+      <link rel="apple-touch-icon" sizes="152x152" href="/img/tama_152x152.png">
+      <!-- 180x180ピクセルのアイコン -->
+      <link rel="apple-touch-icon" sizes="180x180" href="/img/tama_180x180.png">
+
+
+</head>
+
+<body>
+    <!--<h1>タマの「けいさん」ドロップス</h1>-->
+    <div class="main-container">
+        <div class="button-container">
+            <button id="goToAdd" onclick="location.href='tamaadddrops.html'"></button>
+            <button id="goToSub" onclick="location.href='tamasubdrops.html'"></button>
+            <button id="goToMulti" onclick="location.href='tamamultidrops.html'"></button>
+            <button id="goToHundredgrid" onclick="location.href='tamahundredgrid.html'"></button>
+        </div>
+        <textarea id="instructions" readonly>
+      ・ひきざんのコインが出ないときがあったのを、なおしたよ。2024/11/28
+    　・「百マスたしざん」をもうすぐ公開2024/11/24
+    　・「かけざん」を選べるようになったよ！2024/10/31
+    【セーブとロード】
+    　・あつめたドロップは　けいさんページで セーブできるよ。
+    　・ロードするのは　このページだよ。
+        </textarea>
+    </div>
+    <div id="Disclaimer">
+        <p>【WEBアプリの扱い】本WEBアプリは個人データを収集しません。予告なく改良、提供終了を行います。<br>データの消失について責任をもてません。データ強制復元は保存復元ボタンより/rescueを実行してください。</p>
+    </div>
+    
+
+    <!-- データ管理モーダル -->
+    <div id="dataModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2;"></div>
+    <div id="dataModal" style="display:none; position: fixed; bottom: 10px; right: 10px; background: white; padding: 20px; z-index:3;">
+        <div style="text-align: center;">
+            <h2>★おとなのひとに やりかたをきいてください★</h2>
+            <p>ゲットしたドロップのまいすうを、
+            <br>セーブ（ほぞん）したり、ロード（よみこみ）したりします。
+            <br>セーブファイルは、tashizan_d_すうじ.txtです。
+            <br><b>※データは端末本体に保存されます。</b>
+            <br>※各計算ページからもセーブ機能できます。</p>
+            <button id="exportData">データをセーブ</button>
+            <input type="file" id="fileInput" style="display: none;">
+            <button id="importData">データをロード</button>
+            　<!--　←スペース在るよ　-->
+            <button onclick="closeDataModal();">とじる</button>
+        </div>
+    </div>
+
+    <!-- 保存・復元ボタン -->
+    <button id="openDataModal" onclick="openDataModal();" style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer;z-index:1;"">ドロップのセーブ/ロード</button>
+
+    <div id="notification" class="notification"></div>
+
+
+    <footer>
+        <p>&copy; 2024 Kitaha R. All rights reserved. 
+            <span id="version" style="cursor: pointer; text-decoration: underline;">Ver.4.0.1</span>
+        </p>
+    </footer>
+
+    <!-- フルスクリーンモードの判定スクリプト -->
+    <script src="main.js?version=20230329"></script> 
+    
+    <script>
+        function isStandaloneMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('shortcut') === 'true';
+        }
+
+        if (isStandaloneMode()) {
+            document.body.classList.add('standalone');
+        }
+  
+    </script>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-analytics.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+            apiKey: "AIzaSyCVhChrniYZr8Rz-GzFFI9Hj4KjmYmCOcQ",
+            authDomain: "addsubmaster.firebaseapp.com",
+            projectId: "addsubmaster",
+            storageBucket: "addsubmaster.appspot.com",
+            messagingSenderId: "1057942714184",
+            appId: "1:1057942714184:web:53fc321db3dac1e72aa57d",
+            measurementId: "G-H69CZ1LN6B"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+    </script>
+
+</body>
+
+</html>
