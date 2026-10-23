@@ -4,7 +4,7 @@
             const hiddenButton = document.getElementById("goToHundredgrid");
 
             // 現在の表示状態を取得し、切り替える
-            if (hiddenButton.style.display === "none" || hiddenButton.style.display === "") {
+            if (getComputedStyle(hiddenButton).display === "none") {
                 hiddenButton.style.display = "block"; // 表示
             } else {
                 hiddenButton.style.display = "none"; // 非表示

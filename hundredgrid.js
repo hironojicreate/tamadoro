@@ -130,23 +130,17 @@ async function createTable(level) {
     const rowLabels = getUniqueOrRepeatedNumbers(min, max, rows);
 
     // **レベル5が選ばれた場合にJSONファイルを参照**
-    let selectedPattern = null;
+    // イラストが読み込めなかったときは、イラストなしの百マスとして続ける
+    window.patternArray = null;
     if (level === 5) {
-        selectedPattern = await PatternManager.selectPatternForLevel5(); // 修正ポイント
-        if (!selectedPattern) {
-            console.error('Selected pattern is invalid:', selectedPattern);
-            return; // パターンが無効な場合は処理を中断
+        const selectedPattern = await PatternManager.selectPatternForLevel5();
+        // 動的にキーを取得してパターン部分を参照（{ pattern3: [...] } の配列部分）
+        const patternArray = selectedPattern ? Object.values(selectedPattern)[0] : null;
+        if (Array.isArray(patternArray) && patternArray.length > 0) {
+            window.patternArray = patternArray;
+        } else {
+            console.error('イラストのパターンを読み込めませんでした。');
         }
-
-        // 動的にキーを取得してパターン部分を参照
-        const patternArray = Object.values(selectedPattern)[0]; // `pattern3` の配列部分を取得
-        if (!Array.isArray(patternArray) || patternArray.length === 0) {
-            console.error('Invalid pattern array:', patternArray);
-            return; // パターンが配列でない場合は中断
-        }
-
-        // patternArray をグローバルに定義する場合（必要に応じて）
-        window.patternArray = patternArray;
     }
 
     // 正解を保存する変数（初期値は null）
@@ -215,8 +209,11 @@ function onCorrectAnswer(row, col) {
     const adjustedRow = row - 1;
     const adjustedCol = col - 1;
 
+    if (!window.patternArray) {
+        return; // イラストなし
+    }
+
     if (
-        !window.patternArray ||
         adjustedRow < 0 || adjustedRow >= patternArray.length ||
         adjustedCol < 0 || adjustedCol >= patternArray[adjustedRow]?.length
     ) {
@@ -236,64 +233,47 @@ function onCorrectAnswer(row, col) {
 
 
 const PatternManager = (function () {
-    let patternData = null; // パターンデータを格納
-    let isDataLoaded = false; // データが読み込まれたかを追跡
+    let loading = null; // 読み込み中／読み込み済みの Promise
     let usedPatterns = []; // 使用済みのパターンを追跡
 
-    // JSONデータを非同期で読み込む関数
-    async function loadPatterns() {
-        if (isDataLoaded) {
-            console.log('Pattern data is already loaded.');
-            return; // データが既にロード済みなら再ロードしない
+    // JSONデータを読み込む（何度呼んでも読み込みは1回。失敗したら null を返し、次回また試す）
+    function loadPatterns() {
+        if (!loading) {
+            loading = fetch('/illustration_patterns.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to load pattern data: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => data.patterns)
+                .catch(error => {
+                    console.error('Error loading pattern data:', error);
+                    loading = null;
+                    return null;
+                });
         }
-        try {
-            const response = await fetch('/illustration_patterns.json');
-            if (!response.ok) {
-                throw new Error(`Failed to load pattern data: ${response.status}`);
-            }
-            const data = await response.json();
-            patternData = data.patterns; // パターンデータを格納
-            isDataLoaded = true; // ロード完了フラグを設定
-            console.log('Pattern data loaded successfully.');
-        } catch (error) {
-            console.error('Error loading pattern data:', error);
-            patternData = null; // 読み込み失敗時はnull
-            isDataLoaded = false;
-        }
+        return loading;
     }
 
-    // パターンデータのロード完了を待機する関数
-    async function waitForPatterns() {
-        if (isDataLoaded) {
-            return patternData; // 既にロード済みの場合は即座にデータを返す
-        }
-        while (!isDataLoaded) {
-            await new Promise(resolve => setTimeout(resolve, 50)); // 50msごとに確認
-        }
-        return patternData;
-    }
-
-    // レベル5用のパターンをランダムに選択する関数
+    // レベル5用のパターンをランダムに選択する（読み込めなかったときは null）
     async function selectPatternForLevel5() {
-        const data = await waitForPatterns(); // データのロード完了を待機
-        if (!data) {
-            throw new Error('Pattern data is not available.');
+        const data = await loadPatterns();
+        if (!data || data.length === 0) {
+            return null;
         }
 
-        // 使用済みでないパターンを取得
-        const unusedPatterns = data.filter(pattern => !usedPatterns.includes(pattern));
-
-        // すべてのパターンが使用済みの場合、リセットして再選択
+        // 使用済みでないパターンを取得。すべて使用済みならリセット
+        let unusedPatterns = data.filter(pattern => !usedPatterns.includes(pattern));
         if (unusedPatterns.length === 0) {
-            console.log('All patterns used. Resetting used patterns.');
             usedPatterns = [];
-            return selectPatternForLevel5();
+            unusedPatterns = data;
         }
 
         // ランダムに未使用のパターンを選択
         const selectedPattern = unusedPatterns[Math.floor(Math.random() * unusedPatterns.length)];
         usedPatterns.push(selectedPattern); // 使用済みに追加
-        return selectedPattern; // 選択されたパターンを返す
+        return selectedPattern;
     }
 
     return {
@@ -302,10 +282,8 @@ const PatternManager = (function () {
     };
 })();
 
-// ページ読み込み時にパターンをロード
-window.onload = async function () {
-    await PatternManager.loadPatterns(); // 非同期でパターンをロード
-};
+// ページ読み込み時にパターンを先読み
+PatternManager.loadPatterns();
 
 
 
@@ -313,12 +291,7 @@ window.onload = async function () {
 async function startLevel(level) {
     toggleKeypad(false);
     resetProblemCorrectCount(); // 問題単位の正答数をリセット
-
-    // JSONデータの読み込みが完了するのを確認
-    if (level === 5 && (!window.patternData || !Array.isArray(window.patternData.patterns))) {
-        console.log('Pattern data not loaded yet. Waiting for load to complete...');
-    await PatternManager.loadPatterns(); // パターンデータをロード
-    }
+    partialInput = ""; // 2けた入力の途中状態をリセット
 
     if (level === 6) {
         unlockSliders(); // スライダーをunlock
@@ -593,18 +566,6 @@ function resetProblemCorrectCount() {
     updateCorrectAnswerDisplay(); // 表示を更新
 }
 
-// 問題の生成時に呼び出す
-function generateNewProblem(level) {
-    resetProblemCorrectCount(); // 問題単位の正答数をリセット
-    const config = getTableConfig(correctAnswerCount); // 次のレベルの閾値を再取得
-    createTable(level); // 新しいテーブルを生成
-    setCursorAfterTableReady(); // カーソルを設定
-}
-
-
-
-
-
 function updateHelpCheckboxVisibility(level) {
     const helpCheckboxDiv = document.querySelector('.help-checkbox');
     if (!helpCheckboxDiv) return;  // チェックボックスのdivが存在しない場合は何もしない
@@ -635,7 +596,6 @@ function showModal(level) {
     const modalTitle = document.getElementById('modalTitle');
     const clearTimeElement = document.getElementById('clearTime');
     const bestTimeElement = document.getElementById('bestTime');
-    const bestTime = getBestTime(level); // 秒単位の最高記録を取得
     let rewardGenerated = false; // ご褒美コインが生成されたかのフラグ
 
     // クリアタイムの設定
@@ -655,7 +615,8 @@ function showModal(level) {
         clearTimeElement.textContent = `クリアタイム ：きろくはありません。`;
     }
 
-    // 最高記録の表示（「分：秒」にフォーマットして表示）
+    // 最高記録の表示（今回の記録を保存した後に取得する）
+    const bestTime = getBestTime(level); // 秒単位の最高記録を取得
     bestTimeElement.textContent = bestTime !== null
         ? `これまでのさいこうは ${formatMilliseconds(bestTime * 1000)}`
         : `これまでのさいこうは --:--`;
@@ -693,6 +654,8 @@ function retryLevel(level) {
     if (table) table.innerHTML = '';
 
     currentCellIndex = { row: 1, col: 1 }; // カーソル位置をリセット
+    partialInput = ""; // 2けた入力の途中状態をリセット
+    resetLineHighlight();
     createTable(problemState.level); // テーブルを生成
     //setTimeout(() => {
         //setCursorOnFirstCell(); // 適切なタイミングでカーソルを設定
@@ -860,40 +823,6 @@ document.getElementById("toggleRecordList").addEventListener("click", function()
 
 
 
-
-//問題自由生成
-document.addEventListener('DOMContentLoaded', () => {
-    const rowsSlider = document.getElementById('custom-rows');
-    const colsSlider = document.getElementById('custom-cols');
-    const minSlider = document.getElementById('custom-min');
-    const maxSlider = document.getElementById('custom-max');
-
-    const rowsValue = document.getElementById('rows-value');
-    const colsValue = document.getElementById('cols-value');
-    const minValue = document.getElementById('min-value');
-    const maxValue = document.getElementById('max-value');
-
-    // スライダーの値をリアルタイムに表示
-    const updateValueDisplay = (slider, display) => {
-        display.textContent = slider.value;
-    };
-
-    // スライダーのイベントリスナーを設定
-    rowsSlider.addEventListener('input', () => updateValueDisplay(rowsSlider, rowsValue));
-    colsSlider.addEventListener('input', () => updateValueDisplay(colsSlider, colsValue));
-    minSlider.addEventListener('input', () => {
-        if (parseInt(minSlider.value, 10) >= parseInt(maxSlider.value, 10)) {
-            minSlider.value = maxSlider.value - 1; // max より小さい値に調整
-        }
-        updateValueDisplay(minSlider, minValue);
-    });
-    maxSlider.addEventListener('input', () => {
-        if (parseInt(maxSlider.value, 10) <= parseInt(minSlider.value, 10)) {
-            maxSlider.value = parseInt(minSlider.value, 10) + 1; // min より大きい値に調整
-        }
-        updateValueDisplay(maxSlider, maxValue);
-    });
-});
 
 //レベル6動的生成
 document.addEventListener('DOMContentLoaded', () => {

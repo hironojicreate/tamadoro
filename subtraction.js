@@ -193,7 +193,7 @@ function getPatternsForLevel(level) {
             return generateSubtractionPatternsB();
         case 4:
             return generateSubtractionPatternsC();
-        case 5:// 答えが1~5まで
+        case 5:// 答えが1~4まで
             return generateSubtractionPatternsD(4);
         case 6:
             return generateSubtractionPatternsD(9);
@@ -438,6 +438,7 @@ function startLevel(level) {
     problemState.level = level;  // レベルを設定
     problemState.correctStreak = 0;
     problemState.mistakeCount = 0;
+    problemState.mistakes = []; // 前回の間違いリストを持ち越さない
     problemState.remainingQuestions = 0;
     problemState.howManyOriginalProblems = 0;
     problemState.useExistingCoins = 0;

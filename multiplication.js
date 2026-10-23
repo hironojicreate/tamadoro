@@ -368,6 +368,7 @@ function startLevel(level) {
     problemState.level = level;  // レベルを設定
     problemState.correctStreak = 0;
     problemState.mistakeCount = 0;
+    problemState.mistakes = []; // 前回の間違いリストを持ち越さない
     problemState.remainingQuestions = 0;
     problemState.howManyOriginalProblems = 0;
     problemState.useExistingCoins = 0;

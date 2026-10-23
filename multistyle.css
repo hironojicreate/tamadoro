@@ -18,7 +18,7 @@ h1 {
 
 /* オープニングスクリーンのスタイル設定 */
 #openingScreen {
-    background-image: url('img/kakedoro.png');
+    background-image: url('img/kakedoro.webp');
     background-size: cover; /* 画面全体にフィット */
     background-position: top;
     background-repeat: no-repeat;

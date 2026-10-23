@@ -22,26 +22,26 @@ fetch('/se/seSelect.mp3')
     });
 
 // ボタンが押されたときの処理を行う関数
-
 function handleButtonPress(button) {
+    // 問題画面（テンキー）が表示されていないときは、物理キーボードの入力も受け付けない
+    if (document.getElementById('keypadScreen').style.display === 'none') {
+        return;
+    }
+
     const value = button.getAttribute('data-value');
-    console.log(value); // テスト用にコンソールに出力
 
     playSound(); // 音を再生
 
+    dispatchButtonPress(value);
+}
+
+// モードに応じて入力処理を振り分ける
+function dispatchButtonPress(value) {
     const mode = document.body.getAttribute('data-mode');
-    if (mode === 'addition') {
-        // 足し算の時
-        processButtonPress(value);
-    } else if (mode === 'subtraction') {
-        // 引き算の時
-        subProcessButtonPress(value);
-    } else if (mode === 'multiplication') {
-        // 掛け算の時
-        multiProcessButtonPress(value);
-    } else if (mode === 'hundredgrid') {
-        // 掛け算の時
+    if (mode === 'hundredgrid') {
         hundredgridProcessButtonPress(value);
+    } else if (MODE_RULES[mode]) {
+        processButtonPress(value, MODE_RULES[mode]);
     }
 }
 
@@ -51,15 +51,50 @@ let pressCount = 0;
 
 function toggleKeypad(enabled) {
     problemState.keypadEnabled = enabled;
-    const buttons = document.querySelectorAll('.numeric-keypad-button');
+    const buttons = document.querySelectorAll('#keypadScreen .num');
     buttons.forEach(button => {
         button.disabled = !enabled;
     });
 }
 
 
-//足し算用そのまま。
-function processButtonPress(value) {
+// たしざん・ひきざん・かけざんの違い
+//   symbol: 間違いリストに表示する記号
+//   maxMistakes: この回数まちがえるとミスモーダル
+//   decomposeLevels: 「5は 2と ？」形式のレベル
+//   perfectClear: ノーミスでクリアしたときの特別演出（レベル: { 投げるコイン数, 立てるフラグ }）
+const MODE_RULES = {
+    addition: {
+        symbol: '+',
+        maxMistakes: 5,
+        decomposeLevels: [1, 6],
+        perfectClear: {
+            10: { coins: 1, flag: 'lvTenClear' },
+            11: { coins: 10, flag: 'lvElevenClear' }
+        }
+    },
+    subtraction: {
+        symbol: '-',
+        maxMistakes: 5,
+        decomposeLevels: [],
+        perfectClear: {
+            10: { coins: 1, flag: 'lvTenClear' },
+            11: { coins: 10, flag: 'lvElevenClear' }
+        }
+    },
+    multiplication: {
+        symbol: '×',
+        maxMistakes: 3,
+        decomposeLevels: [],
+        perfectClear: {
+            28: { coins: 20, flag: 'lvTenClear' }
+        }
+    }
+};
+
+
+// たしざん・ひきざん・かけざん共通の入力処理
+function processButtonPress(value, rules) {
     if (!problemState.keypadEnabled) {
         return;
     }
@@ -68,27 +103,32 @@ function processButtonPress(value) {
     const c1Rect = coordinates.c1;
     const c2Rect = coordinates.c2;
     const tens = problemState.tens;
-    let correctAnswer = problemState.answer;
+    const correctAnswer = problemState.answer;
 
     function checkAnswer(value, correctAnswer) {
         return parseInt(value) === correctAnswer;
     }
 
+    // 間違えた問題を記録（answerText は子どもが入力した答え）
+    function recordMistake(answerText) {
+        const { a, b } = problemState.currentProblem;
+        const problem = rules.decomposeLevels.includes(problemState.level)
+            ? `${a} は ${b} と ${answerText} `
+            : `${a} ${rules.symbol} ${b} = ${answerText}`;
+        problemState.mistakes.push({ problem, correctAnswer });
+    }
+
     function handleCorrect(isCorrect) {
-        console.log(`Current mistake count: ${problemState.mistakeCount}`);
         if (isCorrect) {
             // 間違いがなかった場合のみ、正答の連続カウントを進める
             if (!problemState.mistakeMade) {
                 problemState.correctStreak++;
+                const perfect = rules.perfectClear[problemState.level];
                 // 特定の条件で特別なコイン投げ
-                if (problemState.level === 10 && problemState.howManyOriginalProblems === problemState.correctStreak) {
-                    throwCoin(problemState.level, true, 300, 1);
-                    problemState.lvTenClear = true;
-                    problemState.useExistingCoins = 10;
-                } else if (problemState.level === 11 && problemState.howManyOriginalProblems === problemState.correctStreak) {
-                    throwCoin(problemState.level, true, 300, 10);
-                    problemState.lvElevenClear = true;
-                    problemState.useExistingCoins = 11;
+                if (perfect && problemState.howManyOriginalProblems === problemState.correctStreak) {
+                    throwCoin(problemState.level, true, 300, perfect.coins);
+                    problemState[perfect.flag] = true;
+                    problemState.useExistingCoins = problemState.level;
                 } else if (problemState.correctStreak % 5 === 0) {
                     throwCoin(problemState.level, true, 50, 1);  // 5の倍数ごとに特別なコインを投げる
                 } else {
@@ -105,9 +145,10 @@ function processButtonPress(value) {
             problemState.mistakeMade = false;
         } else {
             problemState.mistakeMade = true;  // 間違えた場合はフラグをセット
+            problemState.mistakeCount += 1;
             problemState.correctStreak = 0;  // ストリークをリセット
-            if (problemState.mistakeCount >= 5) {
-                showMistakeModal(problemState.level);  // 間違いが5回に達したらモーダルを表示
+            if (problemState.mistakeCount >= rules.maxMistakes) {
+                showMistakeModal(problemState.level);  // 間違いが上限に達したらモーダルを表示
                 toggleKeypad(false);
                 problemState.mistakeCount = 0;  // カウンターをリセット
                 pressCount = 0;
@@ -118,15 +159,18 @@ function processButtonPress(value) {
 
     if (tens > 0) {
         if (pressCount === 0 && c1Rect) {
+            // 十の位
             const isCorrect = checkAnswer(value, Math.floor(correctAnswer / 10));
             shootAtTarget(c1Rect, value, isCorrect);
             if (isCorrect) {
                 enlargeAndFadeImage(problemState.coverIds.c1cover);
                 pressCount += 1;
-            }else {
-                problemState.mistakeMade = true;
+            } else {
+                recordMistake(`${value}□`);
+                handleCorrect(false);
             }
         } else if (pressCount === 1 && c2Rect) {
+            // 一の位
             const isCorrect = checkAnswer(value, correctAnswer % 10);
             shootAtTarget(c2Rect, value, isCorrect);
             if (isCorrect) {
@@ -134,22 +178,7 @@ function processButtonPress(value) {
                 pressCount = 0;
                 handleCorrect(true);
             } else {
-                problemState.mistakeMade = true;
-                problemState.mistakeCount += 1;
-                // 間違えた問題を記録
-                if (problemState.level === 1 || problemState.level === 6) {
-                    // レベル1と6の場合の特別なフォーマット
-                    problemState.mistakes.push({
-                        problem: `${problemState.currentProblem.a} は ${problemState.currentProblem.b} と ${value} `,
-                        correctAnswer: problemState.answer
-                    });
-                } else {
-                    // その他のレベルでの標準フォーマット
-                    problemState.mistakes.push({
-                        problem: `${problemState.currentProblem.a} + ${problemState.currentProblem.b} = ${value}`,
-                        correctAnswer: problemState.answer
-                    });
-                }
+                recordMistake(`${Math.floor(correctAnswer / 10)}${value}`);
                 handleCorrect(false);
             }
         }
@@ -160,265 +189,7 @@ function processButtonPress(value) {
             enlargeAndFadeImage(problemState.coverIds.c2cover);
             handleCorrect(true);
         } else {
-            problemState.mistakeMade = true;
-            problemState.mistakeCount += 1;
-            // 間違えた問題を記録
-            if (problemState.level === 1 || problemState.level === 6) {
-                // レベル1と6の場合の特別なフォーマット
-                problemState.mistakes.push({
-                    problem: `${problemState.currentProblem.a} は ${problemState.currentProblem.b} と ${value} `,
-                    correctAnswer: problemState.answer
-                });
-            } else {
-                // その他のレベルでの標準フォーマット
-                problemState.mistakes.push({
-                    problem: `${problemState.currentProblem.a} + ${problemState.currentProblem.b} = ${value}`,
-                    correctAnswer: problemState.answer
-                });
-            }
-            handleCorrect(false);
-        }
-    }
-}
-
-
-//引き算用。足し算からの流用。
-function subProcessButtonPress(value) {
-    if (!problemState.keypadEnabled) {
-        return;
-    }
-
-    const coordinates = getCoordinates();
-    const c1Rect = coordinates.c1;
-    const c2Rect = coordinates.c2;
-    const tens = problemState.tens;
-    let correctAnswer = problemState.answer;
-
-    function checkAnswer(value, correctAnswer) {
-        return parseInt(value) === correctAnswer;
-    }
-
-    function handleCorrect(isCorrect) {
-        console.log(`Current mistake count: ${problemState.mistakeCount}`);
-        if (isCorrect) {
-            // 間違いがなかった場合のみ、正答の連続カウントを進める
-            if (!problemState.mistakeMade) {
-                problemState.correctStreak++;
-                // 特定の条件で特別なコイン投げ
-                if (problemState.level === 10 && problemState.howManyOriginalProblems === problemState.correctStreak) {
-                    throwCoin(problemState.level, true, 300, 1);
-                    problemState.lvTenClear = true;
-                    problemState.useExistingCoins = 10;
-                } else if (problemState.level === 11 && problemState.howManyOriginalProblems === problemState.correctStreak) {
-                    throwCoin(problemState.level, true, 300, 10);
-                    problemState.lvElevenClear = true;
-                    problemState.useExistingCoins = 11;
-                } else if (problemState.correctStreak % 5 === 0) {
-                    throwCoin(problemState.level, true, 50, 1);  // 5の倍数ごとに特別なコインを投げる
-                } else {
-                    throwCoin(problemState.level, false, 50, 1);  // 通常のコインを投げる
-                }
-            }
-            toggleKeypad(false);
-            setTimeout(() => {
-                generateLvProblem(problemState.level);  // 新しい問題を生成
-                pressCount = 0;
-                toggleKeypad(true);
-            }, 750);
-            // 次の問題に進む前にフラグをリセット
-            problemState.mistakeMade = false;
-        } else {
-            problemState.mistakeMade = true;  // 間違えた場合はフラグをセット
-            problemState.correctStreak = 0;  // ストリークをリセット
-            if (problemState.mistakeCount >= 5) {
-                showMistakeModal(problemState.level);  // 間違いが5回に達したらモーダルを表示
-                toggleKeypad(false);
-                problemState.mistakeCount = 0;  // カウンターをリセット
-                pressCount = 0;
-            }
-        }
-    }
-
-
-    if (tens > 0) {
-        if (pressCount === 0 && c1Rect) {
-            const isCorrect = checkAnswer(value, Math.floor(correctAnswer / 10));
-            shootAtTarget(c1Rect, value, isCorrect);
-            if (isCorrect) {
-                enlargeAndFadeImage(problemState.coverIds.c1cover);
-                pressCount += 1;
-            }else {
-                problemState.mistakeMade = true;
-            }
-        } else if (pressCount === 1 && c2Rect) {
-            const isCorrect = checkAnswer(value, correctAnswer % 10);
-            shootAtTarget(c2Rect, value, isCorrect);
-            if (isCorrect) {
-                enlargeAndFadeImage(problemState.coverIds.c2cover);
-                pressCount = 0;
-                handleCorrect(true);
-            } else {
-                problemState.mistakeMade = true;
-                problemState.mistakeCount += 1;
-                // 間違えた問題を記録
-                if (problemState.level === 1 || problemState.level === 6) {
-                    // レベル1と6の場合の特別なフォーマット
-                    problemState.mistakes.push({
-                        problem: `${problemState.currentProblem.a} は ${problemState.currentProblem.b} と ${value} `,
-                        correctAnswer: problemState.answer
-                    });
-                } else {
-                    // その他のレベルでの標準フォーマット
-                    problemState.mistakes.push({
-                        problem: `${problemState.currentProblem.a} - ${problemState.currentProblem.b} = ${value}`,
-                        correctAnswer: problemState.answer
-                    });
-                }
-                handleCorrect(false);
-            }
-        }
-    } else if (c2Rect) {
-        const isCorrect = checkAnswer(value, correctAnswer);
-        shootAtTarget(c2Rect, value, isCorrect);
-        if (isCorrect) {
-            enlargeAndFadeImage(problemState.coverIds.c2cover);
-            handleCorrect(true);
-        } else {
-            problemState.mistakeMade = true;
-            problemState.mistakeCount += 1;
-            // 間違えた問題を記録
-            if (problemState.level === 1 || problemState.level === 6) {
-                // レベル1と6の場合の特別なフォーマット
-                problemState.mistakes.push({
-                    problem: `${problemState.currentProblem.a} は ${problemState.currentProblem.b} と ${value} `,
-                    correctAnswer: problemState.answer
-                });
-            } else {
-                // その他のレベルでの標準フォーマット
-                problemState.mistakes.push({
-                    problem: `${problemState.currentProblem.a} - ${problemState.currentProblem.b} = ${value}`,
-                    correctAnswer: problemState.answer
-                });
-            }
-            handleCorrect(false);
-        }
-    }
-}
-
-//かけ算用　足し算から引用。
-function multiProcessButtonPress(value) {
-    if (!problemState.keypadEnabled) {
-        return;
-    }
-
-    const coordinates = getCoordinates();
-    const c1Rect = coordinates.c1;
-    const c2Rect = coordinates.c2;
-    const tens = problemState.tens;
-    let correctAnswer = problemState.answer;
-
-    function checkAnswer(value, correctAnswer) {
-        return parseInt(value) === correctAnswer;
-    }
-
-    function handleCorrect(isCorrect) {
-        console.log(`Current mistake count: ${problemState.mistakeCount}`);
-        if (isCorrect) {
-            // 間違いがなかった場合のみ、正答の連続カウントを進める
-            if (!problemState.mistakeMade) {
-                problemState.correctStreak++;
-                // 特定の条件で特別なコイン投げ
-                if (problemState.level === 28 && problemState.howManyOriginalProblems === problemState.correctStreak) {
-                    throwCoin(problemState.level, true, 300, 20);// 20枚投げる
-                    problemState.lvTenClear = true;
-                    problemState.useExistingCoins = 28;
-                } else if (problemState.correctStreak % 5 === 0) {
-                    throwCoin(problemState.level, true, 50, 1);  // 5の倍数ごとに特別なコインを投げる
-                } else {
-                    throwCoin(problemState.level, false, 50, 1);  // 通常のコインを投げる
-                }
-            }
-            toggleKeypad(false);
-            setTimeout(() => {
-                generateLvProblem(problemState.level);  // 新しい問題を生成
-                pressCount = 0;
-                toggleKeypad(true);
-            }, 750);
-            // 次の問題に進む前にフラグをリセット
-            problemState.mistakeMade = false;
-        } else {
-            problemState.mistakeMade = true;  // 間違えた場合はフラグをセット
-            problemState.correctStreak = 0;  // ストリークをリセット
-            if (problemState.mistakeCount >= 3) {
-                showMistakeModal(problemState.level);  // 間違いが3回に達したらモーダルを表示
-                toggleKeypad(false);
-                problemState.mistakeCount = 0;  // カウンターをリセット
-                pressCount = 0;
-            }
-        }
-    }
-
-
-    if (tens > 0) {
-        if (pressCount === 0 && c1Rect) {
-            const isCorrect = checkAnswer(value, Math.floor(correctAnswer / 10));
-            shootAtTarget(c1Rect, value, isCorrect);
-            if (isCorrect) {
-                enlargeAndFadeImage(problemState.coverIds.c1cover);
-                pressCount += 1;
-            }else {
-                problemState.mistakeMade = true;
-            }
-        } else if (pressCount === 1 && c2Rect) {
-            const isCorrect = checkAnswer(value, correctAnswer % 10);
-            shootAtTarget(c2Rect, value, isCorrect);
-            if (isCorrect) {
-                enlargeAndFadeImage(problemState.coverIds.c2cover);
-                pressCount = 0;
-                handleCorrect(true);
-            } else {
-                problemState.mistakeMade = true;
-                problemState.mistakeCount += 1;
-                // 間違えた問題を記録
-                //if (problemState.level === 1 || problemState.level === 6) {
-                    // レベル1と6の場合の特別なフォーマット
-                    //problemState.mistakes.push({
-                        //problem: `${problemState.currentProblem.a} は ${problemState.currentProblem.b} と ${value} `,
-                        //correctAnswer: problemState.answer
-                    //});
-                //} else {
-                    // その他のレベルでの標準フォーマット
-                    problemState.mistakes.push({
-                        problem: `${problemState.currentProblem.a} × ${problemState.currentProblem.b} = ${value}`,
-                        correctAnswer: problemState.answer
-                    });
-                //}
-                handleCorrect(false);
-            }
-        }
-    } else if (c2Rect) {
-        const isCorrect = checkAnswer(value, correctAnswer);
-        shootAtTarget(c2Rect, value, isCorrect);
-        if (isCorrect) {
-            enlargeAndFadeImage(problemState.coverIds.c2cover);
-            handleCorrect(true);
-        } else {
-            problemState.mistakeMade = true;
-            problemState.mistakeCount += 1;
-            // 間違えた問題を記録
-            //if (problemState.level === 1 || problemState.level === 6) {
-                // レベル1と6の場合の特別なフォーマット
-                //problemState.mistakes.push({
-                    //problem: `${problemState.currentProblem.a} は ${problemState.currentProblem.b} と ${value} `,
-                    //correctAnswer: problemState.answer
-                //});
-            //} else {
-                // その他のレベルでの標準フォーマット
-                problemState.mistakes.push({
-                    problem: `${problemState.currentProblem.a} × ${problemState.currentProblem.b} = ${value}`,
-                    correctAnswer: problemState.answer
-                });
-            //}
+            recordMistake(value);
             handleCorrect(false);
         }
     }
@@ -691,37 +462,13 @@ function pressMasterButton() {
     }
 
     if (answer < 10) {
-        if (mode === 'addition') {
-            processButtonPress(answer.toString());
-        } else if (mode === 'subtraction') {
-            subProcessButtonPress(answer.toString());
-        } else if (mode === 'multiplication') {
-            multiProcessButtonPress(answer.toString());
-        } else if (mode === 'hundredgrid') {
-            hundredgridProcessButtonPress(answer.toString());
-        }
+        dispatchButtonPress(answer.toString());
     } else {
         const tens = Math.floor(answer / 10);
         const ones = answer % 10;
-        if (mode === 'addition') {
-            processButtonPress(tens.toString());
-        } else if (mode === 'subtraction') {
-            subProcessButtonPress(tens.toString());
-        } else if (mode === 'multiplication') {
-            multiProcessButtonPress(tens.toString());
-        } else if (mode === 'hundredgrid') {
-            hundredgridProcessButtonPress(tens.toString());
-        }
+        dispatchButtonPress(tens.toString());
         setTimeout(() => {
-            if (mode === 'addition') {
-                processButtonPress(ones.toString());
-            } else if (mode === 'subtraction') {
-                subProcessButtonPress(ones.toString());
-            } else if (mode === 'multiplication') {
-                multiProcessButtonPress(ones.toString());
-            } else if (mode === 'hundredgrid') {
-                hundredgridProcessButtonPress(ones.toString());
-            }
+            dispatchButtonPress(ones.toString());
         }, 100);
     }
 

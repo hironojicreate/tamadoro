@@ -217,15 +217,15 @@ function enableDrag(coin) {
     function startDrag(event) {
         event.preventDefault(); // ブラウザのデフォルト動作を抑制
 
-        let clientX = event.clientX || event.touches[0].clientX;
-        let clientY = event.clientY || event.touches[0].clientY;
+        let clientX = event.touches ? event.touches[0].clientX : event.clientX;
+        let clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
         offsetX = clientX - coin.getBoundingClientRect().left;
         offsetY = clientY - coin.getBoundingClientRect().top;
 
         function onMove(eventMove) {
-            let moveX = eventMove.clientX || eventMove.touches[0].clientX;
-            let moveY = eventMove.clientY || eventMove.touches[0].clientY;
+            let moveX = eventMove.touches ? eventMove.touches[0].clientX : eventMove.clientX;
+            let moveY = eventMove.touches ? eventMove.touches[0].clientY : eventMove.clientY;
 
             coin.style.left = `${moveX - offsetX}px`;
             coin.style.top = `${moveY - offsetY}px`;
@@ -783,7 +783,7 @@ function restoreLevels() {
 
     // チェックされている段に対応するレベルにコインを設定
     for (let i = 1; i <= 9; i++) {
-        const checkbox = document.getElementById(`level${i}`);
+        const checkbox = document.getElementById(`rescueDan${i}`);
 
         if (checkbox && checkbox.checked) {
             const levelsToUnlock = levelMapping[i];
@@ -808,7 +808,7 @@ function restoreLevels() {
 // すべてのチェックボックスの状態をリセットする関数
 function resetCheckboxes() {
     for (let i = 1; i <= 9; i++) {
-        const checkbox = document.getElementById(`level${i}`);
+        const checkbox = document.getElementById(`rescueDan${i}`);
         if (checkbox) {
             checkbox.checked = false;
         }
@@ -1034,7 +1034,7 @@ async function displayCachedMessage(moveCount) {
         if (specialMessageLv10) {
             displayComment(specialMessageLv10.areaType, specialMessageLv10.imageSize, specialMessageLv10.text);
             //problemState.useExistingCoins = true;
-            throwCoin(10, special = false, coinSize = 60, howManyCoins = 1, problemState.useExistingCoins);
+            throwCoin(10, false, 60, 1, problemState.useExistingCoins);
             problemState.lvTenClear = false;  // Stateをリセット
             return;  // 処理をここで終了
         }
@@ -1047,7 +1047,7 @@ async function displayCachedMessage(moveCount) {
         if (specialMessageLv11) {
             displayComment(specialMessageLv11.areaType, specialMessageLv11.imageSize, specialMessageLv11.text);
             //problemState.useExistingCoins = true;
-            throwCoin(11, special = false, coinSize = 90, howManyCoins = 1, problemState.useExistingCoins);
+            throwCoin(11, false, 90, 1, problemState.useExistingCoins);
             problemState.lvElevenClear = false;  // Stateをリセット
             return;  // 処理をここで終了
         }

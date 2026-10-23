@@ -17,7 +17,7 @@ h1 {
 
 /* オープニングスクリーンのスタイル設定 */
 #openingScreen {
-    background-image: url('img/keisan_hyaku_tasu.png');
+    background-image: url('img/keisan_hyaku_tasu.webp');
     background-size: auto 100vh; /* 高さを画面に合わせ、幅は自動調整 */
     background-position: center; /* 画像を中央に配置 */
     background-repeat: no-repeat; /* 画像を繰り返さない */
