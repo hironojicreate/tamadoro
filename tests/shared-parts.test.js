@@ -26,7 +26,7 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     const { page, errors } = await openPage(ctx, 'tamasubdrops.html', { sub_coins_1: JSON.stringify([{ image: '/img/Lmaru.png', date: '1/2' }]) });
     await page.click('#openDataModal');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportData')]);
-    ok(/^keisan_d_\d{8}\.txt$/.test(dl.suggestedFilename()), `セーブのファイル名 ${dl.suggestedFilename()}`);
+    ok(/^tamadoro_\d{8}\.txt$/.test(dl.suggestedFilename()), `セーブのファイル名 ${dl.suggestedFilename()}`);
     const file = await dl.path();
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     ok(saved.sub_coins_1 && JSON.parse(saved.sub_coins_1).length === 1, 'セーブにドロップが入っている');

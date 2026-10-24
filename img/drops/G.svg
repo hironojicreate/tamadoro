@@ -1,31 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%">
   <defs>
-    <!-- 1. 球体全体のドロップシャドウ（周囲は透明のまま立体感を強調） -->
+    <!-- 1. 球体全体のドロップシャドウ -->
     <filter id="sphere-shadow" x="-15%" y="-15%" width="135%" height="135%">
-      <feDropShadow dx="4" dy="8" stdDeviation="6" flood-color="#2a1500" flood-opacity="0.45" />
+      <feDropShadow dx="4" dy="8" stdDeviation="6" flood-color="#332200" flood-opacity="0.4" />
     </filter>
 
-    <!-- 2. 猫の刻印風シャドウ（球体内部に馴染ませる） -->
+    <!-- 2. 猫の刻印風シャドウ -->
     <filter id="cat-emboss" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#fffdf0" flood-opacity="0.6" />
+      <feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#ffffe0" flood-opacity="0.7" />
     </filter>
 
-    <!-- 3. ベースのメタリックゴールド球体グラデーション -->
+    <!-- 3. 【調整済】ベースのメタリックゴールド球体グラデーション（黄色味を大幅にアップ） -->
     <radialGradient id="gold-sphere" cx="35%" cy="30%" r="65%" fx="25%" fy="20%">
       <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="12%" stop-color="#fff59d" />
-      <stop offset="35%" stop-color="#ffd700" />
-      <stop offset="68%" stop-color="#d48800" />
-      <stop offset="88%" stop-color="#7a4400" />
-      <stop offset="96%" stop-color="#9c5a00" />
-      <stop offset="100%" stop-color="#4d2600" />
+      <stop offset="15%" stop-color="#ffffaa" />
+      <stop offset="42%" stop-color="#ffea00" />
+      <stop offset="70%" stop-color="#e6b800" />
+      <stop offset="88%" stop-color="#996b00" />
+      <stop offset="96%" stop-color="#c28f00" />
+      <stop offset="100%" stop-color="#593a00" />
     </radialGradient>
 
-    <!-- 4. 下部からの照り返し（メタリックな反射光） -->
+    <!-- 4. 【調整済】下部からの照り返し（オレンジ味を抜いて鮮やかなイエローゴールドに） -->
     <radialGradient id="bottom-bounce" cx="65%" cy="80%" r="50%">
-      <stop offset="0%" stop-color="#ffe57f" stop-opacity="0.75" />
-      <stop offset="50%" stop-color="#ffb300" stop-opacity="0.25" />
-      <stop offset="100%" stop-color="#7a4400" stop-opacity="0" />
+      <stop offset="0%" stop-color="#ffff80" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#ffd700" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#996b00" stop-opacity="0" />
     </radialGradient>
 
     <!-- 5. キャンディ・ドロップのような上部ツヤハイライト -->
@@ -37,16 +37,16 @@
 
     <!-- 6. 猫のライン用メタリックブロンズグラデーション -->
     <linearGradient id="cat-line-grad" x1="20%" y1="15%" x2="80%" y2="85%">
-      <stop offset="0%" stop-color="#8c4a00" />
-      <stop offset="50%" stop-color="#5c2c00" />
-      <stop offset="100%" stop-color="#381800" />
+      <stop offset="0%" stop-color="#8c5300" />
+      <stop offset="50%" stop-color="#5c3400" />
+      <stop offset="100%" stop-color="#381d00" />
     </linearGradient>
 
-    <!-- 7. 猫の内側を少し明るくするグラデーション -->
+    <!-- 7. 【調整済】猫の内側を明るくするグラデーション（より鮮やかな黄色に） -->
     <radialGradient id="cat-inner-glow" cx="35%" cy="30%" r="65%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
-      <stop offset="45%" stop-color="#ffeb3b" stop-opacity="0.2" />
-      <stop offset="100%" stop-color="#ff9800" stop-opacity="0.05" />
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6" />
+      <stop offset="45%" stop-color="#fff033" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#ffcc00" stop-opacity="0.1" />
     </radialGradient>
   </defs>
 
@@ -59,10 +59,10 @@
     <circle cx="150" cy="150" r="136" fill="url(#bottom-bounce)" />
 
     <!-- 球体のフチの立体感を強めるインナーリング -->
-    <circle cx="150" cy="150" r="134" fill="none" stroke="#4d2600" stroke-width="3" opacity="0.4" />
+    <circle cx="150" cy="150" r="134" fill="none" stroke="#593a00" stroke-width="3" opacity="0.35" />
   </g>
 
-  <!-- 猫のモチーフ（球体の丸みに合わせて配置） -->
+  <!-- 猫のモチーフ -->
   <g filter="url(#cat-emboss)" stroke="url(#cat-line-grad)" stroke-linecap="round" stroke-linejoin="round">
     
     <!-- 猫の輪郭 -->
@@ -83,7 +83,7 @@
     <!-- 右目 -->
     <circle cx="190" cy="136" r="16" fill="url(#cat-inner-glow)" stroke-width="6.5" />
 
-    <!-- 左ひげ（二重線で元画像のぷっくり感を再現） -->
+    <!-- 左ひげ -->
     <path d="M 56 154 C 42 150, 26 158, 32 164 C 36 168, 46 160, 56 162" fill="none" stroke-width="5.5" />
     <path d="M 57 174 C 42 180, 24 198, 30 204 C 36 210, 46 190, 59 182" fill="none" stroke-width="5.5" />
 
@@ -92,14 +92,14 @@
     <path d="M 243 174 C 258 180, 276 198, 270 204 C 264 210, 254 190, 241 182" fill="none" stroke-width="5.5" />
   </g>
 
-  <!-- ドロップス感を出す表面の強い光沢（猫のイラストの上から被せることで球体の中に閉じ込める） -->
+  <!-- ドロップス感を出す表面の強い光沢 -->
   <!-- 1. 上部の大きなツヤ -->
-  <ellipse cx="135" cy="78" rx="95" ry="52" transform="rotate(-12 135 78)" fill="url(#gloss-top)" style=" pointer-events: none;" />
+  <ellipse cx="135" cy="78" rx="95" ry="52" transform="rotate(-12 135 78)" fill="url(#gloss-top)" style="pointer-events: none;" />
 
-  <!-- 2. 左上の鋭いピンスポットハイライト（キャンディのようなツルツル感） -->
+  <!-- 2. 左上の鋭いピンスポットハイライト -->
   <ellipse cx="82" cy="72" rx="28" ry="14" transform="rotate(-38 82 72)" fill="#ffffff" opacity="0.85" />
   <circle cx="62" cy="96" r="6" fill="#ffffff" opacity="0.75" />
 
   <!-- 3. 右下のエッジに沿った細いリムライト -->
-  <path d="M 255 195 A 120 120 0 0 1 165 270" fill="none" stroke="#fff59d" stroke-width="4" stroke-linecap="round" opacity="0.5" />
+  <path d="M 255 195 A 120 120 0 0 1 165 270" fill="none" stroke="#ffff99" stroke-width="4" stroke-linecap="round" opacity="0.6" />
 </svg>

@@ -20,7 +20,7 @@ function currentLevelDef() {
 
 // 忘却ブレンド方式：苦手上位3問×3回（9問）＋ カモフラージュ6問 ＝ 計15問をつくる
 function buildWeakDrillDeck(level) {
-    const isSpecial = (level === 0); // 0 は「タマの特訓コース」
+    const isSpecial = (level === 0); // 0 は「特訓コース」
     const weakCandidates = isSpecial ? getAllUnlockedWeakPatterns() : getWeakPatternsForLevel(level);
 
     // ベースとなる全問題プールを用意
@@ -104,7 +104,7 @@ function drillStartLevel(level) {
     problemState.isSpecialCourse = (level === 0);
     problemState.isWeakChallenge = isWeakMode;
 
-    // タマの特訓コース（level === 0）のときは、最も苦手な問題があるレベル（なければLv1）をご褒美ドロップの対象にする
+    // 特訓コース（level === 0）のときは、最も苦手な問題があるレベル（なければLv1）をご褒美ドロップの対象にする
     if (level === 0) {
         const allWeak = getAllUnlockedWeakPatterns();
         problemState.level = allWeak.length > 0 ? allWeak[0].level : 1;
@@ -565,7 +565,7 @@ function drillShowModal(level) {
     }
 
     const baseTitle = problemState.isSpecialCourse
-        ? 'タマの特訓コース、クリア！'
+        ? '特訓コース、クリア！'
         : currentMode.texts.clearTitle(level);
     document.getElementById('modalTitle').textContent = problemState.isWeakChallenge
         ? `🔥 ${baseTitle}`

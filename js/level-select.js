@@ -31,7 +31,7 @@ function getWeakPatternsForLevel(level) {
     return weakList.sort((x, y) => y.hp - x.hp);
 }
 
-// 解放されている全レベルから苦手問題を集める（タマの特訓コース用）
+// 解放されている全レベルから苦手問題を集める（特訓コース用）
 function getAllUnlockedWeakPatterns() {
     if (!currentMode || currentMode.engine !== 'drill') return [];
     const allWeak = [];
@@ -69,7 +69,7 @@ function toggleWeakMode(forceState) {
     updateWeakBadges();
 }
 
-// 各レベルボタンの🔥バッジと「タマの特訓コース」ボタンの表示を更新
+// 各レベルボタンの🔥バッジと「特訓コース」ボタンの表示を更新
 function updateWeakBadges() {
     if (!currentMode || currentMode.engine !== 'drill') return;
 
@@ -94,7 +94,7 @@ function updateWeakBadges() {
         }
     });
 
-    // タマの特訓コースボタンの表示・更新
+    // 特訓コースボタンの表示・更新
     const specialPair = document.getElementById('tamaSpecialPair');
     if (specialPair) {
         const allWeak = getAllUnlockedWeakPatterns();
@@ -102,8 +102,8 @@ function updateWeakBadges() {
         const specialBtn = document.getElementById('levelSpecial');
         if (specialBtn) {
             specialBtn.innerHTML = allWeak.length > 0
-                ? `👑 タマの特訓コース <span class="weak-badge">🔥${allWeak.length}</span>`
-                : `👑 タマの特訓コース <span class="weak-badge">✨</span>`;
+                ? `👑 特訓コース <span class="weak-badge">🔥${allWeak.length}</span>`
+                : `👑 特訓コース <span class="weak-badge">✨</span>`;
         }
     }
 }
@@ -151,7 +151,7 @@ function renderLevelButtons() {
         container.appendChild(pair);
     });
 
-    // ドリル系モード（たしざん・ひきざん・かけざん）なら「タマの特訓コース」ボタンを追加
+    // ドリル系モード（たしざん・ひきざん・かけざん）なら「特訓コース」ボタンを追加
     if (currentMode.engine === 'drill') {
         const specialPair = document.createElement('div');
         specialPair.className = 'level-pair special-course-pair';
@@ -161,10 +161,10 @@ function renderLevelButtons() {
         const specialBtn = document.createElement('button');
         specialBtn.id = 'levelSpecial';
         specialBtn.className = 'special-course-btn';
-        specialBtn.textContent = '👑 タマの特訓コース';
+        specialBtn.textContent = '👑 特訓コース';
         specialBtn.addEventListener('click', () => {
             resetTamaTalk();
-            switchLevel(0, '👑 タマの特訓コース【全レベルから15もん】');
+            switchLevel(0, '👑 特訓コース【全レベルから15もん】');
         });
         specialPair.appendChild(specialBtn);
         container.appendChild(specialPair);

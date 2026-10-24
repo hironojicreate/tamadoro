@@ -27,7 +27,7 @@ function showNotification(message) {
 }
 
 
-// セーブ：localStorage を丸ごと keisan_d_月日時分.txt に書き出す
+// セーブ：localStorage を丸ごと tamadoro_月日時分.txt に書き出す
 document.getElementById('exportData').addEventListener('click', function () {
     const blob = new Blob([JSON.stringify(localStorage)], { type: 'text/plain' });
 
@@ -38,7 +38,7 @@ document.getElementById('exportData').addEventListener('click', function () {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `keisan_d_${timestamp}.txt`;
+    a.download = `tamadoro_${timestamp}.txt`;
     a.click();
     URL.revokeObjectURL(url);
 });

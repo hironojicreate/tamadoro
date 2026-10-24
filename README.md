@@ -79,7 +79,7 @@ tools/make_drops.py     ドロップの SVG をつくるスクリプト（色を
 | `tamadoro.stats.v1` | 1問ごとのできぐあい（にがてマップ用） |
 | `tamadoro.schema` | 以前のドロップを記録に取りこんだしるし |
 
-「データをセーブ」は localStorage をまるごと `keisan_d_月日時分.txt` に書き出します。
+「データをセーブ」は localStorage をまるごと `tamadoro_月日時分.txt` に書き出します。
 
 ## テスト
 
