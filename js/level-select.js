@@ -188,6 +188,9 @@ function renderRescueModal() {
             }
             body += '</div>';
         }
+        body += '<div style="margin-top: 8px; margin-bottom: 8px;">';
+        body += '<button type="button" onclick="for(let d=1;d<=9;d++){const c=document.getElementById(\'rescueDan\'+d);if(c)c.checked=true;}">すべてチェック（オニ出現）</button>';
+        body += '</div>';
         body += '<button onclick="restoreLevels()">このレベルを復元</button>';
     } else {
         body += `<input type="range" min="2" max="${rescue.max}" value="2" id="levelSlider" oninput="updateSliderValue(this.value)">

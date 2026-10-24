@@ -58,7 +58,9 @@ html[data-mode="multi"] {
     --color-lv25: #FFE6F2;
     --color-lv26: #FFCCE6;
     --color-lv27: #FF99CC;
-    --color-lv28: #FFD700; /* 金色 */
+    --color-lv28: #4DA6FF; /* 子オニ（青） */
+    --color-lv29: #FF5252; /* 子オニ（赤） */
+    --color-lv30: #222222; /* オニ（黒） */
 }
 
 html[data-mode="multi"] .select-level-buttons button {
@@ -108,9 +110,25 @@ html[data-mode="multi"] #level25 { background-color: var(--color-lv25); }
 html[data-mode="multi"] #level26 { background-color: var(--color-lv26); }
 html[data-mode="multi"] #level27 { background-color: var(--color-lv27); }
 
-/* 特別なエフェクト */
+/* 子オニ（青） */
 html[data-mode="multi"] #level28 {
     background-color: var(--color-lv28);
+    color: #ffffff;
+    border: 2px solid #004c99;
+}
+
+/* 子オニ（赤） */
+html[data-mode="multi"] #level29 {
+    background-color: var(--color-lv29);
+    color: #ffffff;
+    border: 2px solid #990000;
+}
+
+/* オニ（黒）：特別なエフェクト */
+html[data-mode="multi"] #level30 {
+    background-color: var(--color-lv30);
+    color: #FFD700;
+    border: 2px solid #FFD700;
     animation: shine 2s infinite; /* キラキラのエフェクト */
 }
 

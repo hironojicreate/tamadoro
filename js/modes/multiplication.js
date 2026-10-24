@@ -1,5 +1,6 @@
 // かけざん
-// レベルは 1つの段に3つずつ：「n のだん」「n:さかさ」「n:バラバラ」、Lv28 はオニ（すべての段）
+// レベルは 1つの段に3つずつ：「n のだん」「n:さかさ」「n:バラバラ」
+// Lv28 は子オニ（青）（1〜5の段）、Lv29 は子オニ（赤）（6〜9の段）、Lv30 はオニ（黒）（すべての段）
 (function () {
     const P = ProblemPatterns;
     const DROP_ORDER = 'LMBARKPYCO';
@@ -15,7 +16,11 @@
               patterns: () => P.withFirst(dan, 1, 9) },
         );
     }
-    levels.push({ label: 'オニ', patterns: () => P.pairs(1, 9, 1, 9) });
+    levels.push(
+        { label: '子オニ（青）', patterns: () => P.pairs(1, 5, 1, 9) },
+        { label: '子オニ（赤）', patterns: () => P.pairs(6, 9, 1, 9) },
+        { label: 'オニ（黒）', patterns: () => P.pairs(1, 9, 1, 9) }
+    );
     levels.forEach((level, i) => { level.drop = DROP_ORDER[i % DROP_ORDER.length]; });
 
     MODES.multi = {
@@ -38,33 +43,39 @@
             clearTitle: () => 'クリア！',
             best: 'これまでの最高は',
         },
+        // ノーミス大量コイン＆タマを撫でたときのご褒美コインは Lv30（オニ（黒））のみ
         perfectClear: {
-            28: { coins: 20, flag: 'lvTenClear' },
+            30: { coins: 20, flag: 'lvTenClear' },
         },
-        existingCoinsLevels: [28],
+        existingCoinsLevels: [30],
 
         isUnlocked(level) {
             // 各段の「n のだん」は最初から遊べる
             if (level % 3 === 1 && level < 28) {
                 return true;
             }
-            // オニ：すべての段の「バラバラ」でドロップを1個以上
-            if (level === 28) {
+            // 子オニ（青）・子オニ（赤）・オニ（黒）：すべての段の「バラバラ」でドロップを1個以上
+            if (level >= 28 && level <= 30) {
                 return [3, 6, 9, 12, 15, 18, 21, 24, 27].every(req => TamaStore.getCoins(req).length >= 1);
             }
             // さかさ・バラバラ：1つ前のレベルのドロップが5個
             return TamaStore.getCoins(level - 1).length >= 5;
         },
 
-        // rescue：チェックした段の「n のだん」「n:さかさ」にドロップを5個ずつ入れて、全部解放する
+        // rescue：チェックした段の「n のだん」「n:さかさ」に5個、「n:バラバラ」に1個ドロップを入れて解放する
         restoreLevels() {
             for (let dan = 1; dan <= 9; dan++) {
                 const checkbox = document.getElementById(`rescueDan${dan}`);
                 if (checkbox && checkbox.checked) {
                     const firstLevel = (dan - 1) * 3 + 1;
+                    // 「n のだん」「n:さかさ」は5個ずつ
                     [firstLevel, firstLevel + 1].forEach(level => {
                         rescueSaveCoinInfo(level, { image: problemState.levelToImage[level], count: 5 });
                     });
+                    // 「n:バラバラ」は1個獲得したことにする（全段チェックで三種のオニが即出現）
+                    const barabaraLevel = firstLevel + 2;
+                    rescueSaveCoinInfo(barabaraLevel, { image: problemState.levelToImage[barabaraLevel], count: 1 });
+
                     checkbox.checked = false;
                 }
             }
