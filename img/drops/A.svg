@@ -1,32 +1,112 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%">
   <defs>
-    <!-- 左上から光が当たった、まるい飴玉 -->
-    <radialGradient id="body" cx="36%" cy="30%" r="75%">
-      <stop offset="0" stop-color="#f3ccda"/>
-      <stop offset="0.45" stop-color="#dc6d95"/>
-      <stop offset="1" stop-color="#793c52"/>
+    <!-- 1. 球体全体のドロップシャドウ（ガラスを通した柔らかい赤みの影） -->
+    <filter id="sphere-shadow-pink" x="-15%" y="-15%" width="135%" height="135%">
+      <feDropShadow dx="4" dy="8" stdDeviation="6" flood-color="#4a121b" flood-opacity="0.35" />
+    </filter>
+
+    <!-- 2. 猫のモチーフをガラス内部に閉じ込める柔らかい発光フィルタ -->
+    <filter id="cat-glass-pink" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#ffb8d1" flood-opacity="0.6" />
+    </filter>
+
+    <!-- 3. ベースのガラス球体グラデーション（サンプルのピンク〜コーラルレッドを使用） -->
+    <radialGradient id="pink-marble-base" cx="45%" cy="45%" r="55%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#ffdbf0" stop-opacity="0.88" />
+      <stop offset="35%" stop-color="#f49ac2" stop-opacity="0.9" />
+      <stop offset="70%" stop-color="#d86c70" stop-opacity="0.93" />
+      <stop offset="90%" stop-color="#9e3b42" stop-opacity="0.96" />
+      <stop offset="100%" stop-color="#6e1e26" stop-opacity="0.98" />
     </radialGradient>
-    <!-- 光のつや -->
-    <radialGradient id="shine" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+
+    <!-- 4. ビー玉特有の内部透過光（左上から入った光が右下に抜けて溜まる表現） -->
+    <radialGradient id="caustic-glow-pink" cx="68%" cy="75%" r="48%">
+      <stop offset="0%" stop-color="#fff0f8" stop-opacity="0.9" />
+      <stop offset="30%" stop-color="#ff99cc" stop-opacity="0.7" />
+      <stop offset="65%" stop-color="#e06677" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#9e3b42" stop-opacity="0" />
     </radialGradient>
-    <!-- 下のふちに映る、照り返し -->
-    <linearGradient id="bounce" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0.35"/>
+
+    <!-- 5. ガラスの厚みを感じさせる外周の屈折シャドウ -->
+    <radialGradient id="glass-rim-pink" cx="50%" cy="50%" r="50%">
+      <stop offset="80%" stop-color="#7a2028" stop-opacity="0" />
+      <stop offset="94%" stop-color="#5c141b" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.35" />
+    </radialGradient>
+
+    <!-- 6. 表面のツルッとしたガラス光沢（上部） -->
+    <linearGradient id="gloss-top-pink" x1="35%" y1="0%" x2="55%" y2="75%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="40%" stop-color="#fff0f6" stop-opacity="0.3" />
+      <stop offset="75%" stop-color="#ffffff" stop-opacity="0" />
     </linearGradient>
+
+    <!-- 7. 猫のライン用グラデーション（サンプルの焦げ茶〜赤茶色を少し透けさせる） -->
+    <linearGradient id="cat-line-pink" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#8a383f" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#6e252c" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#4d151a" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- 8. 猫の内側のガラス屈折グラデーション -->
+    <radialGradient id="cat-inner-pink" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5" />
+      <stop offset="50%" stop-color="#ffaae0" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#c95b63" stop-opacity="0.15" />
+    </radialGradient>
   </defs>
-  <circle cx="50" cy="50" r="47" fill="url(#body)"/>
-  <circle cx="50" cy="50" r="46.2" fill="none" stroke="#793c52" stroke-opacity="0.35" stroke-width="1.6"/>
-  <!-- タマの顔（うすく浮き出たもよう） -->
-  <g fill="none" stroke="#fae9ef" stroke-opacity="0.75" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M27 67 C24 55 25 44 29 36 L28 22 L39 30 C46 28 54 28 61 30 L72 22 L71 36 C75 44 76 55 73 67 C66 75 34 75 27 67 Z"/>
-    <circle cx="41" cy="50" r="4"/>
-    <circle cx="59" cy="50" r="4"/>
-    <path d="M24 56 L14 54 M24 61 L15 63 M76 56 L86 54 M76 61 L85 63"/>
+
+  <!-- メインのガラス球体グループ -->
+  <g filter="url(#sphere-shadow-pink)">
+    <!-- 1. ベースの半透明ガラス球体 -->
+    <circle cx="150" cy="150" r="136" fill="url(#pink-marble-base)" />
+
+    <!-- 2. 右下に抜ける透過光（コースティクス：ビー玉らしさの要） -->
+    <circle cx="150" cy="150" r="136" fill="url(#caustic-glow-pink)" />
   </g>
-  <ellipse cx="50" cy="83" rx="27" ry="10" fill="url(#bounce)"/>
-  <ellipse cx="33" cy="25" rx="17" ry="10" fill="url(#shine)" transform="rotate(-28 33 25)"/>
-  <circle cx="72" cy="70" r="3" fill="#fff" fill-opacity="0.45"/>
+
+  <!-- 猫のモチーフ（ビー玉の内部に封入されているように見せる層） -->
+  <g filter="url(#cat-glass-pink)" stroke="url(#cat-line-pink)" stroke-linecap="round" stroke-linejoin="round">
+    
+    <!-- 猫の輪郭 -->
+    <path d="M 122 86
+             C 112 52, 92 48, 78 72
+             C 70 86, 65 98, 68 106
+             C 62 122, 56 148, 56 168
+             C 56 206, 82 222, 150 222
+             C 218 222, 244 206, 244 168
+             C 244 148, 238 122, 232 106
+             C 235 98, 230 86, 222 72
+             C 208 48, 188 52, 178 86
+             Q 150 88, 122 86 Z" fill="url(#cat-inner-pink)" stroke-width="7.5" />
+
+    <!-- 左目 -->
+    <circle cx="108" cy="136" r="16" fill="url(#cat-inner-pink)" stroke-width="6.5" />
+    
+    <!-- 右目 -->
+    <circle cx="190" cy="136" r="16" fill="url(#cat-inner-pink)" stroke-width="6.5" />
+
+    <!-- 左ひげ -->
+    <path d="M 56 154 C 42 150, 26 158, 32 164 C 36 168, 46 160, 56 162" fill="none" stroke-width="5.5" />
+    <path d="M 57 174 C 42 180, 24 198, 30 204 C 36 210, 46 190, 59 182" fill="none" stroke-width="5.5" />
+
+    <!-- 右ひげ -->
+    <path d="M 244 154 C 258 150, 274 158, 268 164 C 264 168, 254 160, 244 162" fill="none" stroke-width="5.5" />
+    <path d="M 243 174 C 258 180, 276 198, 270 204 C 264 210, 254 190, 241 182" fill="none" stroke-width="5.5" />
+  </g>
+
+  <!-- ガラスの厚みと表面のハイライト（猫の手前に重ねて奥行きを作る） -->
+  <!-- 1. 外周のガラス屈折リング -->
+  <circle cx="150" cy="150" r="136" fill="url(#glass-rim-pink)" style="pointer-events: none;" />
+
+  <!-- 2. 上部の大きなツヤ（ドーム状のガラス反射） -->
+  <ellipse cx="138" cy="76" rx="92" ry="50" transform="rotate(-10 138 76)" fill="url(#gloss-top-pink)" style="pointer-events: none;" />
+
+  <!-- 3. 左上のクリアな窓ハイライト（ビー玉の表面に映り込む光） -->
+  <ellipse cx="80" cy="70" rx="26" ry="13" transform="rotate(-38 80 70)" fill="#ffffff" opacity="0.92" />
+  <circle cx="60" cy="94" r="5.5" fill="#ffffff" opacity="0.85" />
+
+  <!-- 4. 右下の内部反射ハイライト（ガラスの底に集まった光） -->
+  <path d="M 248 190 A 114 114 0 0 1 160 264" fill="none" stroke="#ffeef7" stroke-width="5" stroke-linecap="round" opacity="0.7" />
+  <path d="M 256 198 A 122 122 0 0 1 172 271" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.5" />
 </svg>

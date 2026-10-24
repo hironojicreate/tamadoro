@@ -1,32 +1,105 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%">
   <defs>
-    <!-- 左上から光が当たった、まるい飴玉 -->
-    <radialGradient id="body" cx="36%" cy="30%" r="75%">
-      <stop offset="0" stop-color="#f8dea6"/>
-      <stop offset="0.45" stop-color="#eaa200"/>
-      <stop offset="1" stop-color="#815900"/>
+    <!-- 1. 球体全体のドロップシャドウ（周囲は透明のまま立体感を強調） -->
+    <filter id="sphere-shadow" x="-15%" y="-15%" width="135%" height="135%">
+      <feDropShadow dx="4" dy="8" stdDeviation="6" flood-color="#2a1500" flood-opacity="0.45" />
+    </filter>
+
+    <!-- 2. 猫の刻印風シャドウ（球体内部に馴染ませる） -->
+    <filter id="cat-emboss" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#fffdf0" flood-opacity="0.6" />
+    </filter>
+
+    <!-- 3. ベースのメタリックゴールド球体グラデーション -->
+    <radialGradient id="gold-sphere" cx="35%" cy="30%" r="65%" fx="25%" fy="20%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="12%" stop-color="#fff59d" />
+      <stop offset="35%" stop-color="#ffd700" />
+      <stop offset="68%" stop-color="#d48800" />
+      <stop offset="88%" stop-color="#7a4400" />
+      <stop offset="96%" stop-color="#9c5a00" />
+      <stop offset="100%" stop-color="#4d2600" />
     </radialGradient>
-    <!-- 光のつや -->
-    <radialGradient id="shine" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+
+    <!-- 4. 下部からの照り返し（メタリックな反射光） -->
+    <radialGradient id="bottom-bounce" cx="65%" cy="80%" r="50%">
+      <stop offset="0%" stop-color="#ffe57f" stop-opacity="0.75" />
+      <stop offset="50%" stop-color="#ffb300" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#7a4400" stop-opacity="0" />
     </radialGradient>
-    <!-- 下のふちに映る、照り返し -->
-    <linearGradient id="bounce" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0.35"/>
+
+    <!-- 5. キャンディ・ドロップのような上部ツヤハイライト -->
+    <linearGradient id="gloss-top" x1="30%" y1="0%" x2="60%" y2="85%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.35" />
+      <stop offset="70%" stop-color="#ffffff" stop-opacity="0" />
     </linearGradient>
+
+    <!-- 6. 猫のライン用メタリックブロンズグラデーション -->
+    <linearGradient id="cat-line-grad" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#8c4a00" />
+      <stop offset="50%" stop-color="#5c2c00" />
+      <stop offset="100%" stop-color="#381800" />
+    </linearGradient>
+
+    <!-- 7. 猫の内側を少し明るくするグラデーション -->
+    <radialGradient id="cat-inner-glow" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
+      <stop offset="45%" stop-color="#ffeb3b" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#ff9800" stop-opacity="0.05" />
+    </radialGradient>
   </defs>
-  <circle cx="50" cy="50" r="47" fill="url(#body)"/>
-  <circle cx="50" cy="50" r="46.2" fill="none" stroke="#815900" stroke-opacity="0.35" stroke-width="1.6"/>
-  <!-- タマの顔（うすく浮き出たもよう） -->
-  <g fill="none" stroke="#fcf1d9" stroke-opacity="0.75" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M27 67 C24 55 25 44 29 36 L28 22 L39 30 C46 28 54 28 61 30 L72 22 L71 36 C75 44 76 55 73 67 C66 75 34 75 27 67 Z"/>
-    <circle cx="41" cy="50" r="4"/>
-    <circle cx="59" cy="50" r="4"/>
-    <path d="M24 56 L14 54 M24 61 L15 63 M76 56 L86 54 M76 61 L85 63"/>
+
+  <!-- メインの球体グループ -->
+  <g filter="url(#sphere-shadow)">
+    <!-- ベース球体 -->
+    <circle cx="150" cy="150" r="136" fill="url(#gold-sphere)" />
+
+    <!-- メタリックな照り返し（右下部分） -->
+    <circle cx="150" cy="150" r="136" fill="url(#bottom-bounce)" />
+
+    <!-- 球体のフチの立体感を強めるインナーリング -->
+    <circle cx="150" cy="150" r="134" fill="none" stroke="#4d2600" stroke-width="3" opacity="0.4" />
   </g>
-  <ellipse cx="50" cy="83" rx="27" ry="10" fill="url(#bounce)"/>
-  <ellipse cx="33" cy="25" rx="17" ry="10" fill="url(#shine)" transform="rotate(-28 33 25)"/>
-  <circle cx="72" cy="70" r="3" fill="#fff" fill-opacity="0.45"/>
+
+  <!-- 猫のモチーフ（球体の丸みに合わせて配置） -->
+  <g filter="url(#cat-emboss)" stroke="url(#cat-line-grad)" stroke-linecap="round" stroke-linejoin="round">
+    
+    <!-- 猫の輪郭 -->
+    <path d="M 122 86
+             C 112 52, 92 48, 78 72
+             C 70 86, 65 98, 68 106
+             C 62 122, 56 148, 56 168
+             C 56 206, 82 222, 150 222
+             C 218 222, 244 206, 244 168
+             C 244 148, 238 122, 232 106
+             C 235 98, 230 86, 222 72
+             C 208 48, 188 52, 178 86
+             Q 150 88, 122 86 Z" fill="url(#cat-inner-glow)" stroke-width="7.5" />
+
+    <!-- 左目 -->
+    <circle cx="108" cy="136" r="16" fill="url(#cat-inner-glow)" stroke-width="6.5" />
+    
+    <!-- 右目 -->
+    <circle cx="190" cy="136" r="16" fill="url(#cat-inner-glow)" stroke-width="6.5" />
+
+    <!-- 左ひげ（二重線で元画像のぷっくり感を再現） -->
+    <path d="M 56 154 C 42 150, 26 158, 32 164 C 36 168, 46 160, 56 162" fill="none" stroke-width="5.5" />
+    <path d="M 57 174 C 42 180, 24 198, 30 204 C 36 210, 46 190, 59 182" fill="none" stroke-width="5.5" />
+
+    <!-- 右ひげ -->
+    <path d="M 244 154 C 258 150, 274 158, 268 164 C 264 168, 254 160, 244 162" fill="none" stroke-width="5.5" />
+    <path d="M 243 174 C 258 180, 276 198, 270 204 C 264 210, 254 190, 241 182" fill="none" stroke-width="5.5" />
+  </g>
+
+  <!-- ドロップス感を出す表面の強い光沢（猫のイラストの上から被せることで球体の中に閉じ込める） -->
+  <!-- 1. 上部の大きなツヤ -->
+  <ellipse cx="135" cy="78" rx="95" ry="52" transform="rotate(-12 135 78)" fill="url(#gloss-top)" style=" pointer-events: none;" />
+
+  <!-- 2. 左上の鋭いピンスポットハイライト（キャンディのようなツルツル感） -->
+  <ellipse cx="82" cy="72" rx="28" ry="14" transform="rotate(-38 82 72)" fill="#ffffff" opacity="0.85" />
+  <circle cx="62" cy="96" r="6" fill="#ffffff" opacity="0.75" />
+
+  <!-- 3. 右下のエッジに沿った細いリムライト -->
+  <path d="M 255 195 A 120 120 0 0 1 165 270" fill="none" stroke="#fff59d" stroke-width="4" stroke-linecap="round" opacity="0.5" />
 </svg>
