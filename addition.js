@@ -421,21 +421,6 @@ function showModal(level) {
     console.log(`Level: ${level}, Best Time: ${formatMilliseconds(bestTime)}, Current Time: ${clearTime}`);
 }
 
-/*
-function showModal(level) {
-    const modal = document.getElementById('completionModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const clearTime = stopTimer(); // タイマーをストップし、経過時間を取得
-    modalTitle.textContent = `Lv${level}もんだい、クリア！`;
-
-    const clearTimeElement = document.getElementById('clearTime');
-    clearTimeElement.textContent = `クリアタイム：${clearTime}`;
-    
-    modal.style.display = 'flex'; // モーダルを表示
-
-    // ご褒美コインを生成する関数を呼び出す
-    createRewardCoin(level);
-}*/
 
 
 
@@ -456,20 +441,6 @@ function retryLevel(level) {
     startLevel(problemState.level);
 }
 
-function returnToLevelSelection() {
-    // エンドオブレベルのモーダルを非表示にする
-    const completionModal = document.getElementById('completionModal');
-    if (completionModal) {
-        completionModal.style.display = 'none'; // モーダルを隠す
-    }
-
-    // 間違いのフィードバックモーダルを非表示にする
-    const mistakeModal = document.getElementById('mistakeModal');
-    if (mistakeModal) {
-        mistakeModal.style.display = 'none'; // モーダルを隠す
-    }
-    returnMenu(); // メニュー画面に戻る
-}
 
 
 
@@ -507,49 +478,6 @@ document.getElementById('helpCheckbox').addEventListener('change', function () {
 });
 
 
-//ストップウォッチ実装
-let startTime;
-let endTime;
-
-function startTimer() {
-    startTime = new Date();
-}
-
-function stopTimer() {
-    endTime = new Date();
-    const elapsedTime = endTime - startTime; // ミリ秒単位の経過時間
-    return formatTime(elapsedTime);
-}
-
-function formatTime(milliseconds) {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
-
-
-//最高記録保存。
-function saveBestTime(level, time) {
-    const key = `addition_level_${level}_best_time`;
-    const currentBestTime = localStorage.getItem(key);
-    if (!currentBestTime || time < parseInt(currentBestTime)) {
-        localStorage.setItem(key, time);
-    }
-}
-
-function getBestTime(level) {
-    const key = `addition_level_${level}_best_time`;
-    const bestTime = localStorage.getItem(key);
-    return bestTime ? parseInt(bestTime) : null;
-}
-
-function formatMilliseconds(milliseconds) {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
 
 
 

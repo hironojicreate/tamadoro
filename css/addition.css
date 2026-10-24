@@ -1,0 +1,10 @@
+/* たしざんページ専用のスタイル（共通部分は css/base.css） */
+
+#openingScreen {
+    background-image: url('../img/tasidoro.jpg');
+}
+
+/* 「ひきざんへ！」ボタンの上に置く */
+#goToIndex {
+    bottom: 83px;
+}

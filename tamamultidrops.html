@@ -8,7 +8,8 @@
       <meta name="description" content="楽しいかけ算ゲーム。タマと一緒に学びましょう！カラフルドロップを集めてかけ算マスターだ！">
       <meta name="keywords" content="たしざん, ゲーム, 教育, 子供, 学習, タマ, かけ算">
       <link rel="canonical" href="https://addsubmaster.web.app/">
-      <link href="multistyle.css" rel="stylesheet" type="text/css" />
+      <link href="css/base.css" rel="stylesheet" type="text/css" />
+      <link href="css/multiplication.css" rel="stylesheet" type="text/css" />
       <link rel="icon" type="image/png" sizes="16x16" href="/img/tama_16x16.png">
       <link rel="icon" type="image/png" sizes="32x32" href="/img/tama_32x32.png">
       <link rel="icon" type="image/png" sizes="48x48" href="/img/tama_48x48.png">
@@ -413,10 +414,16 @@
     </div>
     <div id="notification" class="notification"></div>
 
-  <script src="multi-menu-coin.js?version=20230329"></script>  
-  <script src="multiplication.js?version=20230329"></script>  
-  <script src="numericKeypad.js?version=20230329"></script>
-  <!--開発終了後、こちらに戻す。<script src="script.js"></script>--> 
+  <!-- このページの設定（PAGE）→ 共通部品 → 問題 → テンキー の順に読み込む -->
+  <script src="multi-menu-coin.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/drops.js"></script>
+  <script src="js/data-modal.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/tama-talk.js"></script>
+  <script src="multiplication.js"></script>
+  <script src="numericKeypad.js"></script>
 
 
   <script type="module">

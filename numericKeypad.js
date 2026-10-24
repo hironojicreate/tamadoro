@@ -1,4 +1,14 @@
 //テンキーパッド
+
+// テンキーを画面の右下に置く
+function adjustKeypadPosition() {
+    document.querySelector('.keypad').style.bottom = '5px';
+}
+
+window.addEventListener('resize', adjustKeypadPosition);
+window.addEventListener('orientationchange', adjustKeypadPosition);
+window.addEventListener('load', adjustKeypadPosition);
+
 // 音声ファイルの読み込み
 // AudioContextの作成
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();

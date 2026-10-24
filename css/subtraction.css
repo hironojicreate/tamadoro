@@ -1,0 +1,17 @@
+/* ひきざんページ専用のスタイル（共通部分は css/base.css） */
+
+#openingScreen {
+    background-image: url('../img/hikidoro.jpg');
+}
+
+/* レベルボタンは青系 */
+.select-level-buttons button {
+    background-color: #87CEEB;
+    color: #002255;
+    border: 2px solid #00008B;
+}
+
+/* 「たしざんへ！」ボタンの上に置く */
+#goToIndex {
+    bottom: 83px;
+}

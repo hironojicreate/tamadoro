@@ -518,7 +518,7 @@ function checkAnswer(row, col, inputValue) {
         correctAnswerCounts[currentLevel]++; // 現在のレベルの累積正答数を更新
         problemCorrectCount++; // 問題単位の正答数を更新
         updateCorrectAnswerDisplay(problemState.level); // 正答数・誤答数を画面に反映
-        throwCoinR(currentLevel, false, 50, 1);  // ★★★跳ね返りの低い、Rの関数を使用。通常のコインを投げる
+        throwCoin(currentLevel, false, 50, 1, 0, 0.5);  // 百マスはドロップのはね返りを低くする
         onCorrectAnswer(row, col);
     } else {
         inputCell.classList.add('incorrect');
@@ -530,6 +530,9 @@ function checkAnswer(row, col, inputValue) {
 
 // 正答数と誤答数を画面に反映、保存する
 function updateCorrectAnswerDisplay(currentLevel) {
+    if (!currentLevel) {
+        return; // レベルが決まる前（問題のリセット時）は保存しない
+    }
     initializeCumulativeCorrectCounts();
     const cumulativeDisplay = document.getElementById('correct-answer-count');
     const problemDisplay = document.getElementById('problem-correct-count');
@@ -667,66 +670,9 @@ function retryLevel(level) {
 
 
 
-function returnToLevelSelection() {
-    // エンドオブレベルのモーダルを非表示にする
-    const completionModal = document.getElementById('completionModal');
-    if (completionModal) {
-        completionModal.style.display = 'none'; // モーダルを隠す
-    }
-
-    // 間違いのフィードバックモーダルを非表示にする
-    const mistakeModal = document.getElementById('mistakeModal');
-    if (mistakeModal) {
-        mistakeModal.style.display = 'none'; // モーダルを隠す
-    }
-    returnMenu(); // メニュー画面に戻る
-}
 
 
 
-//ストップウォッチ実装
-let startTime;
-let endTime;
-
-function startTimer() {
-    startTime = new Date();
-}
-
-function stopTimer() {
-    endTime = new Date();
-    const elapsedTime = endTime - startTime; // ミリ秒単位の経過時間
-    return formatTime(elapsedTime);
-}
-
-function formatTime(milliseconds) {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
-
-
-//最高記録保存。
-function saveBestTime(level, time) {
-    const key = `hundredgrid_level_${level}_best_time`;
-    const currentBestTime = localStorage.getItem(key);
-    if (!currentBestTime || time < parseInt(currentBestTime)) {
-        localStorage.setItem(key, time);
-    }
-}
-
-function getBestTime(level) {
-    const key = `hundredgrid_level_${level}_best_time`;
-    const bestTime = localStorage.getItem(key);
-    return bestTime ? parseInt(bestTime) : null;
-}
-
-function formatMilliseconds(milliseconds) {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
 
 //累積正答数保存。
 function saveCumulativeCorrectCount(level, count) {

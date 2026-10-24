@@ -1,0 +1,124 @@
+/* かけざんページ専用のスタイル（共通部分は css/base.css） */
+
+/* レベルが多いので縦にスクロールできるようにする */
+html,
+body {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#openingScreen {
+    background-image: url('../img/kakedoro.webp');
+    background-size: cover; /* 画面全体にフィット */
+    background-position: top;
+    background-attachment: scroll; /* 背景がスクロールに合わせて動く */
+    height: auto; /* コンテンツに応じた高さ */
+    min-height: 100vh;
+    overflow: visible;
+}
+
+.select-level-buttons {
+    background-color: transparent;
+    top: 15%;
+    gap: 5px;
+}
+
+.coin-container {
+    margin-top: 1px;
+    font-size: 12px;
+}
+
+/* レベルボタン：段ごとに色を変える */
+:root {
+    --color-lv1: #E6F7FF;
+    --color-lv2: #CCEFFF;
+    --color-lv3: #99DFFF;
+    --color-lv4: #E6FFFA;
+    --color-lv5: #CCFFF5;
+    --color-lv6: #99FFE6;
+    --color-lv7: #E6FFEB;
+    --color-lv8: #CCFFD6;
+    --color-lv9: #99FFB3;
+    --color-lv10: #F2FFE6;
+    --color-lv11: #E5FFCC;
+    --color-lv12: #CCFF99;
+    --color-lv13: #FFFFE6;
+    --color-lv14: #FFFFCC;
+    --color-lv15: #FFFF99;
+    --color-lv16: #FFF7E6;
+    --color-lv17: #FFECCC;
+    --color-lv18: #FFD699;
+    --color-lv19: #FFE6E6;
+    --color-lv20: #FFCCCC;
+    --color-lv21: #FF9999;
+    --color-lv22: #F2E6FF;
+    --color-lv23: #E5CCFF;
+    --color-lv24: #CC99FF;
+    --color-lv25: #FFE6F2;
+    --color-lv26: #FFCCE6;
+    --color-lv27: #FF99CC;
+    --color-lv28: #FFD700; /* 金色 */
+}
+
+.select-level-buttons button {
+    width: 18vw;
+    height: 4vh;
+    padding: 5px 20px;
+    border-radius: 20px;
+    color: #015700;
+    border: 1px solid #008a4e;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 4px 4px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background-color: var(--button-color, #47e199); /* デフォルト色 */
+}
+
+/* レベルごとにカラーを適用 */
+#level1 { background-color: var(--color-lv1); }
+#level2 { background-color: var(--color-lv2); }
+#level3 { background-color: var(--color-lv3); }
+#level4 { background-color: var(--color-lv4); }
+#level5 { background-color: var(--color-lv5); }
+#level6 { background-color: var(--color-lv6); }
+#level7 { background-color: var(--color-lv7); }
+#level8 { background-color: var(--color-lv8); }
+#level9 { background-color: var(--color-lv9); }
+#level10 { background-color: var(--color-lv10); }
+#level11 { background-color: var(--color-lv11); }
+#level12 { background-color: var(--color-lv12); }
+#level13 { background-color: var(--color-lv13); }
+#level14 { background-color: var(--color-lv14); }
+#level15 { background-color: var(--color-lv15); }
+#level16 { background-color: var(--color-lv16); }
+#level17 { background-color: var(--color-lv17); }
+#level18 { background-color: var(--color-lv18); }
+#level19 { background-color: var(--color-lv19); }
+#level20 { background-color: var(--color-lv20); }
+#level21 { background-color: var(--color-lv21); }
+#level22 { background-color: var(--color-lv22); }
+#level23 { background-color: var(--color-lv23); }
+#level24 { background-color: var(--color-lv24); }
+#level25 { background-color: var(--color-lv25); }
+#level26 { background-color: var(--color-lv26); }
+#level27 { background-color: var(--color-lv27); }
+
+/* 特別なエフェクト */
+#level28 {
+    background-color: var(--color-lv28);
+    animation: shine 2s infinite; /* キラキラのエフェクト */
+}
+
+@keyframes shine {
+    0% { box-shadow: 0 0 5px gold; }
+    50% { box-shadow: 0 0 20px gold; }
+    100% { box-shadow: 0 0 5px gold; }
+}
+
+.returnButton {
+    background-color: #c2ffdf;
+}

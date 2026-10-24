@@ -1,0 +1,171 @@
+/* 百マスページ専用のスタイル（共通部分は css/base.css） */
+
+#openingScreen {
+    background-image: url('../img/keisan_hyaku_tasu.webp');
+}
+
+
+/* ---------- 百マスの表 ---------- */
+
+#calculation-grid {
+    border-collapse: collapse;
+    width: auto;
+    text-align: center;
+    position: absolute;
+    top: 7%; /* 画面上から10% */
+}
+
+#calculation-grid td {
+    border: 1px solid #000;
+    width: 50px; /* セルの幅 */
+    height: 50px; /* セルの高さ */
+    text-align: center;
+    vertical-align: middle;
+
+}
+
+/* 1列目の色をとても薄い黄色 */
+#calculation-grid td:first-child {
+    background-color: #ffffe0; /* 薄い黄色 */
+    font-weight: bold; /* 数字を太字にする */
+}
+
+/* 1行目の色をとても薄い青 */
+#calculation-grid tr:first-child td {
+    /*background-color: #e0f7ff; /* 薄い青 */
+    background-color: #ffffe0; /* 薄い青 */
+    font-weight: bold; /* 数字を太字にする */
+}
+
+/* 左上セルの色 (交差部分) */
+#calculation-grid tr:first-child td:first-child {
+    /* background-color: #ffd9d9; /* 淡い赤色 */
+    background-color: #ffffff; /* 淡い赤色 */
+    font-weight: normal; /* 左上セルは太字にしない */
+}
+
+
+
+
+
+
+
+
+/* 入力対象セルのスタイル */
+.input-target {
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.3), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+    background-color: #fec8c8 !important; /* 少し明るい背景色 */
+}
+
+/* 問題セルを濃い色で強調 */
+.problem-number-top {
+    /*background-color: #8ac2ff !important; /* 濃い青 (1行目) */
+    background-color: #c2da69 !important; /* 濃い青 (1行目) */
+    /*color: #fff !important;*/
+    font-weight: bold !important;
+}
+
+.problem-number {
+    /*background-color: #ffdf61 !important; /* 濃い黄色 (1列目) */
+    background-color: #ffdf61 !important; /* 濃い黄色 (1列目) */
+    /*color: #f03333 !important;*/
+    font-weight: bold !important;
+}
+
+/* 灰色のライン */
+.line-highlight {
+    background-color: rgba(200, 200, 200, 0.2) !important; /* 半透明の灰色 */
+}
+
+
+/* Lv10 の色変更 */
+.color-red {
+    color: #d4e4f7;
+    background-color: #bcd7f5;
+}
+
+.color-yellow {
+    color: #dedede;
+    background-color: #ffffff;
+}
+
+
+
+/* 十の位が入力された状態を示す */
+.partial-input {
+    background-color: rgba(255, 255, 0, 0.3) !important; /* 薄い黄色 */
+}
+
+
+/* 正誤判定 */
+.correct {
+    color: red !important;
+    font-size: 1.5em !important;
+    animation: correctAnimation 0.5s ease-in-out !important;
+}
+
+@keyframes correctAnimation {
+    0% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.incorrect {
+    background-color: #c2c2c2 !important;
+    color: #ffffff !important;
+    font-weight: normal !important;
+}
+
+
+/* ---------- タイムの記録・わたしの問題・がんばったねパネル ---------- */
+
+#recordDisplay {
+  position: relative; /* 必須 */
+  z-index: 4; /* 前面に表示 */
+}
+
+#customize-level6 {
+  position: absolute; /* 必須 */
+  z-index: 3; /* 背面に表示 */
+}
+
+#recordList {
+list-style: none;
+padding: 0;
+margin: 0;
+text-align: right;
+color: #555;
+max-height: 0; /* 初期状態で高さ0 */
+overflow: hidden; /* はみ出した内容を隠す */
+transition: max-height 0.5s ease; /* アニメーションで展開 */
+}
+
+
+#recordList.show {
+max-height: 500px; /* 展開後の最大高さを適宜設定 */
+}
+
+
+#congrats-panel button {
+margin: 10px;
+padding: 10px 20px;
+font-size: 16px;
+cursor: pointer;
+}
+
+#congrats-panel button:hover {
+background-color: #f0f0f0;
+}
+
+
+/* ---------- 百マスの表より前に出す ---------- */
+
+.notification { z-index: 10; }
+.coin { z-index: 6; }
+.reward-coin { z-index: 6; }
+#deleteModal { z-index: 10; }
+.speech-bubble { z-index: 4; }
+.speech-bubble p { z-index: 4; }
