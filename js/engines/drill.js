@@ -28,6 +28,7 @@ function drillStartLevel(level) {
     problemState.reviewQueue = [];   // まちがえた問題（最後にもういちど出す）
     problemState.isReview = false;
     problemState.levelMistakes = 0;  // このレベルでまちがえた回数（記録用）
+    problemState.paused = false;     // とちゅうで手をとめた（1問に長くかかった）か（記録用）
     problemState.correctStreak = 0;
     problemState.mistakeCount = 0;
     problemState.mistakes = []; // 前回の間違いリストを持ち越さない
@@ -50,7 +51,7 @@ function drillRetryLevel() {
     drillStartLevel(problemState.level);
 }
 
-// まだ出していない問題から1つ出す。全部出したらクリア
+// まだ出していない問題から1つ出す。全部出したらクリア（問題を出したら true、クリアなら false）
 function generateLvProblem(level) {
     const unsolvedPatterns = problemState.patterns.filter(
         ([a, b]) => !problemState.solved.some(([sa, sb]) => sa === a && sb === b)
@@ -61,12 +62,12 @@ function generateLvProblem(level) {
         if (problemState.reviewQueue.length > 0) {
             problemState.isReview = true;
             showProblem(...problemState.reviewQueue.shift());
-            return;
+            return true;
         }
         document.getElementById("remaining-problems").textContent = `のこり0${currentMode.texts.unit}！おわったよ！！`;
         toggleKeypad(false);
         drillShowModal(level);
-        return;
+        return false;
     }
 
     // 「n のだん」「さかさ」は順番どおり、ほかはランダム
@@ -74,6 +75,7 @@ function generateLvProblem(level) {
     const [a, b] = unsolvedPatterns[index];
     showProblem(a, b);
     problemState.solved.push([a, b]);
+    return true;
 }
 
 function showProblem(a, b) {
@@ -156,11 +158,12 @@ function showNumber(prefix, number) {
     onesCover.style.display = 'block';
 }
 
-// 答えをかくす「？」のカード
+// 答えをかくす「？」のカード（答えの数字そのものも、正解するまでかくしておく）
 function showCover(coverId) {
     const cover = document.getElementById(coverId);
     cover.innerHTML = `<div class="q-card">${glyphSVG('?')}</div>`;
     cover.style.display = 'block';
+    cover.parentElement.querySelector('.digit').classList.add('hidden-answer');
 }
 
 
@@ -323,7 +326,11 @@ function recordMistake(answerText) {
 
 function handleAnswer(isCorrect) {
     if (isCorrect) {
-        History.recordProblem(currentMode.id, problemKey(), !problemState.mistakeMade, Date.now() - problemState.problemStartedAt);
+        const problemMs = Date.now() - problemState.problemStartedAt;
+        if (problemMs > History.INVALID_MS) {
+            problemState.paused = true;
+        }
+        History.recordProblem(currentMode.id, problemKey(), !problemState.mistakeMade, problemMs);
         // まちがえた問題は、レベルの最後にもういちど（もういちどの問題は1回だけ）
         if (problemState.mistakeMade && !problemState.isReview) {
             const { a, b } = problemState.currentProblem;
@@ -348,9 +355,11 @@ function handleAnswer(isCorrect) {
         const state = problemState;
         setTimeout(() => {
             if (state !== problemState) return; // そのあいだに別のモードへ移った
-            generateLvProblem(problemState.level);
             pressCount = 0;
-            toggleKeypad(true);
+            // つぎの問題があるときだけ、入力を受けつける（クリアしたら、もういちどちょうせんするまで止めたまま）
+            if (generateLvProblem(problemState.level)) {
+                toggleKeypad(true);
+            }
         }, 750);
         problemState.mistakeMade = false;
     } else {
@@ -402,7 +411,9 @@ function bounceOffTarget(target) {
 
 // 正解した「？」カードが広がって消える
 function enlargeAndFadeImage(coverId) {
-    const card = document.getElementById(coverId).querySelector('.q-card');
+    const cover = document.getElementById(coverId);
+    cover.parentElement.querySelector('.digit').classList.remove('hidden-answer');
+    const card = cover.querySelector('.q-card');
     if (card) {
         card.classList.add('expand-and-fade');
         setTimeout(() => card.remove(), 1000);
@@ -428,6 +439,7 @@ function drillShowModal(level) {
     History.addEntry({
         mode: currentMode.id, level, ms: endTime - startTime,
         total: problemState.patterns.length, miss: problemState.levelMistakes, cleared: true, drop,
+        paused: problemState.paused,
     });
 }
 
@@ -435,6 +447,7 @@ function showMistakeModal() {
     History.addEntry({
         mode: currentMode.id, level: problemState.level, ms: Date.now() - startTime,
         total: problemState.patterns.length, miss: problemState.levelMistakes, cleared: false, drop: null,
+        paused: problemState.paused,
     });
     document.getElementById('maxMistakes').textContent = currentMode.maxMistakes;
     const mistakeList = document.getElementById('mistakeList');

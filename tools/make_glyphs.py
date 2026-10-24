@@ -67,10 +67,12 @@ def make_eight():
 
     p_entry, t_entry = point(entry), tangent(entry)
     length = math.hypot(*t_entry)
-    upper = 'M76 28 C70 15 60 10 50 10 C36 10 26 19 26 32 C26 46 38 54 52 62'
+    upper = 'M76 28 C70 15 60 10 50 10 C36 10 26 19 26 32'
+    # 上のまるの左はし (26,32) から、下のまるの入り口まで、1本のなめらかなカーブで
+    # （はじめは真下へ、おわりは だ円と同じ向きで入る → 折れもゆがみもない）
     to_entry = 'C%g %g %g %g %g %g' % tuple(round(v, 1) for v in (
-        52 + 14 * 0.4, 62 + 8 * 0.4,
-        p_entry[0] - t_entry[0] / length * 6, p_entry[1] - t_entry[1] / length * 6,
+        26, 32 + 20,
+        p_entry[0] - t_entry[0] / length * 18, p_entry[1] - t_entry[1] / length * 18,
         *p_entry))
     return ' '.join([upper, to_entry, arc(entry, leave, 4), 'L%g %g' % end])
 
@@ -81,7 +83,8 @@ BASE = {
     '0': 'M50 10 C29 10 18 34 18 65 C18 96 29 120 50 120 C71 120 82 96 82 65 C82 34 71 10 50 10 Z',
     # 1：まっすぐ1本
     '1': 'M50 10 V120',
-    '2': 'M20 38 C21 20 34 10 50 10 C67 10 80 21 80 38 C80 55 68 66 56 77 L18 118 H84',
+    # 2：カーブから、ななめの直線へ、折れずに入る（カーブのおわりの向き＝直線の向き）
+    '2': 'M20 38 C21 20 34 10 50 10 C67 10 80 21 80 38 C80 55 66.9 65.3 56 77 L18 118 H84',
     '3': 'M22 22 C30 14 40 10 50 10 C66 10 77 20 77 34 C77 50 64 59 46 59 C66 59 81 70 81 88 '
          'C81 107 67 120 49 120 C36 120 25 114 19 104',
     # 4：ななめの線と、たての線は、上ではなれている
@@ -165,7 +168,7 @@ function glyphSVG(char) {{
     if (!glyph) {{
         return '';
     }}
-    return `<svg class="glyph" viewBox="8 6 84 118" aria-hidden="true" focusable="false">`
+    return `<svg class="glyph" viewBox="0 0 100 130" aria-hidden="true" focusable="false">`
         + `<path d="${{glyph.d}}" stroke-width="${{glyph.w}}"/></svg>`;
 }}
 ''', encoding='utf-8')

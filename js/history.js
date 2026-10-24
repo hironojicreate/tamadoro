@@ -4,14 +4,19 @@
 // ドロップの保存（add_coins_3 など）は今までどおり。こちらは「きろく」画面のための記録
 
 const History = {
+    // 1問にこれより長くかかったときは「無効」（トイレに行った・ドロップで遊んでいた など）
+    //   その問題は、にがての記録に入れない。その回のタイムも、タイムのうつりかわり・さいこうに入れない
+    INVALID_MS: 30000,
+
     LOG_KEY: 'tamadoro.log.v1',
     STATS_KEY: 'tamadoro.stats.v1',
     SCHEMA_KEY: 'tamadoro.schema',
 
     // ---------- 1回ごとの記録 ----------
 
-    // [{ t, mode, level, ms, total, miss, cleared, drop }, ...]（古い順）
+    // [{ t, mode, level, ms, total, miss, cleared, drop, paused }, ...]（古い順）
     //   t: 終わった時刻（ミリ秒）、drop: もらったドロップの画像名（もらえなかったら null）
+    //   paused: true は、とちゅうで手をとめた（INVALID_MS より長くかかった問題があった）回
     //   imported: true は、記録をはじめる前のドロップ（日付はだいたい・時間なし）
     getLog() {
         return TamaStore.readJSON(this.LOG_KEY, []);
@@ -31,6 +36,9 @@ const History = {
     },
 
     recordProblem(modeId, key, ok, ms) {
+        if (ms > this.INVALID_MS) {
+            return; // 無効（にがてには入れない）
+        }
         const stats = TamaStore.readJSON(this.STATS_KEY, {});
         const modeStats = stats[modeId] || (stats[modeId] = {});
         const stat = modeStats[key] || (modeStats[key] = { n: 0, miss: 0, ms: 0 });
@@ -38,7 +46,7 @@ const History = {
         if (!ok) {
             stat.miss += 1;
         }
-        stat.ms += Math.min(ms, 60000); // 手をとめていた時間で平均がくずれないよう、1問60秒まで
+        stat.ms += ms;
         TamaStore.writeJSON(this.STATS_KEY, stats);
     },
 

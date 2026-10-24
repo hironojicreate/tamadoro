@@ -162,9 +162,9 @@ async function answerCorrect(page) {
   // 9. index の隠しボタン：1回目のタップで切り替わる
   {
     const { page } = await openPage(browser, 'index.html');
-    const before = await page.isVisible('#homeHundredgrid');
+    ok(await page.$eval('#version', e => e.textContent) === 'Ver.6.0.0', 'バージョン表記');
     await page.click('#version');
-    ok(before !== await page.isVisible('#homeHundredgrid'), `Ver タップ1回目で切り替わる (${before}→${!before})`);
+    ok(await page.isVisible('#homeHundredgrid'), 'Ver をタップしても百マスは消えない');
     await page.close();
   }
 

@@ -1,71 +1,37 @@
 // タマのおしゃべり：こするとしゃべる・クリア時のお祝いメッセージ
 
-//タッチエリアの挙動
-document.addEventListener('DOMContentLoaded', function() {
+// くろねこ（#touchArea）をこすると、しゃべる
+//   マウスでも指でも同じ。押したまま（さわったまま）動かした長さで「こすった回数」を数える
+//   RUB_LENGTH 動かすと1回。10回ごとにしゃべる（100回をこえると「そろそろもんだいに…」）
+const RUB_LENGTH = 40; // px
+
+document.addEventListener('DOMContentLoaded', function () {
     const touchArea = document.getElementById('touchArea');
-    const feedback = document.getElementById('feedback');
-    let moveCount = 0;
-    let isInTouchArea = false; // タッチエリア内かどうかを追跡するフラグ
+    let rubCount = 0;
+    let distance = 0;
+    let last = null;
 
-    touchArea.addEventListener('mouseenter', function(event) {
-        if (event.buttons === 1 && !isInTouchArea) { // マウスがクリックされた状態でエリアに入る
-            moveCount++;
-            isInTouchArea = true;
-            updateFeedback();
+    touchArea.addEventListener('pointerdown', event => {
+        last = { x: event.clientX, y: event.clientY };
+        touchArea.setPointerCapture(event.pointerId); // ねこの外に出ても、こすりつづけられる
+    });
+
+    touchArea.addEventListener('pointermove', event => {
+        if (!last) return;
+        distance += Math.hypot(event.clientX - last.x, event.clientY - last.y);
+        last = { x: event.clientX, y: event.clientY };
+        while (distance >= RUB_LENGTH) {
+            distance -= RUB_LENGTH;
+            rubCount++;
+            if (rubCount % 10 === 0) {
+                displayCachedMessage(rubCount);
+            }
         }
     });
 
-    touchArea.addEventListener('mouseleave', function(event) {
-        isInTouchArea = false; // エリアから出るとフラグをリセット
-    });
-
-    // ドキュメント全体にマウスアップイベントを適用
-    document.addEventListener('mouseup', function(event) {
-        if (isInTouchArea || moveCount > 0) { // エリア内であれば、またはカウントが0より大きい場合
-            moveCount = 0; // カウントをリセット
-            updateFeedback();
-            isInTouchArea = false; // フラグをリセット
-        }
-    });
-
-    //タッチパッドでの操作
-    function isTouchInsideArea(event) {
-        const touch = event.touches[0]; // 最初のタッチポイントを取得
-        const rect = touchArea.getBoundingClientRect(); // touchAreaの境界を取得
-        return touch.clientX >= rect.left && touch.clientX <= rect.right &&
-               touch.clientY >= rect.top && touch.clientY <= rect.bottom;
-    }
-
-    document.addEventListener('touchmove', function(event) {
-        const insideArea = isTouchInsideArea(event);
-        if (insideArea && !isInTouchArea) {
-            moveCount++; // エリア外からエリア内に入った時だけカウントを増やす
-            isInTouchArea = true; // 状態を更新
-            updateFeedback();
-        } else if (!insideArea) {
-            isInTouchArea = false; // タッチがエリア外に出たらフラグをリセット
-        }
-    });
-
-    document.addEventListener('touchend', function(event) {
-        isInTouchArea = false; // タッチ終了時にフラグをリセット
-        updateFeedback();
-    });
-
-
-    function updateFeedback() {
-        if (moveCount > 500) {
-            feedback.textContent = 'たくさん擦りましたね！';
-        } else {
-            feedback.textContent = `擦った回数: ${moveCount}`;
-        }
-
-        // 10回こするごとにしゃべる
-        if (moveCount % 10 === 0 && moveCount !== 0) {
-            displayCachedMessage(moveCount);
-        }
-    }
-
+    const stop = () => { last = null; };
+    touchArea.addEventListener('pointerup', stop);
+    touchArea.addEventListener('pointercancel', stop);
 });
 
 
