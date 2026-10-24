@@ -32,14 +32,65 @@ h1 {
 /* ---------- オープニング（レベル選択）画面 ---------- */
 
 #openingScreen {
-    /* background-image は各モードの CSS で指定 */
-    background-size: auto 100vh; /* 高さを画面に合わせ、幅は自動調整 */
+    position: relative;
+    /* レイヤー1：トップ画面と同じ宇宙のキラキラ背景を使い回し！ */
+    background-image: url('../img/bg_space.svg') !important;
+    background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     height: 100vh;
     width: 100vw;
     display: block;
     overflow: hidden;
+}
+
+/* レイヤー2：トップ画面と同じ水面ボードを使い回し！ */
+#openingScreen .opening-board {
+    position: absolute;
+    top: 14vh;
+    left: 1.5vw;
+    right: 1.5vw;
+    bottom: 2.5vh;
+    border: 14px solid #57c1e8; /* たしざん・百マスは水色の枠 */
+    background-image: url('../img/board_water.svg');
+    background-size: 100% 100%;
+    box-sizing: border-box;
+    z-index: 0;
+}
+
+/* ひきざん・かけざんモードのときは、原画どおり枠の色をピンク（#ff8e99）に自動変更！ */
+html[data-mode="sub"] #openingScreen .opening-board,
+html[data-mode="multi"] #openingScreen .opening-board {
+    border-color: #ff8e99;
+}
+
+/* レイヤー3：タマとモード別タイトルのヘッダー（枠の上辺にタマの手がピタッと乗る） */
+#openingScreen .opening-header-logo {
+    position: absolute;
+    top: calc(14vh - clamp(58px, 9.5vw, 105px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: clamp(520px, 84vw, 960px);
+    z-index: 2;
+    pointer-events: none; /* 外枠はクリックを透過し、中のタマ（#touchArea）だけ反応させる */
+}
+
+#openingScreen .opening-header-logo svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+}
+
+/* モードごとのタイトル文字の自動出し分け */
+#openingScreen .mode-title {
+    display: none;
+}
+html[data-mode="add"] #openingScreen .title-add,
+html[data-mode="sub"] #openingScreen .title-sub,
+html[data-mode="multi"] #openingScreen .title-multi,
+html[data-mode="hundredgrid"] #openingScreen .title-hundredgrid {
+    display: inline;
 }
 
 .select-level-buttons {
@@ -516,18 +567,20 @@ footer p {
 
 /* ---------- タマのおしゃべり ---------- */
 
-/* こするとタマがしゃべるエリア（上の絵の、くろねこの顔のあたり） */
+/* こするとタマがしゃべるエリア（SVGのくろねこタマ自身が当たり判定！） */
 #touchArea {
-    width: 150px;
-    height: 13vh; /* 上の絵の中だけ（レベルボタンにかからないように） */
-    max-height: 130px;
-    position: absolute;
-    top: 5px;
-    left: 48%;
-    transform: translateX(-50%);
-    z-index: 2;
-    touch-action: none; /* 指でこすっても、画面がスクロールしない */
+    pointer-events: auto; /* タマのイラスト部分だけタッチ・マウスイベントを受け取る */
+    touch-action: none;   /* 指でこすっても画面がスクロールしない */
     cursor: grab;
+    transition: filter 0.2s ease;
+}
+
+#touchArea:hover {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 200, 0.7)); /* 触れるとほんのり光って分かりやすい */
+}
+
+#touchArea:active {
+    cursor: grabbing;
 }
 
 
