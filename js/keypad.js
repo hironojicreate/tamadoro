@@ -57,6 +57,13 @@ function toggleKeypad(enabled) {
     });
 }
 
+// キーの数字を字形（js/glyphs.js）で描く
+document.querySelectorAll('.num').forEach(button => {
+    const value = button.getAttribute('data-value');
+    button.setAttribute('aria-label', value);
+    button.querySelector('.key-digit').innerHTML = glyphSVG(value);
+});
+
 //タッチパッド、マウス
 document.querySelectorAll('.num').forEach(button => {
     let touchActive = false; // タッチのあとに来る click を無視するためのフラグ

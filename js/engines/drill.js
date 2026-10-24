@@ -123,11 +123,11 @@ function displayProblem(a, b, c) {
 
     // 「5 は 2 と ？」のときは「は」「と」
     if (currentLevelDef().style === 'decompose') {
-        document.getElementById("calculationSymbol1").innerHTML = '<span class="symbol kana kana-ha">は</span>';
-        document.getElementById("calculationSymbol2").innerHTML = '<span class="symbol kana">と</span>';
+        document.getElementById("calculationSymbol1").innerHTML = `<span class="symbol kana-ha">${glyphSVG('は')}</span>`;
+        document.getElementById("calculationSymbol2").innerHTML = `<span class="symbol">${glyphSVG('と')}</span>`;
     } else {
-        document.getElementById("calculationSymbol1").innerHTML = `<span class="symbol">${SYMBOL_TEXT[currentMode.symbol]}</span>`;
-        document.getElementById("calculationSymbol2").innerHTML = '<span class="symbol">=</span>';
+        document.getElementById("calculationSymbol1").innerHTML = `<span class="symbol">${glyphSVG(SYMBOL_TEXT[currentMode.symbol])}</span>`;
+        document.getElementById("calculationSymbol2").innerHTML = `<span class="symbol">${glyphSVG('=')}</span>`;
     }
 }
 
@@ -143,15 +143,15 @@ function showNumber(prefix, number) {
 
     if (tens > 0) {
         tensContainer.style.width = '12vh';
-        tensContainer.querySelector('.digit').textContent = tens;
+        tensContainer.querySelector('.digit').innerHTML = glyphSVG(String(tens));
         tensCover.style.display = 'block';
     } else {
         tensContainer.style.width = '0';
-        tensContainer.querySelector('.digit').textContent = '';
+        tensContainer.querySelector('.digit').innerHTML = '';
         tensCover.style.display = 'none';
     }
 
-    onesContainer.querySelector('.digit').textContent = ones;
+    onesContainer.querySelector('.digit').innerHTML = glyphSVG(String(ones));
     onesContainer.style.width = '12vh';
     onesCover.style.display = 'block';
 }
@@ -159,7 +159,7 @@ function showNumber(prefix, number) {
 // 答えをかくす「？」のカード
 function showCover(coverId) {
     const cover = document.getElementById(coverId);
-    cover.innerHTML = '<div class="q-card">?</div>';
+    cover.innerHTML = `<div class="q-card">${glyphSVG('?')}</div>`;
     cover.style.display = 'block';
 }
 
@@ -371,7 +371,7 @@ function handleAnswer(isCorrect) {
 function shootAtTarget(rect, value, isCorrect) {
     const digit = document.createElement('div');
     digit.className = 'falling-and-shrinking-image digit-card';
-    digit.textContent = value;
+    digit.innerHTML = glyphSVG(String(value));
 
     const newDiv = document.createElement('div');
     newDiv.appendChild(digit);

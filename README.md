@@ -49,8 +49,9 @@ js/
   timer.js              ストップウォッチ、ベストタイム
   home.js               さいしょの画面
   app.js                画面の切り替え
-fonts/                  数字・記号のフォント（Zen Maru Gothic を使う文字だけにしたもの。OFL.txt）
+js/glyphs.js            数字・記号・ひらがなの字形（tools/make_glyphs.py でつくる）
 img/drops/              ドロップ（球の SVG。tools/make_drops.py でつくる）
+tools/make_glyphs.py    数字・記号・ひらがなの字形をつくるスクリプト（形を直したいときに）
 tools/make_drops.py     ドロップの SVG をつくるスクリプト（色を変えたいときに）
 ```
 
@@ -62,6 +63,9 @@ tools/make_drops.py     ドロップの SVG をつくるスクリプト（色を
     patterns: () => P.pairs(1, 9, 1, 9, (a, b) => a + b <= 20) },
   ```
 - **ドロップの色を変える**：`tools/make_drops.py` の `COLORS` を変えて `python3 tools/make_drops.py`。
+- **数字・記号・ひらがなの形を直す**：`tools/make_glyphs.py` の `BASE`（線の通り道）を変えて `python3 tools/make_glyphs.py`。
+  字形は、教科書体の書き方のきまりに合わせて、タマドロのために一から描いたものです（フォントをなぞったものではありません）。
+  あとで最終調整する点は、スクリプトの先頭に覚え書きがあります。
 - **タマのセリフを変える**：`tashizan_message.json`。
 
 ## 保存データ（localStorage）
