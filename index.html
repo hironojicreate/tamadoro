@@ -2,6 +2,15 @@
 <html lang="ja" data-mode="home">
 
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-T4PRTENL0V"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-T4PRTENL0V');
+    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>タマの【けいさん】ドロップス</title>
@@ -10,7 +19,7 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="canonical" href="https://addsubmaster.web.app/">
+    <link rel="canonical" href="https://tamadoro.vercel.app/">
 
     <!-- 共通 → さいしょの画面 → モードごとの違い -->
     <link href="css/base.css" rel="stylesheet" type="text/css" />
@@ -34,7 +43,7 @@
 </head>
 
 <body>
-<!--
+    <!--
   画面のしくみ
     #/            さいしょの画面（#homeScreen）
     #/add など    レベル選択（#openingScreen）→ 問題（#drillScreen か #hundredgridScreen）
@@ -43,7 +52,7 @@
 -->
 
 
-<!-- ================= さいしょの画面 ================= -->
+    <!-- ================= さいしょの画面 ================= -->
     <div id="homeScreen" style="display: none;">
         <div class="main-container">
             <div class="button-container">
@@ -65,11 +74,13 @@
         </textarea>
         </div>
         <div id="Disclaimer">
-            <p>【WEBアプリの扱い】本WEBアプリは個人データを収集しません。予告なく改良、提供終了を行います。<br>データの消失について責任をもてません。データ強制復元は保存復元ボタンより/rescueを実行してください。</p>
+            <p>【WEBアプリの扱い】本WEBアプリは個人データを収集しません。予告なく改良、提供終了を行います。<br>データの消失について責任をもてません。データ強制復元は保存復元ボタンより/rescueを実行してください。
+            </p>
         </div>
 
         <!-- 保存・復元ボタン -->
-        <button id="openDataModalHome" onclick="openDataModal();" style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer; z-index:1;">ドロップのセーブ/ロード</button>
+        <button id="openDataModalHome" onclick="openDataModal();"
+            style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer; z-index:1;">ドロップのセーブ/ロード</button>
 
         <footer>
             <p>&copy; 2026 Rela All rights reserved.
@@ -79,7 +90,7 @@
     </div>
 
 
-<!-- ================= タマのきろく（js/records.js） ================= -->
+    <!-- ================= タマのきろく（js/records.js） ================= -->
     <div id="recordsScreen" style="display: none;">
         <header class="records-header">
             <button class="records-back" onclick="location.hash = Records.returnTo">もどる</button>
@@ -111,7 +122,12 @@
             <p class="records-note">タイムのグラフは、せんが さがると はやくなったということ！（てんに さわると、日づけと タイム）</p>
             <table class="level-records">
                 <thead>
-                    <tr><th scope="col">レベル</th><th scope="col">クリア</th><th scope="col">さいこう</th><th scope="col">タイムのうつりかわり（さいきん20かい）</th></tr>
+                    <tr>
+                        <th scope="col">レベル</th>
+                        <th scope="col">クリア</th>
+                        <th scope="col">さいこう</th>
+                        <th scope="col">タイムのうつりかわり（さいきん20かい）</th>
+                    </tr>
                 </thead>
                 <tbody id="levelRecords"></tbody>
             </table>
@@ -128,7 +144,7 @@
     <div id="chartTooltip" class="chart-tooltip" hidden></div>
 
 
-<!-- ================= テンキー ================= -->
+    <!-- ================= テンキー ================= -->
     <div id="keypadScreen" class="keypad" style="display: none;">
         <div class="key-row">
             <button class="num" data-value="7"><span class="key-digit"></span></button>
@@ -151,14 +167,16 @@
     </div>
 
 
-<!-- ================= レベル選択画面（モード共通） ================= -->
+    <!-- ================= レベル選択画面（モード共通） ================= -->
     <div id="openingScreen" class="opening-screen unselectable" style="display: none;">
         <!-- こするとタマがしゃべる -->
         <div id="touchArea"></div>
         <div id="commentArea"></div>
 
         <!-- rescueモーダル（中身は js/level-select.js がモードに合わせてつくる） -->
-        <div id="rescueModal" style="display:none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+        <div id="rescueModal"
+            style="display:none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </div>
 
         <!-- レベル選択ボタン（js/level-select.js がモードの定義からつくる） -->
         <div class="select-level-buttons"></div>
@@ -174,11 +192,12 @@
         </footer>
 
         <!-- 保存・復元ボタン -->
-        <button id="openDataModal" onclick="openDataModal();" style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer;">ドロップのセーブ/そのた</button>
+        <button id="openDataModal" onclick="openDataModal();"
+            style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer;">ドロップのセーブ/そのた</button>
     </div>
 
 
-<!-- ================= 問題画面：たしざん・ひきざん・かけざん（js/engines/drill.js） ================= -->
+    <!-- ================= 問題画面：たしざん・ひきざん・かけざん（js/engines/drill.js） ================= -->
     <div id="drillScreen" class="question-screen" style="display: none;">
         <div id="remaining-problems" class="remaining-problems"></div>
 
@@ -252,7 +271,7 @@
     </div>
 
 
-<!-- ================= 問題画面：百マス（js/engines/grid.js） ================= -->
+    <!-- ================= 問題画面：百マス（js/engines/grid.js） ================= -->
     <div id="hundredgridScreen" class="question-screen" style="display: none;">
         <button class="returnButton" onclick="returnMenu()">はじめにもどる</button>
 
@@ -265,8 +284,10 @@
         <table id="calculation-grid"></table>
 
         <!-- 時間の記録 -->
-        <div id="recordDisplay" style="position: absolute; top: 100px; right: 0px; width: auto; background-color: rgba(255, 255, 255, 1); border: 1px solid #ccc; border-radius: 5px; padding: 10px; overflow-y: auto; max-height: 400px;">
-            <h3 id="toggleRecordList" style="text-align: center; font-size: 16px; color: #555; cursor: pointer; margin: 0;">
+        <div id="recordDisplay"
+            style="position: absolute; top: 100px; right: 0px; width: auto; background-color: rgba(255, 255, 255, 1); border: 1px solid #ccc; border-radius: 5px; padding: 10px; overflow-y: auto; max-height: 400px;">
+            <h3 id="toggleRecordList"
+                style="text-align: center; font-size: 16px; color: #555; cursor: pointer; margin: 0;">
                 タイム
             </h3>
             <ul id="recordList" class="collapsed"></ul>
@@ -298,7 +319,8 @@
     </div>
 
     <!-- がんばったねパネル（百マス Lv5） -->
-    <div id="congrats-panel" style="display: none; position: absolute; top: 200px; right: 0px; background-color: white; border: 2px solid black; padding: 20px; text-align: center;">
+    <div id="congrats-panel"
+        style="display: none; position: absolute; top: 200px; right: 0px; background-color: white; border: 2px solid black; padding: 20px; text-align: center;">
         <p style="color: red; font-size: 24px; font-weight: bold;">さいごまでがんばったね！</p>
         <p>きねんに、スクリーンショットをとりますか？</p>
         <button id="yes-button">はい</button>
@@ -309,10 +331,11 @@
     <button id="masterButton" style="display:none;" onclick="pressMasterButton()">マスターボタン</button>
 
 
-<!-- ================= モーダル ================= -->
+    <!-- ================= モーダル ================= -->
 
     <!-- クリア -->
-    <div id="completionModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+    <div id="completionModal"
+        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
         <div style="background-color: white; padding: 20px; border-radius: 10px;">
             <h2 id="modalTitle">Lvもんだい、クリア！</h2>
             <p class="drill-only">おめでとう！</p>
@@ -324,7 +347,8 @@
     </div>
 
     <!-- 間違いが多かった -->
-    <div id="mistakeModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+    <div id="mistakeModal"
+        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
         <div style="background-color: white; padding: 20px; border-radius: 10px;">
             <h2>ざんねん......。</h2>
             <p><span id="maxMistakes">5</span>かい　まちがえてしまいました。</p>
@@ -335,7 +359,8 @@
     </div>
 
     <!-- /delete -->
-    <div id="deleteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center;">
+    <div id="deleteModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center;">
         <div style="background: white; padding: 20px; border-radius: 5px; text-align: center;">
             <p>【保存したデータを消します】</p>
             <p>すべてのドロップデータが消えますが</p>
@@ -346,32 +371,39 @@
     </div>
 
     <!-- データ管理（セーブ／ロード） -->
-    <div id="dataModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2;"></div>
-    <div id="dataModal" style="display:none; position: fixed; bottom: 10px; right: 10px; background: white; padding: 20px;">
+    <div id="dataModalOverlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2;">
+    </div>
+    <div id="dataModal"
+        style="display:none; position: fixed; bottom: 10px; right: 10px; background: white; padding: 20px;">
         <div style="text-align: center;">
             <h2>★おとなのひとに やりかたをきいてください★</h2>
             <p class="home-only">ゲットしたドロップのまいすうを、
-            <br>セーブ（ほぞん）したり、ロード（よみこみ）したりします。
-            <br>セーブファイルは、keisan_d_すうじ.txtです。
-            <br><b>※データは端末本体に保存されます。</b>
-            <br>※各計算ページからもセーブ機能できます。</p>
+                <br>セーブ（ほぞん）したり、ロード（よみこみ）したりします。
+                <br>セーブファイルは、keisan_d_すうじ.txtです。
+                <br><b>※データは端末本体に保存されます。</b>
+                <br>※各計算ページからもセーブ機能できます。
+            </p>
             <p class="mode-only">ゲットした ドロップのかずを、セーブ（ほぞん）します。
-            <br>セーブファイルは、keisan_d_すうじ.txtです。
-            <br><b>※データは端末本体に保存されます。</b></p>
+                <br>セーブファイルは、keisan_d_すうじ.txtです。
+                <br><b>※データは端末本体に保存されます。</b>
+            </p>
             <button id="exportData">データをセーブ</button>
             <input type="file" id="fileInput" style="display: none;">
             <button id="importData" class="home-only">データをロード</button>
             <button id="toggleDateButton" class="mode-only">ひづけON</button>
             　<!--　←空白あり-->
             <button onclick="closeDataModal();">とじる</button>
-            <textarea id="commandInput" class="mode-only" style="width: 80%; height: 20px; margin-top: 10px; resize: none; overflow: hidden; padding: 5px;" placeholder="【⚠緊急復元⚠】ここに「/rescue」と入力。その後Lvを選択。"></textarea>
+            <textarea id="commandInput" class="mode-only"
+                style="width: 80%; height: 20px; margin-top: 10px; resize: none; overflow: hidden; padding: 5px;"
+                placeholder="【⚠緊急復元⚠】ここに「/rescue」と入力。その後Lvを選択。"></textarea>
         </div>
     </div>
 
     <div id="notification" class="notification"></div>
 
 
-<!-- ================= スクリプト ================= -->
+    <!-- ================= スクリプト ================= -->
     <!-- 共通部品 → モードの定義 → 画面の部品 → 問題のエンジン → テンキー → 画面の切り替え の順 -->
     <script src="js/storage.js"></script>
     <script src="js/timer.js"></script>
@@ -395,24 +427,6 @@
     <script src="js/home.js"></script>
     <script src="js/app.js"></script>
 
-    <script type="module">
-        // アクセス解析（Firebase Analytics）
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-analytics.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCVhChrniYZr8Rz-GzFFI9Hj4KjmYmCOcQ",
-            authDomain: "addsubmaster.firebaseapp.com",
-            projectId: "addsubmaster",
-            storageBucket: "addsubmaster.appspot.com",
-            messagingSenderId: "1057942714184",
-            appId: "1:1057942714184:web:53fc321db3dac1e72aa57d",
-            measurementId: "G-H69CZ1LN6B"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-    </script>
 </body>
 
 </html>
