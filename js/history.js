@@ -28,11 +28,74 @@ const History = {
         TamaStore.writeJSON(this.LOG_KEY, log);
     },
 
+
     // ---------- 1問ごとのできぐあい ----------
 
-    // { add: { '7+6': { n: 回数, miss: まちがえた回数, ms: かかった時間の合計 }, ... }, ... }
+    // 素早く正解したとみなす基準（ミリ秒）：3.5秒以内ならHPが減る、4.5秒以上なら隠れ苦手としてHPが少し増える
+    FAST_MS: 3500,
+    SLOW_MS: 4500,
+
+    // { add: { '7+6': { n: 回数, miss: まちがえた回数, ms: かかった時間の合計, hp: 苦手HP }, ... }, ... }
     getStats(modeId) {
         return TamaStore.readJSON(this.STATS_KEY, {})[modeId] || {};
+    },
+
+    // その問題の「苦手HP（0なら克服済み、1以上なら苦手）」を返す
+    getWeakScore(modeId, key) {
+        const stat = this.getStats(modeId)[key];
+        if (!stat) return 0;
+        // すでにhpが記録されていればそれを使う（なければ過去のmissと平均時間から初期HPを算出）
+        if (typeof stat.hp === 'number') {
+            return stat.hp;
+        }
+        const avgMs = stat.n > 0 ? stat.ms / stat.n : 0;
+        const slowBonus = (stat.n >= 2 && avgMs >= this.SLOW_MS) ? 4 : 0;
+        return Math.min(30, stat.miss * 10 + slowBonus);
+    },
+
+    recordProblem(modeId, key, ok, ms) {
+        if (ms > this.INVALID_MS) {
+            return; // 無効（にがてには入れない）
+        }
+        const stats = TamaStore.readJSON(this.STATS_KEY, {});
+        const modeStats = stats[modeId] || (stats[modeId] = {});
+        const stat = modeStats[key] || (modeStats[key] = { n: 0, miss: 0, ms: 0, hp: 0 });
+
+        // 既存データにhpがまだ無い場合は初期値をセット
+        if (typeof stat.hp !== 'number') {
+            const avgMs = stat.n > 0 ? stat.ms / stat.n : 0;
+            stat.hp = Math.min(30, stat.miss * 10 + ((stat.n >= 2 && avgMs >= this.SLOW_MS) ? 4 : 0));
+        }
+
+        stat.n += 1;
+        stat.ms += ms;
+
+        if (!ok) {
+            stat.miss += 1;
+            stat.hp = Math.min(30, stat.hp + 10); // まちがえたらHP+10（最大30）
+        } else if (ms >= this.SLOW_MS) {
+            stat.hp = Math.min(30, stat.hp + 3);  // 正解でも時間がかかったら隠れ苦手としてHP+3
+        } else if (ms <= this.FAST_MS && stat.hp > 0) {
+            stat.hp = Math.max(0, stat.hp - 2);   // 通常プレイでも即答できたら少しずつHPを減らす
+        }
+
+        TamaStore.writeJSON(this.STATS_KEY, stats);
+    },
+
+    // にがてちょうせんモードの「2段階卒業」判定：
+    //   1回の挑戦で3回ともノーミス＆平均3.5秒以内ならHPを1段階（最大10）削る
+    //   大苦手（HP11以上）なら1回では0にならず「あとすこし（HP6）」になり、次回の挑戦で0（完全克服）になる！
+    graduateWeakProblem(modeId, key) {
+        const stats = TamaStore.readJSON(this.STATS_KEY, {});
+        const stat = stats[modeId] && stats[modeId][key];
+        if (!stat) return;
+
+        if (stat.hp > 10) {
+            stat.hp = 6; // 第1段階クリア！（次回もう1回クリアで卒業）
+        } else {
+            stat.hp = 0; // 完全卒業！
+        }
+        TamaStore.writeJSON(this.STATS_KEY, stats);
     },
 
     recordProblem(modeId, key, ok, ms) {

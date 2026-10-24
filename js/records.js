@@ -113,7 +113,7 @@ const Records = {
         let shownRows = 0;
         mode.levels.forEach((def, i) => {
             const level = i + 1;
-            const entries = log.filter(e => e.mode === mode.id && e.level === level);
+            const entries = log.filter(e => e.mode === mode.id && e.level === level && !e.weakChallenge);
             const savedBest = localStorage.getItem(`${mode.bestTimePrefix}_level_${level}_best_time`);
             if (entries.length === 0 && !savedBest) {
                 return;
@@ -178,9 +178,9 @@ const Records = {
 
         // まちがえた割合が高い順（同じなら、時間がかかった順）
         const weak = Object.entries(stats)
-            .map(([key, s]) => ({ key, ...s, rate: s.miss / s.n, avg: s.ms / s.n }))
-            .filter(s => s.miss > 0)
-            .sort((a, b) => b.rate - a.rate || b.avg - a.avg)
+            .map(([key, s]) => ({ key, ...s, hp: History.getWeakScore(mode.id, key), rate: s.miss / s.n, avg: s.ms / s.n }))
+            .filter(s => s.hp > 0)
+            .sort((a, b) => b.hp - a.hp || b.rate - a.rate || b.avg - a.avg)
             .slice(0, 8);
         if (weak.length === 0) {
             list.innerHTML = '<li class="records-note">にがてな もんだいは まだ ないよ！</li>';
@@ -280,7 +280,8 @@ function weakGrid(mode, stats) {
                 html += `<td class="empty" data-label="${name}：まだ やっていないよ">－</td>`;
                 continue;
             }
-            const rate = s.miss / s.n;
+            const hp = History.getWeakScore(mode.id, `${a}${mode.symbol}${b}`);
+            const rate = hp === 0 ? 0 : (s.miss / s.n);
             const step = weakStep(rate);
             html += `<td style="background:${step.color}" class="${step.dark ? 'dark' : ''}" data-label="${name}：${s.n}かいちゅう ${s.miss}かい まちがい・へいきん ${(s.ms / s.n / 1000).toFixed(1)}びょう"></td>`;
         }

@@ -15,15 +15,114 @@ document.addEventListener('DOMContentLoaded', () => {
 // ---------- レベルの開始・問題の出題 ----------
 
 function currentLevelDef() {
-    return currentMode.levels[problemState.level - 1];
+    return currentMode.levels[problemState.level - 1] || currentMode.levels[0];
+}
+
+// 忘却ブレンド方式：苦手上位3問×3回（9問）＋ カモフラージュ6問 ＝ 計15問をつくる
+function buildWeakDrillDeck(level) {
+    const isSpecial = (level === 0); // 0 は「タマの特訓コース」
+    const weakCandidates = isSpecial ? getAllUnlockedWeakPatterns() : getWeakPatternsForLevel(level);
+
+    // ベースとなる全問題プールを用意
+    let basePool = [];
+    if (isSpecial) {
+        for (let lv = 1; lv <= currentMode.levels.length; lv++) {
+            const def = currentMode.levels[lv - 1];
+            if ((lv === 1 || currentMode.isUnlocked(lv)) && def.style !== 'decompose') {
+                basePool.push(...def.patterns());
+            }
+        }
+    } else {
+        basePool = currentLevelDef().patterns();
+    }
+
+    // 1. 本命の苦手トップ3を選ぶ（足りなければ通常問題からランダムに補充）
+    const targets = weakCandidates.slice(0, 3).map(w => [w.a, w.b]);
+    const shuffledPool = [...basePool].sort(() => Math.random() - 0.5);
+    for (const [a, b] of shuffledPool) {
+        if (targets.length >= 3) break;
+        if (!targets.some(([ta, tb]) => ta === a && tb === b)) {
+            targets.push([a, b]);
+        }
+    }
+
+    // 本命として選ばれた苦手キーを記録（3回とも即答できたか最後に判定するため）
+    problemState.weakTargetKeys = targets.map(([a, b]) =>
+        makeProblemKey(currentLevelDef(), a, b)
+    );
+    problemState.weakAttemptLog = {}; // { '7+8': [{ ok, ms }, ...] }
+
+    // 2. カモフラージュ問題（6問）を選ぶ
+    //   ペア・ブリッジ方式：本命の「逆の式（b, a）」や「隣の数（a, b±1）」があれば優先して混ぜる！
+    const relatedPool = [];
+    const otherPool = [];
+    shuffledPool.forEach(([a, b]) => {
+        if (targets.some(([ta, tb]) => ta === a && tb === b)) return;
+        const isRelated = targets.some(([ta, tb]) =>
+            (a === tb && b === ta) || (a === ta && Math.abs(b - tb) === 1) || (b === tb && Math.abs(a - ta) === 1)
+        );
+        if (isRelated) {
+            relatedPool.push([a, b]);
+        } else {
+            otherPool.push([a, b]);
+        }
+    });
+
+    const camouflage = [...relatedPool, ...otherPool].slice(0, 6);
+    while (camouflage.length < 6 && shuffledPool.length > 0) {
+        camouflage.push(shuffledPool[camouflage.length % shuffledPool.length]);
+    }
+
+    // 3. 15問を3ブロック（5問×3周）に分け、同じ問題が連続しないように配置する
+    //   各ブロックに「苦手3問 ＋ カモフラージュ2問」を入れることで、適度な間隔（忘却ブレンド）をつくる
+    const deck = [];
+    for (let round = 0; round < 3; round++) {
+        const cam1 = camouflage[round * 2];
+        const cam2 = camouflage[round * 2 + 1];
+        const block = [...targets];
+        if (cam1) block.push(cam1);
+        if (cam2) block.push(cam2);
+
+        // ブロック内をシャッフル（前のブロックの最後の問題と先頭が被らないように調整）
+        block.sort(() => Math.random() - 0.5);
+        if (deck.length > 0) {
+            const [prevA, prevB] = deck[deck.length - 1];
+            if (block[0][0] === prevA && block[0][1] === prevB && block.length > 1) {
+                const swapIdx = 1 + Math.floor(Math.random() * (block.length - 1));
+                [block[0], block[swapIdx]] = [block[swapIdx], block[0]];
+            }
+        }
+        deck.push(...block);
+    }
+
+    return deck;
 }
 
 function drillStartLevel(level) {
     toggleKeypad(false);
-    restoreCoins(level); //ご褒美コインの復元
     pressCount = 0;
-    problemState.level = level;
-    problemState.patterns = currentLevelDef().patterns();
+    problemState.isSpecialCourse = (level === 0);
+    problemState.isWeakChallenge = isWeakMode;
+
+    // タマの特訓コース（level === 0）のときは、最も苦手な問題があるレベル（なければLv1）をご褒美ドロップの対象にする
+    if (level === 0) {
+        const allWeak = getAllUnlockedWeakPatterns();
+        problemState.level = allWeak.length > 0 ? allWeak[0].level : 1;
+    } else {
+        problemState.level = level;
+    }
+
+    restoreCoins(problemState.level); // ご褒美コインの復元
+
+    if (problemState.isWeakChallenge) {
+        problemState.patterns = buildWeakDrillDeck(level);
+    } else {
+        problemState.patterns = currentLevelDef().patterns();
+        problemState.weakTargetKeys = [];
+        problemState.weakAttemptLog = {};
+    }
+
+    problemState.solvedCount = 0;    // 何問目まで出したか（にがてモードでは同じ問題が複数回出るためインデックスで管理）
     problemState.solved = [];
     problemState.reviewQueue = [];   // まちがえた問題（最後にもういちど出す）
     problemState.isReview = false;
@@ -37,8 +136,8 @@ function drillStartLevel(level) {
     problemState.useExistingCoins = 0;
     problemState.mistakeMade = false;
     startTimer();
-    generateLvProblem(level);
-    updateHelpCheckboxVisibility(level);
+    generateLvProblem(problemState.level);
+    updateHelpCheckboxVisibility(problemState.level);
     setTimeout(() => {
         toggleKeypad(true);
     }, 750);
@@ -48,11 +147,31 @@ function drillRetryLevel() {
     document.getElementById('completionModal').style.display = 'none';
     document.getElementById('mistakeModal').style.display = 'none';
     clearCoinsOnDOM();
-    drillStartLevel(problemState.level);
+    drillStartLevel(problemState.isSpecialCourse ? 0 : problemState.level);
 }
 
 // まだ出していない問題から1つ出す。全部出したらクリア（問題を出したら true、クリアなら false）
 function generateLvProblem(level) {
+    // にがてモードのときは、組み立てた15問のデッキを順番どおりに出す
+    if (problemState.isWeakChallenge) {
+        if (problemState.solvedCount >= problemState.patterns.length) {
+            if (problemState.reviewQueue.length > 0) {
+                problemState.isReview = true;
+                showProblem(...problemState.reviewQueue.shift());
+                return true;
+            }
+            document.getElementById("remaining-problems").textContent = `のこり0${currentMode.texts.unit}！おわったよ！！`;
+            toggleKeypad(false);
+            drillShowModal(level);
+            return false;
+        }
+        const [a, b] = problemState.patterns[problemState.solvedCount];
+        problemState.solvedCount++;
+        problemState.solved.push([a, b]);
+        showProblem(a, b);
+        return true;
+    }
+
     const unsolvedPatterns = problemState.patterns.filter(
         ([a, b]) => !problemState.solved.some(([sa, sb]) => sa === a && sb === b)
     );
@@ -94,12 +213,12 @@ function problemKey() {
 //残りの問題数
 function updateRemainingProblems() {
     problemState.howManyOriginalProblems = problemState.patterns.length;
-    problemState.remainingQuestions = problemState.patterns.length - problemState.solved.length
+    const solvedLen = problemState.isWeakChallenge ? (problemState.solvedCount - 1) : problemState.solved.length;
+    problemState.remainingQuestions = problemState.patterns.length - solvedLen
         + problemState.reviewQueue.length + (problemState.isReview ? 1 : 0);
     document.getElementById("remaining-problems").textContent = `のこり${problemState.remainingQuestions}${currentMode.texts.unit}`
         + (problemState.isReview ? '（もういちど！）' : '');
 }
-
 
 // ---------- 式の表示 ----------
 
@@ -331,6 +450,12 @@ function handleAnswer(isCorrect) {
             problemState.paused = true;
         }
         History.recordProblem(currentMode.id, problemKey(), !problemState.mistakeMade, problemMs);
+        // にがてモードのとき、各問題の正誤とタイムを記録しておく（クリア時に3回とも即答できたか判定）
+        if (problemState.isWeakChallenge && !problemState.isReview) {
+            const key = problemKey();
+            const list = problemState.weakAttemptLog[key] || (problemState.weakAttemptLog[key] = []);
+            list.push({ ok: !problemState.mistakeMade, ms: problemMs });
+        }
         // まちがえた問題は、レベルの最後にもういちど（もういちどの問題は1回だけ）
         if (problemState.mistakeMade && !problemState.isReview) {
             const { a, b } = problemState.currentProblem;
@@ -420,15 +545,39 @@ function enlargeAndFadeImage(coverId) {
     }
 }
 
-
 // ---------- クリア・ミス ----------
 
 function drillShowModal(level) {
     const clearTime = stopTimer();
-    document.getElementById('modalTitle').textContent = currentMode.texts.clearTitle(level);
-    document.getElementById('clearTime').textContent = `クリアタイム ${clearTime}`;
 
-    saveBestTime(level, new Date() - startTime);
+    // にがてモードの2段階卒業チェック：3回ともノーミス＆平均3.5秒以内ならHPを1段階大きく削る！
+    let graduatedCount = 0;
+    if (problemState.isWeakChallenge && problemState.weakAttemptLog) {
+        Object.entries(problemState.weakAttemptLog).forEach(([key, logs]) => {
+            if (logs.length >= 3 && logs.every(l => l.ok)) {
+                const avgMs = logs.reduce((sum, l) => sum + l.ms, 0) / logs.length;
+                if (avgMs <= History.FAST_MS) {
+                    History.graduateWeakProblem(currentMode.id, key);
+                    graduatedCount++;
+                }
+            }
+        });
+    }
+
+    const baseTitle = problemState.isSpecialCourse
+        ? 'タマの特訓コース、クリア！'
+        : currentMode.texts.clearTitle(level);
+    document.getElementById('modalTitle').textContent = problemState.isWeakChallenge
+        ? `🔥 ${baseTitle}`
+        : baseTitle;
+
+    document.getElementById('clearTime').textContent = `クリアタイム ${clearTime}`
+        + (graduatedCount > 0 ? `（🔥にがて ${graduatedCount}もん パワーダウン！）` : '');
+
+    // 通常モードのときだけベストタイムを更新（にがてモードは15問固定で問題数が違うため）
+    if (!problemState.isWeakChallenge) {
+        saveBestTime(level, new Date() - startTime);
+    }
     const bestTime = getBestTime(level);
     document.getElementById('bestTime').textContent =
         `${currentMode.texts.best} ${bestTime !== null ? formatTime(bestTime) : '--:--'}`;
@@ -437,17 +586,29 @@ function drillShowModal(level) {
     const drop = createRewardCoin(level);
 
     History.addEntry({
-        mode: currentMode.id, level, ms: endTime - startTime,
-        total: problemState.patterns.length, miss: problemState.levelMistakes, cleared: true, drop,
-        paused: problemState.paused,
+        mode: currentMode.id,
+        level,
+        ms: problemState.isWeakChallenge ? null : (endTime - startTime),
+        total: problemState.patterns.length,
+        miss: problemState.levelMistakes,
+        cleared: !problemState.isWeakChallenge,
+        drop,
+        paused: problemState.paused || problemState.isWeakChallenge,
+        weakChallenge: problemState.isWeakChallenge,
     });
 }
 
 function showMistakeModal() {
     History.addEntry({
-        mode: currentMode.id, level: problemState.level, ms: Date.now() - startTime,
-        total: problemState.patterns.length, miss: problemState.levelMistakes, cleared: false, drop: null,
-        paused: problemState.paused,
+        mode: currentMode.id,
+        level: problemState.level,
+        ms: problemState.isWeakChallenge ? null : (Date.now() - startTime),
+        total: problemState.patterns.length,
+        miss: problemState.levelMistakes,
+        cleared: false,
+        drop: null,
+        paused: problemState.paused || problemState.isWeakChallenge,
+        weakChallenge: problemState.isWeakChallenge,
     });
     document.getElementById('maxMistakes').textContent = currentMode.maxMistakes;
     const mistakeList = document.getElementById('mistakeList');

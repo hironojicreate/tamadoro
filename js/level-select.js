@@ -1,5 +1,113 @@
 // レベル選択画面のボタンと、rescue モーダルの中身を、モードの定義（js/modes/）からつくる
 
+let isWeakMode = false; // 「にがてちょうせん！」モードかどうか
+
+// 問題（[a, b]）から記録用のキー（「7+6」「5は2と」など）をつくる
+function makeProblemKey(def, a, b) {
+    return def.style === 'decompose' ? `${a}は${b}と` : `${a}${currentMode.symbol}${b}`;
+}
+
+// 指定したレベルの「苦手問題（hp > 0）」のリストを返す
+function getWeakPatternsForLevel(level) {
+    if (!currentMode || currentMode.engine !== 'drill') return [];
+    const def = currentMode.levels[level - 1];
+    if (!def || typeof def.patterns !== 'function') return [];
+
+    const patterns = def.patterns();
+    const seen = new Set();
+    const weakList = [];
+
+    patterns.forEach(([a, b]) => {
+        const key = makeProblemKey(def, a, b);
+        if (seen.has(key)) return;
+        seen.add(key);
+        const hp = History.getWeakScore(currentMode.id, key);
+        if (hp > 0) {
+            weakList.push({ a, b, key, hp, level, style: def.style });
+        }
+    });
+
+    // 苦手HPが高い順に並べる
+    return weakList.sort((x, y) => y.hp - x.hp);
+}
+
+// 解放されている全レベルから苦手問題を集める（タマの特訓コース用）
+function getAllUnlockedWeakPatterns() {
+    if (!currentMode || currentMode.engine !== 'drill') return [];
+    const allWeak = [];
+    for (let lv = 1; lv <= currentMode.levels.length; lv++) {
+        if (lv === 1 || currentMode.isUnlocked(lv)) {
+            // 「5は2と」のような分解スタイルと通常計算が混ざると記号が変わるため、通常計算のみ対象にする
+            const def = currentMode.levels[lv - 1];
+            if (def.style !== 'decompose') {
+                allWeak.push(...getWeakPatternsForLevel(lv));
+            }
+        }
+    }
+    return allWeak.sort((x, y) => y.hp - x.hp);
+}
+
+// 「にがてちょうせん！」ボタンを押したときの切り替え
+function toggleWeakMode(forceState) {
+    if (!currentMode || currentMode.engine !== 'drill') {
+        isWeakMode = false;
+    } else {
+        isWeakMode = typeof forceState === 'boolean' ? forceState : !isWeakMode;
+    }
+
+    const screen = document.getElementById('openingScreen');
+    const toggleBtn = document.getElementById('toggleWeakMode');
+    if (screen) {
+        screen.classList.toggle('weak-mode-active', isWeakMode);
+    }
+    if (toggleBtn) {
+        toggleBtn.style.display = (currentMode && currentMode.engine === 'drill') ? 'block' : 'none';
+        toggleBtn.classList.toggle('active', isWeakMode);
+        toggleBtn.textContent = isWeakMode ? '🔥 にがてモード中（もどる）' : '🔥 にがてちょうせん！';
+    }
+
+    updateWeakBadges();
+}
+
+// 各レベルボタンの🔥バッジと「タマの特訓コース」ボタンの表示を更新
+function updateWeakBadges() {
+    if (!currentMode || currentMode.engine !== 'drill') return;
+
+    currentMode.levels.forEach((def, i) => {
+        const level = i + 1;
+        const btn = document.getElementById(`level${level}`);
+        if (!btn) return;
+
+        // 古いバッジがあれば消す
+        const oldBadge = btn.querySelector('.weak-badge');
+        if (oldBadge) oldBadge.remove();
+
+        const weakCount = getWeakPatternsForLevel(level).length;
+        btn.classList.toggle('has-weak', isWeakMode && weakCount > 0);
+        btn.classList.toggle('no-weak', isWeakMode && weakCount === 0);
+
+        if (isWeakMode) {
+            const badge = document.createElement('span');
+            badge.className = 'weak-badge';
+            badge.textContent = weakCount > 0 ? `🔥${weakCount}` : '✨';
+            btn.appendChild(badge);
+        }
+    });
+
+    // タマの特訓コースボタンの表示・更新
+    const specialPair = document.getElementById('tamaSpecialPair');
+    if (specialPair) {
+        const allWeak = getAllUnlockedWeakPatterns();
+        specialPair.style.display = isWeakMode ? 'block' : 'none';
+        const specialBtn = document.getElementById('levelSpecial');
+        if (specialBtn) {
+            specialBtn.innerHTML = allWeak.length > 0
+                ? `👑 タマの特訓コース <span class="weak-badge">🔥${allWeak.length}</span>`
+                : `👑 タマの特訓コース <span class="weak-badge">✨</span>`;
+        }
+    }
+}
+
 function renderLevelButtons() {
     const container = document.querySelector('.select-level-buttons');
     container.innerHTML = '';
@@ -21,8 +129,9 @@ function renderLevelButtons() {
         button.id = `level${level}`;
         button.textContent = def.label;
         button.addEventListener('click', () => {
-            resetTamaTalk(); // 問題に入るタイミングでこすりカウントを初期化
-            switchLevel(level, def.title || def.label);
+            resetTamaTalk();
+            const title = (def.title || def.label) + (isWeakMode ? '【🔥にがて】' : '');
+            switchLevel(level, title);
         });
         lock.appendChild(button);
 
@@ -41,6 +150,27 @@ function renderLevelButtons() {
         pair.appendChild(lock);
         container.appendChild(pair);
     });
+
+    // ドリル系モード（たしざん・ひきざん・かけざん）なら「タマの特訓コース」ボタンを追加
+    if (currentMode.engine === 'drill') {
+        const specialPair = document.createElement('div');
+        specialPair.className = 'level-pair special-course-pair';
+        specialPair.id = 'tamaSpecialPair';
+        specialPair.style.display = isWeakMode ? 'block' : 'none';
+
+        const specialBtn = document.createElement('button');
+        specialBtn.id = 'levelSpecial';
+        specialBtn.className = 'special-course-btn';
+        specialBtn.textContent = '👑 タマの特訓コース';
+        specialBtn.addEventListener('click', () => {
+            resetTamaTalk();
+            switchLevel(0, '👑 タマの特訓コース【全レベルから15もん】');
+        });
+        specialPair.appendChild(specialBtn);
+        container.appendChild(specialPair);
+    }
+
+    toggleWeakMode(false); // モードを開いたときは通常モードからスタート
 }
 
 

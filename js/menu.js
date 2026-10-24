@@ -21,6 +21,7 @@ function returnMenu() {
     clearCoinsOnDOM();
     displayAllLevelsCoins();
     unlockLevels();
+    updateWeakBadges(); // （克服したバッジをすぐ更新）
     document.getElementById('keypadScreen').style.display = 'none';
     document.getElementById(currentEngine().screenId).style.display = 'none';
     document.getElementById('openingScreen').style.display = 'block';
