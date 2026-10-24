@@ -1,35 +1,65 @@
 // タマのおしゃべり：こするとしゃべる・クリア時のお祝いメッセージ
 
 // くろねこ（#touchArea）をこすると、しゃべる
-//   マウスでも指でも同じ。押したまま（さわったまま）動かした長さで「こすった回数」を数える
-//   RUB_LENGTH 動かすと1回。10回ごとにしゃべる（100回をこえると「そろそろもんだいに…」）
-const RUB_LENGTH = 40; // px
+//   マウス（クリックしたまま左右に動かす）でも、指（タッチしたまま左右に動かす）でも同じ。
+//   左右に折り返した回数を計算して「往復」を数える（1往復＝2カウント、5往復＝10カウントでしゃべる）
+const TURN_THRESHOLD = 20; // 左右の折り返しと判定する最小の幅（px）
+const TURNS_PER_MESSAGE = 10; // 10カウント（＝5往復）ごとにしゃべる
+
+let rubCount = 0; // リセットできるように外に出す
+
+// 問題を解くときや画面を移動するときにカウントを初期状態に戻す関数
+function resetTamaTalk() {
+    rubCount = 0;
+    const area = document.getElementById('commentArea');
+    if (area) area.innerHTML = '';
+}
 
 document.addEventListener('DOMContentLoaded', function () {
     const touchArea = document.getElementById('touchArea');
-    let rubCount = 0;
-    let distance = 0;
-    let last = null;
+    let isRubbing = false;
+    let anchorX = 0;
+    let dirX = 0; // 1: 右向き, -1: 左向き, 0: まだ動いていない
+
+    // ブラウザ標準の画像ドラッグやスクロールの干渉を防ぐ
+    touchArea.style.touchAction = 'none';
+    touchArea.style.userSelect = 'none';
 
     touchArea.addEventListener('pointerdown', event => {
-        last = { x: event.clientX, y: event.clientY };
-        touchArea.setPointerCapture(event.pointerId); // ねこの外に出ても、こすりつづけられる
+        // マウスの場合は左クリック（button === 0）のときだけ反応させる
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+        isRubbing = true;
+        anchorX = event.clientX;
+        dirX = 0;
+        touchArea.setPointerCapture(event.pointerId); // 押したまま猫の外にはみ出ても追従する
     });
 
     touchArea.addEventListener('pointermove', event => {
-        if (!last) return;
-        distance += Math.hypot(event.clientX - last.x, event.clientY - last.y);
-        last = { x: event.clientX, y: event.clientY };
-        while (distance >= RUB_LENGTH) {
-            distance -= RUB_LENGTH;
-            rubCount++;
-            if (rubCount % 10 === 0) {
-                displayCachedMessage(rubCount);
+        if (!isRubbing) return;
+
+        const dx = event.clientX - anchorX;
+
+        // 一定の幅（TURN_THRESHOLD）以上、左右に動いたら方向を判定
+        if (Math.abs(dx) >= TURN_THRESHOLD) {
+            const newDirX = dx > 0 ? 1 : -1;
+
+            // 最初の動き出し（dirX === 0）または、前回と逆向きに折り返したときにカウント！
+            if (dirX === 0 || newDirX !== dirX) {
+                rubCount++;
+                if (rubCount % TURNS_PER_MESSAGE === 0) {
+                    displayCachedMessage(rubCount);
+                }
             }
+            dirX = newDirX;
+            anchorX = event.clientX; // 折り返し地点を更新
         }
     });
 
-    const stop = () => { last = null; };
+    const stop = () => {
+        isRubbing = false;
+        dirX = 0;
+    };
     touchArea.addEventListener('pointerup', stop);
     touchArea.addEventListener('pointercancel', stop);
 });

@@ -25,7 +25,7 @@ function closeEverything() {
     });
     closeDataModal();
     ChartTooltip.hide();
-    document.getElementById('commentArea').innerHTML = '';
+    resetTamaTalk();
     document.getElementById('commandInput').value = '';
     document.getElementById('toggleDateButton').textContent = 'ひづけON';
     document.getElementById('helpCheckbox').checked = false;

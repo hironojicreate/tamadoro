@@ -20,7 +20,10 @@ function renderLevelButtons() {
         const button = document.createElement('button');
         button.id = `level${level}`;
         button.textContent = def.label;
-        button.addEventListener('click', () => switchLevel(level, def.title || def.label));
+        button.addEventListener('click', () => {
+            resetTamaTalk(); // 問題に入るタイミングでこすりカウントを初期化
+            switchLevel(level, def.title || def.label);
+        });
         lock.appendChild(button);
 
         const coins = document.createElement('div');
