@@ -17,7 +17,7 @@
 
 
   
-<body data-mode="addition">
+<body data-mode="add">
   <!-- テンキーパッドスックリーン -->
   <!--
   <div id="keypadScreen" class="keypad" style="display: none;">
@@ -62,94 +62,13 @@
 
 <!-- rescueモーダル　-->
         <div id="rescueModal" style="display:none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <p>どの問題まで解放させますか？</p>
-            <input type="range" min="2" max="11" value="1" id="levelSlider" oninput="updateSliderValue(this.value)">
-            <span id="sliderValue">Lv2</span>
-            <button onclick="restoreLevels()">このレベルまで復元</button>
-            <button onclick="rescueCloseModal()">閉じる</button>
+            <!-- js/level-select.js がモードに合わせてつくる -->
         </div>
 
         
 <!-- レベル選択ボタン -->
         <div class="select-level-buttons">
-            <div class="level-pair">
-                <div id="lock1">
-                    <button id="level1" onclick="switchLevel(1, 'Lv1もんだい★')">Lv1もんだい★</button>
-                    <div id="coins1" class="coin-container">Lv1コイン●●●●●</div>
-                    <div class="comment">5はいくつといくつ？</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock2" style="display: none;">
-                    <button id="level2" onclick="switchLevel(2, 'Lv2もんだい')">Lv2もんだい</button>
-                    <div id="coins2" class="coin-container">Lv2コイン●●●●●</div>
-                    <div class="comment">こたえが5まで</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock3" style="display: none;">
-                    <button id="level3" onclick="switchLevel(3, 'Lv3もんだい')">Lv3もんだい</button>
-                    <div id="coins3" class="coin-container">Lv3コイン●●●●●</div>
-                    <div class="comment">5＋「？」</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock4" style="display: none;">
-                    <button id="level4" onclick="switchLevel(4, 'Lv4もんだい')">Lv4もんだい</button>
-                    <div id="coins4" class="coin-container">Lv4コイン●●●●●</div>
-                    <div class="comment">5＋「？」いろいろ</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock5" style="display: none;">
-                    <button id="level5" onclick="switchLevel(5, 'Lv5もんだい')">Lv5もんだい</button>
-                    <div id="coins5" class="coin-container">Lv5コイン●●●●●</div>
-                    <div class="comment">1から5までのかずで</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock6" style="display: none;">
-                    <button id="level6" onclick="switchLevel(6, 'Lv6もんだい★')">Lv6もんだい★</button>
-                    <div id="coins6" class="coin-container">Lv6コイン●●●●●</div>
-                    <div class="comment">10はいくつといくつ？</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock7" style="display: none;">
-                    <button id="level7" onclick="switchLevel(7, 'Lv7もんだい')">Lv7もんだい</button>
-                    <div id="coins7" class="coin-container">Lv7コイン●●●●●</div>
-                    <div class="comment">10＋「？」</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock8" style="display: none;">
-                    <button id="level8" onclick="switchLevel(8, 'Lv8もんだい★')">Lv8もんだい★</button>
-                    <div id="coins8" class="coin-container">Lv8コイン●●●●●</div>
-                    <div class="comment">10までのたしざん ぜんぶ</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock9" style="display: none;">
-                    <button id="level9" onclick="switchLevel(9, 'Lv9もんだい')">Lv9もんだい</button>
-                    <div id="coins9" class="coin-container">Lv9コイン●●●●●</div>
-                    <div class="comment">くりあがるたしざん しょきゅう</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock10" style="display: none;">
-                    <button id="level10" onclick="switchLevel(10, 'Lv10もんだい★')">Lv10もんだい★</button>
-                    <div id="coins10" class="coin-container">Lv10コイン●●●●●</div>
-                    <div class="comment">★かんせい★くりあがりぜんぶ</div>
-                </div>
-            </div>
-            <div class="level-pair">
-                <div id="lock11" style="display: none;">
-                    <button id="level11" onclick="switchLevel(11, 'Lvオニもんだい')">Lvオニもんだい</button>
-                    <div id="coins11" class="coin-container">Lvオニコイン●●●●●</div>
-                    <div class="comment">オニ</div>
-                </div>
-            </div>
-            <div class="level-pair empty"></div> <!-- 拡張用の空欄 -->
+            <!-- js/level-select.js がモードの定義からつくる -->
         </div>
         <!-- 移動 -->
         <button id="goToIndex" onclick="location.href='index.html?_=' + Date.now()">さいしょへ！</button>
@@ -186,7 +105,7 @@
     </div>
 
   <!-- 問題生成スクリーン -->
-  <div id="additionScreen" class="question-screen" style="display: none;">
+  <div id="drillScreen" class="question-screen" style="display: none;">
       <button id="masterButton" style="display:none;" onclick="pressMasterButton()">マスターボタン</button>
       <div id="remaining-problems" class="remaining-problems">のこり もん</div>
       
@@ -275,7 +194,7 @@
     <div id="mistakeModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
         <div style="background-color: white; padding: 20px; border-radius: 10px;">
             <h2>ざんねん......。</h2>
-            <p>5かい　まちがえてしまいました。</p>
+            <p><span id="maxMistakes">5</span>かい　まちがえてしまいました。</p>
             <div id="mistakeList"></div>
             <button class="universalButton" onclick="retryLevel()">もういちどちょうせん</button>
             <button class="universalButton" onclick="returnToLevelSelection()">もんだいをえらぶ</button>
@@ -297,16 +216,20 @@
 
     
 
-  <!-- このページの設定（PAGE）→ 共通部品 → 問題 → テンキー の順に読み込む -->
-  <script src="add-menu-coin.js"></script>
+  <!-- モードの定義 → 共通部品 → 問題のエンジン → テンキー → 開始 の順に読み込む -->
   <script src="js/storage.js"></script>
   <script src="js/timer.js"></script>
+  <script src="js/modes/index.js"></script>
+  <script src="js/modes/addition.js"></script>
+  <script src="js/state.js"></script>
   <script src="js/drops.js"></script>
   <script src="js/data-modal.js"></script>
   <script src="js/menu.js"></script>
   <script src="js/tama-talk.js"></script>
-  <script src="addition.js"></script>
-  <script src="numericKeypad.js"></script>
+  <script src="js/level-select.js"></script>
+  <script src="js/engines/drill.js"></script>
+  <script src="js/keypad.js"></script>
+  <script src="js/app.js"></script>
 
 
   <script type="module">

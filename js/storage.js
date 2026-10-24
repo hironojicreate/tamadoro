@@ -1,5 +1,5 @@
 // localStorage の読み書き
-// 保存のキー名はここに集めておく（PAGE は各モードの *-menu-coin.js で定義）
+// 保存のキー名はここに集めておく
 const TamaStore = {
     // JSON を読む。無い・壊れているときは fallback を返す
     readJSON(key, fallback) {
@@ -18,7 +18,7 @@ const TamaStore = {
 
     // 例: add_coins_3
     coinsKey(level) {
-        return `${PAGE.storagePrefix}_coins_${level}`;
+        return `${currentMode.storagePrefix}_coins_${level}`;
     },
 
     getCoins(level) {
@@ -31,6 +31,6 @@ const TamaStore = {
 
     // 例: addition_level_3_best_time
     bestTimeKey(level) {
-        return `${PAGE.bestTimePrefix}_level_${level}_best_time`;
+        return `${currentMode.bestTimePrefix}_level_${level}_best_time`;
     },
 };

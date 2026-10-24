@@ -1,67 +1,5 @@
-
-////問題生成////
-function preloadImages() {
-    const images = ['/img/q.gif', '/img/Smaru.png']; // 事前にロードしたい画像のパス
-    images.forEach(imagePath => {
-        const img = new Image();
-        img.src = imagePath;
-    });
-}
-
-// DOMが読み込まれたら画像をプリロード
-document.addEventListener('DOMContentLoaded', preloadImages);
-
-
-//十の位の有無をテンキーに投げる。
-let problemState = {
-    tens: 0,
-    answer: 0,
-    level: 1,
-    keypadEnabled: true,
-    coverIds: {
-        c1cover: "",
-        c2cover: ""
-    },
-    solvedPatterns: {
-        lv1: [],
-        lv2: [],
-        lv3: [],
-        lv4: [],
-        lv5: [],
-        lv6: [],
-        lv7: [],
-        lv8: [],
-        lv9: [],
-        lv10: [],
-        lv11: []
-    },
-    correctStreak: 0,
-    mistakeMade: false,
-    lvTenClear: false,
-    lvElevenClear: false,
-    useExistingCoins: 0,
-    mistakeCount: 0,
-    mistakes: [],
-    remainingQuestions: 0,
-    howManyOriginalProblems: 0,
-    currentProblem: { a: null, b: null },
-    levelToImage: {
-        1: '/img/Lmaru.png',
-        2: '/img/Mmaru.png',
-        3: '/img/Bmaru.png',
-        4: '/img/Amaru.png',
-        5: '/img/Rmaru.png',
-        6: '/img/Kmaru.png',
-        7: '/img/Pmaru.png',
-        8: '/img/Ymaru.png',
-        9: '/img/Cmaru.png',
-        10: '/img/Omaru.png',
-        11: '/img/Smaru.png'
-    }
-};
-
-
-
+// 百マス計算のエンジン
+//   表の上の行と左の列の数をたして、マスをうめていく
 // 百マスの表を生成
 
 // 一意のランダムな数値を生成する関数（例外的に重複を許可）
@@ -288,7 +226,7 @@ PatternManager.loadPatterns();
 
 
 
-async function startLevel(level) {
+async function gridStartLevel(level) {
     toggleKeypad(false);
     resetProblemCorrectCount(); // 問題単位の正答数をリセット
     partialInput = ""; // 2けた入力の途中状態をリセット
@@ -308,7 +246,6 @@ async function startLevel(level) {
     //setCursorOnFirstCell(); // 初期カーソル位置設定
     restoreCoins(level); // ご褒美コインの復元
 
-    pressCount = 0;
     problemState.level = level;
     problemState.correctStreak = 0;
     problemState.mistakeCount = 0;
@@ -358,7 +295,7 @@ function moveCursorToNextCell() {
             showCongratsPanel();
         } else {
             // レベル5以外は通常のモーダルを表示
-            showModal(problemState.level);
+            gridShowModal(problemState.level);
         }
         return;
     }
@@ -569,28 +506,11 @@ function resetProblemCorrectCount() {
     updateCorrectAnswerDisplay(); // 表示を更新
 }
 
-function updateHelpCheckboxVisibility(level) {
-    const helpCheckboxDiv = document.querySelector('.help-checkbox');
-    if (!helpCheckboxDiv) return;  // チェックボックスのdivが存在しない場合は何もしない
-
-    // レベル10と11の場合は非表示、それ以外は表示
-    if (level === 10 || level === 11) {
-        helpCheckboxDiv.style.display = 'none';
-        document.getElementById('helpCheckbox').checked = false;
-        // dot-setクラスを持つすべてのdivを非表示に設定
-        const dotSets = document.querySelectorAll('.dot-set');
-        dotSets.forEach(function(dotSet) {
-            dotSet.style.display = 'none';
-        });
-    } else {
-        helpCheckboxDiv.style.display = 'block';
-    }
-}
 
 
 
 //コンプリートモーダル
-function showModal(level) {
+function gridShowModal(level) {
     // 問題の正答率を計算
     const totalQuestions = problemCorrectCount + problemState.mistakeCount; // 全体の問題数
     const correctRate = totalQuestions > 0 ? (problemCorrectCount / totalQuestions) * 100 : 0; // 正答率を計算
@@ -644,7 +564,7 @@ function showModal(level) {
 
 
 
-function retryLevel(level) {
+function gridRetryLevel() {
     // モーダルを非表示
     const completionModal = document.getElementById('completionModal');
     if (completionModal) completionModal.style.display = 'none';
@@ -1039,60 +959,122 @@ function closeCongratsPanel() {
 document.getElementById('yes-button').addEventListener('click', async () => {
     closeCongratsPanel(); // パネルを閉じる
     await captureScreenshot(); // スクリーンショットを撮る
-    showModal(problemState.level); // モーダルを表示
+    gridShowModal(problemState.level); // モーダルを表示
 });
 
 // 「いいえ」をクリックした場合の処理
 document.getElementById('no-button').addEventListener('click', () => {
     closeCongratsPanel(); // パネルを閉じる
-    showModal(problemState.level); // モーダルを表示
+    gridShowModal(problemState.level); // モーダルを表示
 });
 
 
+// ---------- テンキーの入力 ----------
 
+// 現在のセルの入力状態を追跡
+let partialInput = ""; // ユーザーの一時的な入力（十の位を保持）
 
-/*
-//ページロード時にデフォルトレベルの記録を表示
-document.addEventListener('DOMContentLoaded', () => {
-    const defaultLevel = 1; // 初期表示するレベル
-    updateRecordDisplay(defaultLevel);
-});
-*/
+function gridProcessButtonPress(value) {
+    // スライダーをロック
+    lockSliders();
+    // 現在のセルを取得
+    const currentCell = document.querySelector(
+        `#calculation-grid tr:nth-child(${currentCellIndex.row + 1}) td:nth-child(${currentCellIndex.col + 1})`
+    );
+    if (!currentCell) {
+        console.error('現在のセルが見つかりません');
+        return;
+    }
 
+    // 入力対象セルの最上部と最左部の値を取得
+    const topCell = document.querySelector(
+        `#calculation-grid tr:first-child td:nth-child(${currentCellIndex.col + 1})`
+    );
+    const leftCell = document.querySelector(
+        `#calculation-grid tr:nth-child(${currentCellIndex.row + 1}) td:first-child`
+    );
 
+    // 正解を計算
+    const correctAnswer = parseInt(topCell.textContent) + parseInt(leftCell.textContent);
 
+    // 足し算モード専用のセーフティー機能
+    // 「答えが10以上の場合、最初に '1' 以外の数字が入力された場合、セルに表示しない」
+    if (correctAnswer >= 10 && partialInput === "" && value !== "1") {
+        //alert("最初の入力は '1' のみ許可されています");
+        return;
+    }
 
-/*
-//ゲームプレイ終了時にaddRecord関数を呼び出し
-function onGameEnd(level, time, correctAnswers) {
-    addRecord(level, time, correctAnswers); // 記録を保存
-    updateRecordDisplay(level); // 記録一覧を更新
+    if (correctAnswer < 10) {
+        // 答えが10未満の場合
+        currentCell.textContent = value; // ユーザーの入力値をそのまま使用
+        checkAnswer(currentCellIndex.row, currentCellIndex.col, parseInt(value)); // 判定
+        moveCursorToNextCell(); // 次のセルに移動
+    } else {
+        // 答えが10以上の場合
+        if (partialInput === "") {
+            // 十の位入力時の処理
+            partialInput = value; // 十の位を記録
+            currentCell.textContent = partialInput; // セルに一時表示
+            currentCell.classList.add('partial-input'); // 十の位入力中のスタイル
+        } else {
+            // 一の位入力時の処理
+            const finalValue = parseInt(partialInput + value); // 十の位と一の位を結合
+            currentCell.textContent = finalValue; // 完成した値をセルに表示
+            currentCell.classList.remove('partial-input'); // スタイルをリセット
+
+            // 正誤判定を実行
+            checkAnswer(currentCellIndex.row, currentCellIndex.col, finalValue);
+
+            // 入力状態をリセット
+            partialInput = "";
+
+            // 次のセルにカーソルを移動
+            moveCursorToNextCell();
+        }
+    }
 }
-*/
 
 
 
+//百マスのカーソル情報を初期化。
+function resetCursor() {
+    // 現在のカーソル位置のスタイルをリセット
+    const currentCell = document.querySelector(
+        `#calculation-grid tr:nth-child(${currentCellIndex.row + 1}) td:nth-child(${currentCellIndex.col + 1})`
+    );
+    if (currentCell) {
+        currentCell.classList.remove('input-target'); // 現在のセルの強調を削除
+    }
+
+    // カーソル情報を初期位置に戻す
+    currentCellIndex = { row: 1, col: 1 };
+
+    // 初期位置のセルを強調
+    const firstCell = document.querySelector(
+        `#calculation-grid tr:nth-child(${currentCellIndex.row + 1}) td:nth-child(${currentCellIndex.col + 1})`
+    );
+    if (firstCell) {
+        firstCell.classList.add('input-target'); // 初期位置を強調
+    }
+
+    // ラインハイライトをリセット
+    resetLineHighlight();
+}
 
 
-
-////
-//タイムの表示。右端。OK
-//日付と、最高記録が上。最大5回まで。OK
-//イラストOK
-//ドロップの数で、次のレベル開放。
-//かつ、累積正答数でも、次のレベル開放。
-//ゲージを導入
-//自作問題
-//レスキューモーダル作成
+// 累積正答数をローカルストレージから取得して初期化する
+function initializeCumulativeCorrectCounts() {
+    for (let level = 1; level <= currentMode.levelCount; level++) {
+        if (!correctAnswerCounts[level]) {
+            correctAnswerCounts[level] = getCumulativeCorrectCount(level);
+        }
+    }
+}
 
 
-
-
-
-
-
-
-
-//cd C:\Users\redsh\addsubmaster
-//firebase login
-//firebase deploy
+ENGINES.grid = {
+    screenId: 'hundredgridScreen',
+    start: gridStartLevel,
+    retry: gridRetryLevel,
+    onKey: gridProcessButtonPress,
+};

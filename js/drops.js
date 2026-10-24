@@ -1,5 +1,5 @@
 // ドロップ（コイン）：投げる・はねる・ドラッグ・ごほうび・メニューへの表示
-// （PAGE は各モードの *-menu-coin.js で定義）
+// （currentMode は js/state.js）
 
 //coinが飛び散ります。
 function scatterCoins() {
@@ -24,10 +24,10 @@ function scatterCoins() {
 
 // コインを投げる
 //   special: 金のドロップ
-//   useExistingCoins: PAGE.existingCoinsLevels のレベルのときは、メニューに並んでいるドロップを全部投げる
+//   useExistingCoins: currentMode.existingCoinsLevels のレベルのときは、メニューに並んでいるドロップを全部投げる
 //   bounce: 床ではね返るときの強さ（百マスは低め）
 function throwCoin(level, special = false, coinSize = 50, howManyCoins = 1, useExistingCoins = 0, bounce = 0.7) {
-    if (PAGE.existingCoinsLevels.includes(useExistingCoins)) {
+    if (currentMode.existingCoinsLevels.includes(useExistingCoins)) {
         document.querySelectorAll('.main-reward-coin').forEach((coin, index) => {
             setTimeout(() => launchCoin(coin.src, coinSize, bounce), index * 100); // 少し遅延を加えて投げる
         });
@@ -241,7 +241,7 @@ function restoreCoins(level) {
 
 //メイン画面にコインを表示
 function displayAllLevelsCoins() {
-    for (let level = 1; level <= PAGE.levelCount; level++) {
+    for (let level = 1; level <= currentMode.levelCount; level++) {
         displayLatestCoins(level, `coins${level}`);
     }
 }
@@ -266,8 +266,8 @@ function displayLatestCoins(level, containerId, limit = 5) {
         const img = document.createElement('img');
         img.src = coin.image;
         img.className = 'main-reward-coin';
-        img.style.width = PAGE.menuCoinSize;
-        img.style.height = PAGE.menuCoinSize;
+        img.style.width = currentMode.menuCoinSize;
+        img.style.height = currentMode.menuCoinSize;
         img.setAttribute('data-level', level);
         img.setAttribute('data-order', coin.order);
         img.setAttribute('data-date', coin.date);

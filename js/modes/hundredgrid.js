@@ -1,14 +1,24 @@
-// 百マスページの設定
-// 共通の処理は js/ フォルダ（menu.js・drops.js・data-modal.js など）が PAGE を見て動く
-const PAGE = {
-    screenId: 'hundredgridScreen',    // 問題画面の要素ID
+// 百マスたしざん
+MODES.hundredgrid = {
+    id: 'hundredgrid',
+    name: '百マスたしざん',
+    engine: 'grid',
     storagePrefix: 'hundredgrid',     // ドロップの保存キー hundredgrid_coins_3 など
-    bestTimePrefix: 'hundredgrid',    // ベストタイムの保存キー hundredgrid_level_3_best_time など（秒で保存）
-    levelCount: 6,
-    menuCoinSize: '25px',             // メニューに並べるドロップの大きさ
-    existingCoinsLevels: [10, 11],    // （百マスでは使わない）
+    bestTimePrefix: 'hundredgrid',    // ベストタイムの保存キー（秒で保存）
+    menuCoinSize: '25px',
     deleteMessage: 'マス計算・足し算のデータを消去しました',
     reloadAfterDelete: true,
+    rescue: { type: 'slider', max: 4 },
+    existingCoinsLevels: [],
+
+    levels: [
+        { label: 'Lv1もんだい', comment: '9マス/0~5まで', drop: 'L' },
+        { label: 'Lv2もんだい', comment: '15マス/0~5まで', drop: 'M' },
+        { label: 'Lv3もんだい', comment: '25マス/0~5まで', drop: 'B' },
+        { label: 'Lv4もんだい', comment: '49マス/0~9まで', drop: 'A' },
+        { label: 'なにがでる？', title: 'どんな「え」がでるかな？', comment: '100マス/どんな「え」かな？', drop: 'R' },
+        { label: 'わたしの問題', comment: 'じゆう', drop: 'K' },
+    ],
 
     coinsToUnlock: () => 3,
 
@@ -20,7 +30,7 @@ const PAGE = {
         // Lv5（なにがでる？）：これまでの正答数の合計が300以上、または Lv4 のドロップ3個
         if (level === 5) {
             let totalCorrectCount = 0;
-            for (let l = 1; l <= PAGE.levelCount; l++) {
+            for (let l = 1; l <= this.levels.length; l++) {
                 totalCorrectCount += getCumulativeCorrectCount(l);
             }
             return totalCorrectCount >= 300 || TamaStore.getCoins(4).length >= 3;
@@ -38,11 +48,12 @@ const PAGE = {
     onReturnMenu() {
         saveSliderValues();
         resetCursor(); // カーソル情報をリセット
+        partialInput = ""; // 2けた入力の途中状態をリセット
     },
 
     // 百マスだけにあるデータも消す
     onDeleteData() {
-        for (let level = 1; level <= PAGE.levelCount; level++) {
+        for (let level = 1; level <= this.levels.length; level++) {
             localStorage.removeItem(TamaStore.bestTimeKey(level)); // 最高記録
             localStorage.removeItem(`hundredgrid_level_${level}_correct_count`); // 累積正答数
             localStorage.removeItem(`hundredgrid_level_${level}_records`); // タイム・正答数・日付の記録
@@ -51,39 +62,3 @@ const PAGE = {
         localStorage.removeItem('hundredgrid_level_undefined_correct_count'); // 以前の不具合で作られていたキー
     },
 };
-
-
-//百マスのカーソル情報を初期化。
-function resetCursor() {
-    // 現在のカーソル位置のスタイルをリセット
-    const currentCell = document.querySelector(
-        `#calculation-grid tr:nth-child(${currentCellIndex.row + 1}) td:nth-child(${currentCellIndex.col + 1})`
-    );
-    if (currentCell) {
-        currentCell.classList.remove('input-target'); // 現在のセルの強調を削除
-    }
-
-    // カーソル情報を初期位置に戻す
-    currentCellIndex = { row: 1, col: 1 };
-
-    // 初期位置のセルを強調
-    const firstCell = document.querySelector(
-        `#calculation-grid tr:nth-child(${currentCellIndex.row + 1}) td:nth-child(${currentCellIndex.col + 1})`
-    );
-    if (firstCell) {
-        firstCell.classList.add('input-target'); // 初期位置を強調
-    }
-
-    // ラインハイライトをリセット
-    resetLineHighlight();
-}
-
-
-// 累積正答数をローカルストレージから取得して初期化する
-function initializeCumulativeCorrectCounts() {
-    for (let level = 1; level <= PAGE.levelCount; level++) {
-        if (!correctAnswerCounts[level]) {
-            correctAnswerCounts[level] = getCumulativeCorrectCount(level);
-        }
-    }
-}

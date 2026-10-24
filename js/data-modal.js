@@ -126,15 +126,15 @@ if (commandInput) {
 // ---------- /delete ----------
 
 function deleteData() {
-    for (let level = 1; level <= PAGE.levelCount; level++) {
+    for (let level = 1; level <= currentMode.levelCount; level++) {
         localStorage.removeItem(TamaStore.coinsKey(level));
     }
-    if (PAGE.onDeleteData) {
-        PAGE.onDeleteData(); // モードごとの追加データ（百マスのタイム記録など）
+    if (currentMode.onDeleteData) {
+        currentMode.onDeleteData(); // モードごとの追加データ（百マスのタイム記録など）
     }
     closeModal();
-    showNotification(PAGE.deleteMessage);
-    if (PAGE.reloadAfterDelete) {
+    showNotification(currentMode.deleteMessage);
+    if (currentMode.reloadAfterDelete) {
         setTimeout(() => location.reload(), 1000); // 最新状態を反映
     } else {
         returnMenu();
