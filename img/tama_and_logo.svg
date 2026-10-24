@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 280" width="100%" height="100%">
+  <defs>
+    <!-- 文字の立体ドロップシャドウ -->
+    <filter id="candy-shadow" x="-15%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="4" stdDeviation="2.5" flood-color="#333333" flood-opacity="0.45" />
+    </filter>
+
+    <!-- 「タマの」グラデーション（原画のラベンダー〜水色） -->
+    <linearGradient id="grad-tama" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c39bd3" />
+      <stop offset="55%" stop-color="#9b82f3" />
+      <stop offset="100%" stop-color="#5dade2" />
+    </linearGradient>
+
+    <!-- 「け」（オレンジ〜コーラルピンク） -->
+    <linearGradient id="grad-ke" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff9e44" />
+      <stop offset="60%" stop-color="#ff6b6b" />
+      <stop offset="100%" stop-color="#e84393" />
+    </linearGradient>
+
+    <!-- 「い」（ロイヤルブルー〜シアン） -->
+    <linearGradient id="grad-i" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2e3192" />
+      <stop offset="50%" stop-color="#2980b9" />
+      <stop offset="100%" stop-color="#48c9b0" />
+    </linearGradient>
+
+    <!-- 「さ」（オレンジレッド〜パステルグリーン） -->
+    <linearGradient id="grad-sa" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff5e57" />
+      <stop offset="55%" stop-color="#ff9f43" />
+      <stop offset="100%" stop-color="#7bed9f" />
+    </linearGradient>
+
+    <!-- 「ん」（ディープブルー〜シアン〜ピンク） -->
+    <linearGradient id="grad-n" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#192a56" />
+      <stop offset="55%" stop-color="#0097e6" />
+      <stop offset="100%" stop-color="#e84393" />
+    </linearGradient>
+
+    <!-- 「ドロップス」（原画のレモンイエロー〜ピーチ〜マゼンタピンク） -->
+    <linearGradient id="grad-drops" x1="0%" y1="15%" x2="100%" y2="85%">
+      <stop offset="0%" stop-color="#fff275" />
+      <stop offset="28%" stop-color="#ffd166" />
+      <stop offset="58%" stop-color="#ff85a1" />
+      <stop offset="85%" stop-color="#ff477e" />
+      <stop offset="100%" stop-color="#d63384" />
+    </linearGradient>
+
+    <!-- L.svg風のぷっくりツヤ（文字の上半分に強く入る白い光沢） -->
+    <linearGradient id="candy-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.92" />
+      <stop offset="32%" stop-color="#ffffff" stop-opacity="0.35" />
+      <stop offset="48%" stop-color="#ffffff" stop-opacity="0.0" />
+    </linearGradient>
+  </defs>
+
+  <!-- =====================================================
+       1. 原画の形状を忠実にトレースした「タマ」
+       （水色の枠のライン y=98 にぴったり乗る配置）
+       ===================================================== -->
+  <g id="tama-original">
+    <!-- ひげ（原画通り、顔の左右からすっと伸びる2本ずつの黒線） -->
+    <g stroke="#111111" stroke-width="1.8" stroke-linecap="round" fill="none">
+      <!-- 左ひげ -->
+      <path d="M 332,76 Q 310,73 292,79" />
+      <path d="M 334,86 Q 312,86 295,95" />
+      <!-- 右ひげ -->
+      <path d="M 484,76 Q 506,73 524,79" />
+      <path d="M 482,86 Q 504,86 521,95" />
+    </g>
+
+    <!-- しっぽ（原画の右側、くるんと巻いたシルエット） -->
+    <path d="M 505,115 
+             C 514,102 522,88 520,76 
+             C 518,67 510,67 508,74 
+             C 506,80 513,83 508,87 
+             C 501,92 490,82 493,66 
+             C 496,49 514,43 528,51 
+             C 543,60 544,86 526,115 Z" fill="#050505" />
+
+    <!-- タマの頭・耳・頬のシルエット（原画の横広で下膨れな丸みを忠実に再現） -->
+    <path d="M 346,105
+             C 322,94 322,64 338,44
+             C 341,25 344,7 355,3
+             C 365,-1 378,12 387,25
+             C 400,23 416,23 429,25
+             C 438,12 451,-1 461,3
+             C 472,7 475,25 478,44
+             C 494,64 494,94 470,105
+             Z" fill="#050505" />
+
+    <!-- ちょこんと揃えた前足（左・右） -->
+    <ellipse cx="364" cy="108" rx="14" ry="9" fill="#050505" />
+    <ellipse cx="452" cy="108" rx="14" ry="9" fill="#050505" />
+
+    <!-- 左目（白目＋黄土色の瞳＋左上の大きな白ハイライト） -->
+    <ellipse cx="375" cy="59" rx="15.5" ry="14.5" fill="#ffffff" />
+    <circle cx="379" cy="60" r="10.5" fill="#c58b18" />
+    <circle cx="372" cy="54" r="5" fill="#ffffff" />
+
+    <!-- 右目（白目＋黄土色の瞳＋左上の大きな白ハイライト） -->
+    <ellipse cx="441" cy="59" rx="15.5" ry="14.5" fill="#ffffff" />
+    <circle cx="445" cy="60" r="10.5" fill="#c58b18" />
+    <circle cx="438" cy="54" r="5" fill="#ffffff" />
+  </g>
+
+
+  <!-- =====================================================
+       2. ぷっくり・つやっとカラフルなタイトル文字
+       ===================================================== -->
+  <g font-family="&#39;M PLUS Rounded 1c&#39;, &#39;Hiragino Maru Gothic ProN&#39;, &#39;Rounded Mplus 1c&#39;, &#39;Yu Gothic UI&#39;, sans-serif" font-weight="900" filter="url(#candy-shadow)">
+
+    <!-- ---------- 「タマの」 ---------- -->
+    <!-- タ -->
+    <g transform="translate(158, 125) rotate(-8)">
+      <text x="0" y="0" font-size="68" stroke="#6c5b7b" stroke-width="11" stroke-linejoin="round" fill="none">タ</text>
+      <text x="0" y="0" font-size="68" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" fill="url(#grad-tama)">タ</text>
+      <text x="0" y="-2" font-size="68" fill="url(#candy-gloss)">タ</text>
+      <!-- つやハイライト粒 -->
+      <ellipse cx="18" cy="-42" rx="6" ry="3" transform="rotate(-25 18 -42)" fill="#ffffff" opacity="0.9" />
+    </g>
+    <!-- マ -->
+    <g transform="translate(212, 106) rotate(-5)">
+      <text x="0" y="0" font-size="66" stroke="#6c5b7b" stroke-width="11" stroke-linejoin="round" fill="none">マ</text>
+      <text x="0" y="0" font-size="66" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" fill="url(#grad-tama)">マ</text>
+      <text x="0" y="-2" font-size="66" fill="url(#candy-gloss)">マ</text>
+      <ellipse cx="16" cy="-38" rx="6" ry="3" transform="rotate(-20 16 -38)" fill="#ffffff" opacity="0.9" />
+    </g>
+    <!-- の -->
+    <g transform="translate(268, 86)">
+      <text x="0" y="0" font-size="56" stroke="#6c5b7b" stroke-width="10" stroke-linejoin="round" fill="none">の</text>
+      <text x="0" y="0" font-size="56" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-tama)">の</text>
+      <text x="0" y="-2" font-size="56" fill="url(#candy-gloss)">の</text>
+      <ellipse cx="18" cy="-34" rx="5" ry="2.5" transform="rotate(-25 18 -34)" fill="#ffffff" opacity="0.9" />
+    </g>
+
+
+    <!-- ---------- 「けいさん」（1文字ずつ原画の色分け） ---------- -->
+    <!-- け -->
+    <g transform="translate(216, 172)">
+      <text x="0" y="0" font-size="72" stroke="#784212" stroke-width="11" stroke-linejoin="round" fill="none">け</text>
+      <text x="0" y="0" font-size="72" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-ke)">け</text>
+      <text x="0" y="-2" font-size="72" fill="url(#candy-gloss)">け</text>
+      <ellipse cx="15" cy="-46" rx="6" ry="3" transform="rotate(-30 15 -46)" fill="#ffffff" opacity="0.95" />
+    </g>
+    <!-- い -->
+    <g transform="translate(286, 182)">
+      <text x="0" y="0" font-size="72" stroke="#1b263b" stroke-width="11" stroke-linejoin="round" fill="none">い</text>
+      <text x="0" y="0" font-size="72" stroke="#e0fbfc" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-i)">い</text>
+      <text x="0" y="-2" font-size="72" fill="url(#candy-gloss)">い</text>
+      <ellipse cx="14" cy="-42" rx="6" ry="3" transform="rotate(-30 14 -42)" fill="#ffffff" opacity="0.95" />
+    </g>
+    <!-- さ -->
+    <g transform="translate(352, 168)">
+      <text x="0" y="0" font-size="72" stroke="#6e2c00" stroke-width="11" stroke-linejoin="round" fill="none">さ</text>
+      <text x="0" y="0" font-size="72" stroke="#fff8e7" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-sa)">さ</text>
+      <text x="0" y="-2" font-size="72" fill="url(#candy-gloss)">さ</text>
+      <ellipse cx="22" cy="-46" rx="6" ry="3" transform="rotate(-20 22 -46)" fill="#ffffff" opacity="0.95" />
+    </g>
+    <!-- ん -->
+    <g transform="translate(420, 180)">
+      <text x="0" y="0" font-size="72" stroke="#1b263b" stroke-width="11" stroke-linejoin="round" fill="none">ん</text>
+      <text x="0" y="0" font-size="72" stroke="#e0fbfc" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-n)">ん</text>
+      <text x="0" y="-2" font-size="72" fill="url(#candy-gloss)">ん</text>
+      <ellipse cx="22" cy="-42" rx="6" ry="3" transform="rotate(-25 22 -42)" fill="#ffffff" opacity="0.95" />
+    </g>
+
+
+    <!-- ---------- 「ドロップス」 ---------- -->
+    <g transform="translate(292, 248)">
+      <text x="0" y="0" font-size="78" letter-spacing="-2" stroke="#6e473b" stroke-width="12" stroke-linejoin="round" fill="none">ドロップス</text>
+      <text x="0" y="0" font-size="78" letter-spacing="-2" stroke="#fffdf7" stroke-width="4" stroke-linejoin="round" fill="url(#grad-drops)">ドロップス</text>
+      <text x="0" y="-2" font-size="78" letter-spacing="-2" fill="url(#candy-gloss)">ドロップス</text>
+      <!-- 各文字のぷっくりツヤ粒（L.svg風のハイライト） -->
+      <ellipse cx="18" cy="-50" rx="7" ry="3.5" transform="rotate(-25 18 -50)" fill="#ffffff" opacity="0.95" />
+      <ellipse cx="92" cy="-45" rx="7" ry="3.5" transform="rotate(-20 92 -45)" fill="#ffffff" opacity="0.95" />
+      <ellipse cx="165" cy="-35" rx="5" ry="2.5" transform="rotate(-25 165 -35)" fill="#ffffff" opacity="0.95" />
+      <ellipse cx="235" cy="-48" rx="7" ry="3.5" transform="rotate(-20 235 -48)" fill="#ffffff" opacity="0.95" />
+      <ellipse cx="315" cy="-48" rx="7" ry="3.5" transform="rotate(-20 315 -48)" fill="#ffffff" opacity="0.95" />
+    </g>
+  </g>
+</svg>

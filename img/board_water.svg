@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 530" width="100%" height="100%" preserveAspectRatio="none">
+  <defs>
+    <!-- 水面のベースグラデーション -->
+    <linearGradient id="water-base" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e3f4f6" />
+      <stop offset="35%" stop-color="#eef7f2" />
+      <stop offset="70%" stop-color="#dff1f5" />
+      <stop offset="100%" stop-color="#eaf6f0" />
+    </linearGradient>
+
+    <!-- 水面のやわらかい光のゆらぎ（コースティクス） -->
+    <filter id="water-blur" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="8" />
+    </filter>
+  </defs>
+
+  <!-- 水面背景 -->
+  <rect x="10" y="10" width="1200" height="510" fill="url(#water-base)" />
+
+  <!-- 水面の光の網目模様（原画の淡いクリーム＆虹色のゆらぎ） -->
+  <g filter="url(#water-blur)" opacity="0.85">
+    <!-- クリーム色の光帯 -->
+    <path d="M 10,130 Q 220,90 420,180 T 850,150 T 1210,220" fill="none" stroke="#fffde7" stroke-width="28" />
+    <path d="M 10,320 Q 280,240 520,340 T 980,280 T 1210,380" fill="none" stroke="#fffde7" stroke-width="32" />
+    <path d="M 180,10 Q 350,180 240,360 T 460,520" fill="none" stroke="#fffde7" stroke-width="24" />
+    <path d="M 740,10 Q 640,210 820,350 T 920,520" fill="none" stroke="#fffde7" stroke-width="26" />
+    <!-- ほんのり虹色（ピーチ・水色）のゆらぎ -->
+    <path d="M 10,145 Q 220,105 420,195 T 850,165 T 1210,235" fill="none" stroke="#ffe0b2" stroke-width="10" opacity="0.6" />
+    <path d="M 10,305 Q 280,225 520,325 T 980,265 T 1210,365" fill="none" stroke="#b2ebf2" stroke-width="12" opacity="0.7" />
+    <ellipse cx="430" cy="220" rx="95" ry="45" fill="#fffef2" opacity="0.7" />
+    <ellipse cx="780" cy="360" rx="110" ry="50" fill="#fffef2" opacity="0.6" />
+  </g>
+
+  <!-- 外側の水色フレーム（原画の #5bc0eb 系の枠） -->
+  <rect x="9" y="9" width="1202" height="512" fill="none" stroke="#5bc0be" stroke-width="18" style="stroke: #57c1e8;" />
+</svg>
