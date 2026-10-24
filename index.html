@@ -1,51 +1,61 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-mode="home">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>タマの【けいさん】ドロップス</title>
     <meta name="description" content="楽しい計算ゲーム。タマと一緒に学びましょう！カラフルドロップを集めて計算マスターだ！">
-    <meta name="keywords" content="たしざん, ひきざん, ゲーム, 教育, 子供, 学習, タマ, 足し算, 引き算">
+    <meta name="keywords" content="たしざん, ひきざん, かけざん, 百ます, ゲーム, 教育, 子供, 学習, タマ, 足し算, 引き算, かけ算">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="canonical" href="https://addsubmaster.web.app/">
-    <link href="style.css?_=<?php echo time(); ?>" rel="stylesheet" type="text/css" />
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2&display=swap" rel="stylesheet">
-    
-      <link rel="manifest" href="manifest.json">
-    
+
+    <!-- 共通 → さいしょの画面 → モードごとの違い -->
+    <link href="css/base.css" rel="stylesheet" type="text/css" />
+    <link href="css/home.css" rel="stylesheet" type="text/css" />
+    <link href="css/addition.css" rel="stylesheet" type="text/css" />
+    <link href="css/subtraction.css" rel="stylesheet" type="text/css" />
+    <link href="css/multiplication.css" rel="stylesheet" type="text/css" />
+    <link href="css/hundredgrid.css" rel="stylesheet" type="text/css" />
+    <link href="css/records.css" rel="stylesheet" type="text/css" />
+
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="16x16" href="/img/tama_16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/img/tama_32x32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="/img/tama_48x48.png">
-
-      <!-- 57x57ピクセルのアイコン -->
-      <link rel="apple-touch-icon" sizes="57x57" href="/img/tama_57x57.png">
-      <!-- 72x72ピクセルのアイコン -->
-      <link rel="apple-touch-icon" sizes="72x72" href="/img/tama_72x72.png">
-      <!-- 114x114ピクセルのアイコン -->
-      <link rel="apple-touch-icon" sizes="114x114" href="/img/tama_114x114.png">
-      <!-- 144x144ピクセルのアイコン -->
-      <link rel="apple-touch-icon" sizes="144x144" href="/img/tama_144x144.png">
-      <!-- 152x152ピクセルのアイコン -->
-      <link rel="apple-touch-icon" sizes="152x152" href="/img/tama_152x152.png">
-      <!-- 180x180ピクセルのアイコン -->
-      <link rel="apple-touch-icon" sizes="180x180" href="/img/tama_180x180.png">
-
-
+    <link rel="apple-touch-icon" sizes="57x57" href="/img/tama_57x57.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/img/tama_72x72.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/img/tama_114x114.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/img/tama_144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/img/tama_152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/img/tama_180x180.png">
 </head>
 
 <body>
-    <!--<h1>タマの「けいさん」ドロップス</h1>-->
-    <div class="main-container">
-        <div class="button-container">
-            <button id="goToAdd" onclick="location.href='tamaadddrops.html'"></button>
-            <button id="goToSub" onclick="location.href='tamasubdrops.html'"></button>
-            <button id="goToMulti" onclick="location.href='tamamultidrops.html'"></button>
-            <button id="goToHundredgrid" onclick="location.href='tamahundredgrid.html'"></button>
-        </div>
-        <textarea id="instructions" readonly>
+<!--
+  画面のしくみ
+    #/            さいしょの画面（#homeScreen）
+    #/add など    レベル選択（#openingScreen）→ 問題（#drillScreen か #hundredgridScreen）
+  どの画面を出すかは js/app.js が決める。
+  <html data-mode="…"> に今のモード（home / add / sub / multi / hundredgrid）が入る。
+-->
+
+
+<!-- ================= さいしょの画面 ================= -->
+    <div id="homeScreen" style="display: none;">
+        <div class="main-container">
+            <div class="button-container">
+                <button id="homeAdd" aria-label="たしざん" onclick="location.hash = '#/add'"></button>
+                <button id="homeSub" aria-label="ひきざん" onclick="location.hash = '#/sub'"></button>
+                <button id="homeMulti" aria-label="かけざん" onclick="location.hash = '#/multi'"></button>
+                <button id="homeHundredgrid" aria-label="百マスたしざん" onclick="location.hash = '#/hundredgrid'"></button>
+                <button id="homeRecords" onclick="location.hash = '#/records'">タマのきろく</button>
+            </div>
+            <textarea id="instructions" readonly>
+      ・「タマのきろく」で、タイムのうつりかわりや ドロップのカレンダーが 見られるよ。
+    　　まちがえた もんだいは、さいごに もういちど でるよ。2026/10/24
       ・ひきざんのコインが出ないときがあったのを、なおしたよ。2024/11/28
     　・「百マスたしざん」をもうすぐ公開2024/11/24
     　・「かけざん」を選べるようになったよ！2024/10/31
@@ -53,66 +63,344 @@
     　・あつめたドロップは　けいさんページで セーブできるよ。
     　・ロードするのは　このページだよ。
         </textarea>
-    </div>
-    <div id="Disclaimer">
-        <p>【WEBアプリの扱い】本WEBアプリは個人データを収集しません。予告なく改良、提供終了を行います。<br>データの消失について責任をもてません。データ強制復元は保存復元ボタンより/rescueを実行してください。</p>
-    </div>
-    
+        </div>
+        <div id="Disclaimer">
+            <p>【WEBアプリの扱い】本WEBアプリは個人データを収集しません。予告なく改良、提供終了を行います。<br>データの消失について責任をもてません。データ強制復元は保存復元ボタンより/rescueを実行してください。</p>
+        </div>
 
-    <!-- データ管理モーダル -->
-    <div id="dataModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2;"></div>
-    <div id="dataModal" style="display:none; position: fixed; bottom: 10px; right: 10px; background: white; padding: 20px; z-index:3;">
-        <div style="text-align: center;">
-            <h2>★おとなのひとに やりかたをきいてください★</h2>
-            <p>ゲットしたドロップのまいすうを、
-            <br>セーブ（ほぞん）したり、ロード（よみこみ）したりします。
-            <br>セーブファイルは、tashizan_d_すうじ.txtです。
-            <br><b>※データは端末本体に保存されます。</b>
-            <br>※各計算ページからもセーブ機能できます。</p>
-            <button id="exportData">データをセーブ</button>
-            <input type="file" id="fileInput" style="display: none;">
-            <button id="importData">データをロード</button>
-            　<!--　←スペース在るよ　-->
-            <button onclick="closeDataModal();">とじる</button>
+        <!-- 保存・復元ボタン -->
+        <button id="openDataModalHome" onclick="openDataModal();" style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer; z-index:1;">ドロップのセーブ/ロード</button>
+
+        <footer>
+            <p>&copy; 2024 Kitaha R. All rights reserved.
+                <span id="version" style="cursor: pointer; text-decoration: underline;">Ver.5.0.0</span>
+            </p>
+        </footer>
+    </div>
+
+
+<!-- ================= タマのきろく（js/records.js） ================= -->
+    <div id="recordsScreen" style="display: none;">
+        <header class="records-header">
+            <button class="records-back" onclick="location.hash = Records.returnTo">もどる</button>
+            <h1>タマのきろく</h1>
+        </header>
+
+        <div class="records-top">
+            <section class="records-card jar-card">
+                <h2>ドロップびん</h2>
+                <canvas id="dropJar" width="300" height="380" role="img"></canvas>
+                <p id="dropTotal" class="drop-total"></p>
+                <p class="records-note">びんを タップすると ゆれるよ</p>
+            </section>
+            <section class="records-card calendar-card">
+                <h2>ドロップカレンダー</h2>
+                <div class="calendar-nav">
+                    <button id="calPrev" aria-label="まえの月">◀</button>
+                    <span id="calTitle"></span>
+                    <button id="calNext" aria-label="つぎの月">▶</button>
+                </div>
+                <div id="calendar" class="calendar"></div>
+            </section>
+        </div>
+
+        <nav id="recordsTabs" class="records-tabs"></nav>
+
+        <section class="records-card">
+            <h2>レベルごとの きろく</h2>
+            <p class="records-note">タイムのグラフは、せんが さがると はやくなったということ！（てんに さわると、日づけと タイム）</p>
+            <table class="level-records">
+                <thead>
+                    <tr><th scope="col">レベル</th><th scope="col">クリア</th><th scope="col">さいこう</th><th scope="col">タイムのうつりかわり（さいきん20かい）</th></tr>
+                </thead>
+                <tbody id="levelRecords"></tbody>
+            </table>
+        </section>
+
+        <section class="records-card" id="weakSection">
+            <h2>にがてマップ <small>（おとなのひとへ）</small></h2>
+            <p class="records-note">1もんずつの きろくから、まちがえた わりあいを 色で あらわしています。マスに さわると くわしく出ます。</p>
+            <div id="weakMap"></div>
+            <h3>にがてな もんだい</h3>
+            <ol id="weakList" class="weak-list"></ol>
+        </section>
+    </div>
+    <div id="chartTooltip" class="chart-tooltip" hidden></div>
+
+
+<!-- ================= テンキー ================= -->
+    <div id="keypadScreen" class="keypad" style="display: none;">
+        <div class="key-row">
+            <button class="num" data-value="7"><span class="key-digit"></span></button>
+            <button class="num" data-value="8"><span class="key-digit"></span></button>
+            <button class="num" data-value="9"><span class="key-digit"></span></button>
+        </div>
+        <div class="key-row">
+            <button class="num" data-value="4"><span class="key-digit"></span></button>
+            <button class="num" data-value="5"><span class="key-digit"></span></button>
+            <button class="num" data-value="6"><span class="key-digit"></span></button>
+        </div>
+        <div class="key-row">
+            <button class="num" data-value="1"><span class="key-digit"></span></button>
+            <button class="num" data-value="2"><span class="key-digit"></span></button>
+            <button class="num" data-value="3"><span class="key-digit"></span></button>
+        </div>
+        <div class="key-row">
+            <button class="num" data-value="0"><span class="key-digit"></span></button>
         </div>
     </div>
 
-    <!-- 保存・復元ボタン -->
-    <button id="openDataModal" onclick="openDataModal();" style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer;z-index:1;"">ドロップのセーブ/ロード</button>
+
+<!-- ================= レベル選択画面（モード共通） ================= -->
+    <div id="openingScreen" class="opening-screen unselectable" style="display: none;">
+        <!-- こするとタマがしゃべる -->
+        <div id="touchArea" style="display: block;"></div>
+        <p id="feedback" style="display: none;">ここにフィードバックが表示されます</p>
+        <div id="commentArea"></div>
+
+        <!-- rescueモーダル（中身は js/level-select.js がモードに合わせてつくる） -->
+        <div id="rescueModal" style="display:none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+
+        <!-- レベル選択ボタン（js/level-select.js がモードの定義からつくる） -->
+        <div class="select-level-buttons"></div>
+
+        <!-- 移動 -->
+        <button id="goToRecords" onclick="location.hash = `#/records/${currentMode.id}`">きろく</button>
+        <button id="goToIndex" onclick="location.hash = '#/'">さいしょへ！</button>
+        <button id="goToSub" onclick="location.hash = '#/sub'">ひきざんへ！</button>
+        <button id="goToAdd" onclick="location.hash = '#/add'">たしざんへ！</button>
+
+        <footer>
+            <p>&copy; 2024 Kitaha R. All rights reserved.</p>
+        </footer>
+
+        <!-- 保存・復元ボタン -->
+        <button id="openDataModal" onclick="openDataModal();" style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer;">ドロップのセーブ/そのた</button>
+    </div>
+
+
+<!-- ================= 問題画面：たしざん・ひきざん・かけざん（js/engines/drill.js） ================= -->
+    <div id="drillScreen" class="question-screen" style="display: none;">
+        <div id="remaining-problems" class="remaining-problems"></div>
+
+        <button class="returnButton" onclick="returnMenu()">はじめにもどる</button>
+
+        <h1 class="page-title"></h1>
+        <div class="help-checkbox">
+            <input type="checkbox" id="helpCheckbox" name="helpCheckbox">
+            <label for="helpCheckbox">おたすけだんご</label>
+        </div>
+        <div class="calculation-container">
+            <div class="num-big-container">
+                <div class="dot-set">
+                    <div id="a1Dots" class="dots" style="color: red;"></div>
+                    <div id="a2Dots" class="dots" style="color: red;"></div>
+                </div>
+                <div class="number-set">
+                    <div id="a1" class="num-container">
+                        <span class="digit"></span>
+                        <div id="a1cover" class="cover-containera"></div>
+                    </div>
+                    <div id="a2" class="num-container">
+                        <span class="digit"></span>
+                        <div id="a2cover" class="cover-containera"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calculation-symbol" id="calculationSymbol1">
+                <span class="symbol"></span>
+            </div>
+
+            <div class="num-big-container">
+                <div class="dot-set">
+                    <div id="b1Dots" class="dots" style="color: blue;"></div>
+                    <div id="b2Dots" class="dots" style="color: blue;"></div>
+                </div>
+                <div class="number-set">
+                    <div id="b1" class="num-container">
+                        <span class="digit"></span>
+                        <div id="b1cover" class="cover-containerb"></div>
+                    </div>
+                    <div id="b2" class="num-container">
+                        <span class="digit"></span>
+                        <div id="b2cover" class="cover-containerb"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calculation-symbol" id="calculationSymbol2">
+                <span class="symbol"></span>
+            </div>
+
+            <div class="num-big-container">
+                <div class="dot-set">
+                    <div id="c1Dots" class="dots" style="color: black;"></div>
+                    <div id="c2Dots" class="dots" style="color: black;"></div>
+                </div>
+                <div class="number-set">
+                    <div id="c1" class="num-container">
+                        <span class="digit"></span>
+                        <div id="c1cover" class="cover-container"></div>
+                    </div>
+                    <div id="c2" class="num-container">
+                        <span class="digit"></span>
+                        <div id="c2cover" class="cover-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<!-- ================= 問題画面：百マス（js/engines/grid.js） ================= -->
+    <div id="hundredgridScreen" class="question-screen" style="display: none;">
+        <button class="returnButton" onclick="returnMenu()">はじめにもどる</button>
+
+        <h1 class="page-title"></h1>
+        <div id="answer-display">
+            <p id="correct-answer-count" style="display: none;">累積正答数: 0</p>
+            <p id="problem-correct-count" style="display: none;">正答数: 0</p>
+            <p id="wrong-answer-count" style="display: none;">誤答数: 0</p>
+        </div>
+        <table id="calculation-grid"></table>
+
+        <!-- 時間の記録 -->
+        <div id="recordDisplay" style="position: absolute; top: 100px; right: 0px; width: auto; background-color: rgba(255, 255, 255, 1); border: 1px solid #ccc; border-radius: 5px; padding: 10px; overflow-y: auto; max-height: 400px;">
+            <h3 id="toggleRecordList" style="text-align: center; font-size: 16px; color: #555; cursor: pointer; margin: 0;">
+                タイム
+            </h3>
+            <ul id="recordList" class="collapsed"></ul>
+        </div>
+
+        <!-- わたしの問題（Lv6）のスライダー -->
+        <div id="customize-level6" style="position: absolute; top: 150px; right: 10px;">
+            <div style="margin-bottom: 10px;">
+                <label>たて</label>
+                <span id="rows-value">1</span>
+                <input type="range" id="custom-rows" min="1" max="10" value="1" step="1" style="margin: 0 10px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label>よこ</label>
+                <span id="cols-value">1</span>
+                <input type="range" id="custom-cols" min="1" max="10" value="1" step="1" style="margin: 0 10px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span id="min-value">0</span>
+                <label>から</label>
+                <input type="range" id="custom-min" min="0" max="8" value="0" step="1" style="margin: 0 10px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span id="max-value">5</span>
+                <label>まで</label>
+                <input type="range" id="custom-max" min="1" max="9" value="5" step="1" style="margin: 0 10px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- がんばったねパネル（百マス Lv5） -->
+    <div id="congrats-panel" style="display: none; position: absolute; top: 200px; right: 0px; background-color: white; border: 2px solid black; padding: 20px; text-align: center;">
+        <p style="color: red; font-size: 24px; font-weight: bold;">さいごまでがんばったね！</p>
+        <p>きねんに、スクリーンショットをとりますか？</p>
+        <button id="yes-button">はい</button>
+        <button id="no-button">いいえ</button>
+    </div>
+
+    <!-- マスターボタン（おとな用：/master on で表示） -->
+    <button id="masterButton" style="display:none;" onclick="pressMasterButton()">マスターボタン</button>
+
+
+<!-- ================= モーダル ================= -->
+
+    <!-- クリア -->
+    <div id="completionModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+        <div style="background-color: white; padding: 20px; border-radius: 10px;">
+            <h2 id="modalTitle">Lvもんだい、クリア！</h2>
+            <p class="drill-only">おめでとう！</p>
+            <p id="clearTime">クリアタイム：--:--</p>
+            <p id="bestTime">これまでのさいこうは --:--</p>
+            <button class="universalButton" onclick="retryLevel()">もういちどちょうせん</button>
+            <button class="universalButton" onclick="returnToLevelSelection()">もんだいをえらぶ</button>
+        </div>
+    </div>
+
+    <!-- 間違いが多かった -->
+    <div id="mistakeModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+        <div style="background-color: white; padding: 20px; border-radius: 10px;">
+            <h2>ざんねん......。</h2>
+            <p><span id="maxMistakes">5</span>かい　まちがえてしまいました。</p>
+            <div id="mistakeList"></div>
+            <button class="universalButton" onclick="retryLevel()">もういちどちょうせん</button>
+            <button class="universalButton" onclick="returnToLevelSelection()">もんだいをえらぶ</button>
+        </div>
+    </div>
+
+    <!-- /delete -->
+    <div id="deleteModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center;">
+        <div style="background: white; padding: 20px; border-radius: 5px; text-align: center;">
+            <p>【保存したデータを消します】</p>
+            <p>すべてのドロップデータが消えますが</p>
+            <p>本当に消してもいいですか？</p>
+            <button onclick="deleteData()">消す</button>
+            <button onclick="closeModal()">消さない</button>
+        </div>
+    </div>
+
+    <!-- データ管理（セーブ／ロード） -->
+    <div id="dataModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2;"></div>
+    <div id="dataModal" style="display:none; position: fixed; bottom: 10px; right: 10px; background: white; padding: 20px;">
+        <div style="text-align: center;">
+            <h2>★おとなのひとに やりかたをきいてください★</h2>
+            <p class="home-only">ゲットしたドロップのまいすうを、
+            <br>セーブ（ほぞん）したり、ロード（よみこみ）したりします。
+            <br>セーブファイルは、keisan_d_すうじ.txtです。
+            <br><b>※データは端末本体に保存されます。</b>
+            <br>※各計算ページからもセーブ機能できます。</p>
+            <p class="mode-only">ゲットした ドロップのかずを、セーブ（ほぞん）します。
+            <br>セーブファイルは、keisan_d_すうじ.txtです。
+            <br><b>※データは端末本体に保存されます。</b></p>
+            <button id="exportData">データをセーブ</button>
+            <input type="file" id="fileInput" style="display: none;">
+            <button id="importData" class="home-only">データをロード</button>
+            <button id="toggleDateButton" class="mode-only">ひづけON</button>
+            　<!--　←空白あり-->
+            <button onclick="closeDataModal();">とじる</button>
+            <textarea id="commandInput" class="mode-only" style="width: 80%; height: 20px; margin-top: 10px; resize: none; overflow: hidden; padding: 5px;" placeholder="【⚠緊急復元⚠】ここに「/rescue」と入力。その後Lvを選択。"></textarea>
+        </div>
+    </div>
 
     <div id="notification" class="notification"></div>
 
 
-    <footer>
-        <p>&copy; 2024 Kitaha R. All rights reserved. 
-            <span id="version" style="cursor: pointer; text-decoration: underline;">Ver.4.0.1</span>
-        </p>
-    </footer>
-
-    <!-- フルスクリーンモードの判定スクリプト -->
-    <script src="main.js?version=20230329"></script> 
-    
-    <script>
-        function isStandaloneMode() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('shortcut') === 'true';
-        }
-
-        if (isStandaloneMode()) {
-            document.body.classList.add('standalone');
-        }
-  
-    </script>
+<!-- ================= スクリプト ================= -->
+    <!-- 共通部品 → モードの定義 → 画面の部品 → 問題のエンジン → テンキー → 画面の切り替え の順 -->
+    <script src="js/storage.js"></script>
+    <script src="js/timer.js"></script>
+    <script src="js/glyphs.js"></script>
+    <script src="js/modes/index.js"></script>
+    <script src="js/modes/addition.js"></script>
+    <script src="js/modes/subtraction.js"></script>
+    <script src="js/modes/multiplication.js"></script>
+    <script src="js/modes/hundredgrid.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/drops.js"></script>
+    <script src="js/data-modal.js"></script>
+    <script src="js/menu.js"></script>
+    <script src="js/tama-talk.js"></script>
+    <script src="js/level-select.js"></script>
+    <script src="js/engines/drill.js"></script>
+    <script src="js/engines/grid.js"></script>
+    <script src="js/keypad.js"></script>
+    <script src="js/records.js"></script>
+    <script src="js/home.js"></script>
+    <script src="js/app.js"></script>
 
     <script type="module">
-        // Import the functions you need from the SDKs you need
+        // アクセス解析（Firebase Analytics）
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-analytics.js";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
 
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyCVhChrniYZr8Rz-GzFFI9Hj4KjmYmCOcQ",
             authDomain: "addsubmaster.firebaseapp.com",
@@ -123,11 +411,9 @@
             measurementId: "G-H69CZ1LN6B"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
     </script>
-
 </body>
 
 </html>

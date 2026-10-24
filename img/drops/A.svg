@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!-- 左上から光が当たった、まるい飴玉 -->
+    <radialGradient id="body" cx="36%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#f3ccda"/>
+      <stop offset="0.45" stop-color="#dc6d95"/>
+      <stop offset="1" stop-color="#793c52"/>
+    </radialGradient>
+    <!-- 光のつや -->
+    <radialGradient id="shine" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 下のふちに映る、照り返し -->
+    <linearGradient id="bounce" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="47" fill="url(#body)"/>
+  <circle cx="50" cy="50" r="46.2" fill="none" stroke="#793c52" stroke-opacity="0.35" stroke-width="1.6"/>
+  <!-- タマの顔（うすく浮き出たもよう） -->
+  <g fill="none" stroke="#fae9ef" stroke-opacity="0.75" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M27 67 C24 55 25 44 29 36 L28 22 L39 30 C46 28 54 28 61 30 L72 22 L71 36 C75 44 76 55 73 67 C66 75 34 75 27 67 Z"/>
+    <circle cx="41" cy="50" r="4"/>
+    <circle cx="59" cy="50" r="4"/>
+    <path d="M24 56 L14 54 M24 61 L15 63 M76 56 L86 54 M76 61 L85 63"/>
+  </g>
+  <ellipse cx="50" cy="83" rx="27" ry="10" fill="url(#bounce)"/>
+  <ellipse cx="33" cy="25" rx="17" ry="10" fill="url(#shine)" transform="rotate(-28 33 25)"/>
+  <circle cx="72" cy="70" r="3" fill="#fff" fill-opacity="0.45"/>
+</svg>
