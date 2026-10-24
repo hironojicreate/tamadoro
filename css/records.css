@@ -291,6 +291,10 @@ html[data-mode="records"] body {
     background: #f0efec;
 }
 
+.weak-grid td.none {
+    background: transparent;
+}
+
 .weak-legend {
     display: flex;
     flex-wrap: wrap;

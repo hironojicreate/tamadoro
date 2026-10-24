@@ -64,5 +64,5 @@ function renderRescueModal() {
     body += '<button onclick="rescueCloseModal()">閉じる</button>';
 
     modal.innerHTML = body;
-    modal.style.zIndex = rescue.type === 'dan' ? '9999' : '';
+    modal.style.zIndex = rescue.type === 'dan' ? '9999' : '5';
 }

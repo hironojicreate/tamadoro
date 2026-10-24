@@ -167,9 +167,11 @@ function createRewardCoin(level) {
     rewardCoin.src = dropSrc(coinImage);
     rewardCoin.className = 'reward-coin';
     rewardCoin.style.position = 'fixed';
+    rewardCoin.style.width = '50px';  // 右上にならぶ、ふつうのドロップの大きさ
+    rewardCoin.style.height = '50px';
     rewardCoin.style.top = '50%';  // 中央に配置
     rewardCoin.style.left = '50%';
-    rewardCoin.style.transform = 'translate(-50%, -50%) scale(2.67)';  // 300pxから800pxに拡大
+    rewardCoin.style.transform = 'translate(-50%, -50%) scale(16)';  // 画面いっぱい（800px）から
     rewardCoin.style.opacity = '0';  // 初期状態は透明
     rewardCoin.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
     document.body.appendChild(rewardCoin);
@@ -189,7 +191,7 @@ function createRewardCoin(level) {
     // アニメーションでコインを表示
     setTimeout(() => {
         rewardCoin.style.opacity = '1';
-        rewardCoin.style.transform = 'translate(-50%, -50%) scale(0.167)';  // 50pxサイズに縮小
+        rewardCoin.style.transform = 'translate(-50%, -50%) scale(1)';  // 50px にちぢむ
         setTimeout(() => {
             // コインを右上に移動
             const finalRight = 35 + offset;

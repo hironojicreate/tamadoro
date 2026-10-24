@@ -109,16 +109,24 @@ const Records = {
         const tbody = document.getElementById('levelRecords');
         tbody.innerHTML = '';
 
+        // ちょうせんしたレベルだけ出す（オニなどの、まだ見つけていないレベルは出さない）
+        let shownRows = 0;
         mode.levels.forEach((def, i) => {
             const level = i + 1;
             const entries = log.filter(e => e.mode === mode.id && e.level === level);
-            const clears = entries.filter(e => e.cleared || e.imported).length;
-            const timed = entries.filter(e => e.cleared && e.ms).slice(-20);
-
-            // ベストタイム（百マスは秒で保存している）
-            // ベストタイム：以前からの保存（百マスは秒）と、記録のうち、はやいほう
             const savedBest = localStorage.getItem(`${mode.bestTimePrefix}_level_${level}_best_time`);
-            const times = entries.filter(e => e.cleared && e.ms).map(e => e.ms);
+            if (entries.length === 0 && !savedBest) {
+                return;
+            }
+            shownRows++;
+
+            const clears = entries.filter(e => e.cleared || e.imported).length;
+            // とちゅうで手をとめた回（paused）は、タイムに入れない
+            const timedAll = entries.filter(e => e.cleared && e.ms && !e.paused);
+            const timed = timedAll.slice(-20);
+
+            // ベストタイム：以前からの保存（百マスは秒）と、記録のうち、はやいほう
+            const times = timedAll.map(e => e.ms);
             if (savedBest) {
                 times.push(parseInt(savedBest) * (mode.engine === 'grid' ? 1000 : 1));
             }
@@ -133,6 +141,10 @@ const Records = {
             row.querySelector('.spark-cell').appendChild(timed.length > 0 ? sparkline(timed) : noData());
             tbody.appendChild(row);
         });
+
+        if (shownRows === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="records-note">まだ きろくが ないよ。もんだいに ちょうせんしよう！</td></tr>';
+        }
 
         function noData() {
             const span = document.createElement('span');
@@ -160,11 +172,9 @@ const Records = {
 
         const stats = History.getStats(mode.id);
 
-        // 9×9 の表（たしざん・かけざん）
-        if (mode.id === 'add' || mode.id === 'multi') {
-            map.appendChild(weakGrid(mode, stats));
-            map.appendChild(weakLegend());
-        }
+        // にがてマップ（たて：はじめの数、よこ：2つめの数）
+        map.appendChild(weakGrid(mode, stats));
+        map.appendChild(weakLegend());
 
         // まちがえた割合が高い順（同じなら、時間がかかった順）
         const weak = Object.entries(stats)
@@ -247,28 +257,37 @@ function weakStep(rate) {
     return WEAK_STEPS.find(step => rate <= step.max);
 }
 
+// たしざん・かけざんは 1～9 × 1～9、ひきざんは ひかれる数 1～18 × ひく数 1～9
 function weakGrid(mode, stats) {
+    const isSub = mode.id === 'sub';
+    const lastRow = isSub ? 18 : 9;
+    const shown = isSub ? '−' : mode.symbol;
     const table = document.createElement('table');
     table.className = 'weak-grid';
-    let html = `<tr><th>${mode.symbol}</th>`;
+    let html = `<tr><th>${shown}</th>`;
     for (let b = 1; b <= 9; b++) html += `<th>${b}</th>`;
     html += '</tr>';
-    for (let a = 1; a <= 9; a++) {
+    for (let a = 1; a <= lastRow; a++) {
         html += `<tr><th>${a}</th>`;
         for (let b = 1; b <= 9; b++) {
+            if (isSub && b > a) {
+                html += '<td class="none"></td>'; // こたえがマイナスになる（出ない問題）
+                continue;
+            }
+            const name = `${a} ${shown} ${b}`;
             const s = stats[`${a}${mode.symbol}${b}`];
             if (!s) {
-                html += `<td class="empty" data-label="${a} ${mode.symbol} ${b}：まだ やっていないよ">－</td>`;
+                html += `<td class="empty" data-label="${name}：まだ やっていないよ">－</td>`;
                 continue;
             }
             const rate = s.miss / s.n;
             const step = weakStep(rate);
-            html += `<td style="background:${step.color}" class="${step.dark ? 'dark' : ''}" data-label="${a} ${mode.symbol} ${b}：${s.n}かいちゅう ${s.miss}かい まちがい・へいきん ${(s.ms / s.n / 1000).toFixed(1)}びょう"></td>`;
+            html += `<td style="background:${step.color}" class="${step.dark ? 'dark' : ''}" data-label="${name}：${s.n}かいちゅう ${s.miss}かい まちがい・へいきん ${(s.ms / s.n / 1000).toFixed(1)}びょう"></td>`;
         }
         html += '</tr>';
     }
     table.innerHTML = html;
-    table.querySelectorAll('td').forEach(td => {
+    table.querySelectorAll('td[data-label]').forEach(td => {
         td.addEventListener('pointerenter', event => ChartTooltip.show(event, td.dataset.label));
         td.addEventListener('pointerleave', () => ChartTooltip.hide());
     });
@@ -307,7 +326,9 @@ const ChartTooltip = {
 // ---------- ドロップびん（集めたドロップが、ころころ積もる） ----------
 
 const DropJar = {
-    MAX_SHOWN: 400,      // これより多いときは、新しいほうから
+    RADIUS: 10.8,        // ドロップの大きさ（びんの中の半径 px）
+    MAX_SHOWN: 170,      // びんが いっぱいになる数（たし・ひき・かけの全レベルを解放するくらい）。多いときは新しいほうから
+    MOVE_MS: 3000,       // さいごにタップしてから、これだけたったら止める
     balls: [],
     images: {},
     running: false,
@@ -323,24 +344,19 @@ const DropJar = {
         this.inner = { left: 34, right: canvas.width - 34, top: 46, bottom: canvas.height - 18 };
 
         const shown = drops.slice(-this.MAX_SHOWN);
-        const area = (this.inner.right - this.inner.left) * (this.inner.bottom - this.inner.top);
-        this.radius = Math.max(6, Math.min(16, Math.sqrt((area * 0.5) / (Math.PI * Math.max(shown.length, 1)))));
-
-        // 古いドロップは先に積もらせておき、新しい8こが上から落ちてくる
-        const falling = Math.min(8, shown.length);
-        this.balls = shown.map((drop, i) => this.newBall(drop, i));
-        const settled = this.balls.slice(0, shown.length - falling);
-        const dropping = this.balls.slice(shown.length - falling);
-        this.balls = settled;
-        for (let i = 0; i < 400; i++) this.step();
-        dropping.forEach((ball, i) => {
-            ball.y = -this.radius * 2 - i * this.radius * 3;
-            this.balls.push(ball);
+        const falling = Math.min(8, shown.length);   // 新しい8こは、上から落ちてくる
+        this.balls = shown.map(drop => this.newBall(drop));
+        this.packFromBottom(this.balls.slice(0, shown.length - falling));
+        this.balls.slice(shown.length - falling).forEach((ball, i) => {
+            ball.x = this.inner.left + this.RADIUS + Math.random() * (this.inner.right - this.inner.left - this.RADIUS * 2);
+            ball.y = this.inner.top - this.RADIUS * 2 - i * this.RADIUS * 3;
+            ball.px = ball.x;
+            ball.py = ball.y;
         });
         this.start();
     },
 
-    newBall(drop, i) {
+    newBall(drop) {
         const src = dropSrc(drop);
         if (!this.images[src]) {
             const img = new Image();
@@ -348,27 +364,36 @@ const DropJar = {
             img.onload = () => this.draw();
             this.images[src] = img;
         }
+        return { src, x: 0, y: 0, px: 0, py: 0, angle: Math.random() * Math.PI * 2 };
+    },
+
+    // 古いドロップを、下から順に、すきまなく積んでおく（少しだけばらつかせる）
+    packFromBottom(balls) {
+        const r = this.RADIUS;
         const { left, right, bottom } = this.inner;
-        return {
-            src,
-            x: left + this.radius + Math.random() * (right - left - this.radius * 2),
-            y: bottom - this.radius - i * 2,
-            vx: 0,
-            vy: 0,
-            angle: Math.random() * Math.PI * 2,
-        };
+        const perRow = Math.floor((right - left) / (r * 2));
+        balls.forEach((ball, i) => {
+            const row = Math.floor(i / perRow);
+            const col = i % perRow;
+            const shift = row % 2 === 1 ? r : 0;
+            ball.x = Math.min(right - r, left + r + shift + col * r * 2 + (Math.random() - 0.5) * 2);
+            ball.y = bottom - r - row * r * 1.75;
+            ball.px = ball.x;
+            ball.py = ball.y;
+        });
     },
 
     // ゆらす（びんをタップしたとき）
     shake() {
         this.balls.forEach(ball => {
-            ball.vx += (Math.random() - 0.5) * 6;
-            ball.vy -= Math.random() * 7;
+            ball.px -= (Math.random() - 0.5) * 6;
+            ball.py += Math.random() * 6;
         });
         this.start();
     },
 
     start() {
+        this.stopAt = performance.now() + this.MOVE_MS;
         this.quietFrames = 0;
         if (this.running) return;
         this.running = true;
@@ -377,10 +402,11 @@ const DropJar = {
             this.step();
             this.step();
             this.draw();
-            // ほとんど動かなくなったら止める
-            const moving = this.balls.some(b => Math.abs(b.vx) + Math.abs(b.vy) > 0.15);
+            const moving = this.balls.some(b => Math.abs(b.x - b.px) + Math.abs(b.y - b.py) > 0.05);
             this.quietFrames = moving ? 0 : this.quietFrames + 1;
-            if (this.quietFrames > 30 || document.getElementById('recordsScreen').style.display === 'none') {
+            // 止まったら・時間がたったら・画面をはなれたら、おしまい（とちゅうでも止める）
+            if (this.quietFrames > 20 || performance.now() > this.stopAt
+                || document.getElementById('recordsScreen').style.display === 'none') {
                 this.running = false;
                 return;
             }
@@ -389,43 +415,68 @@ const DropJar = {
         requestAnimationFrame(loop);
     },
 
+    // 1こま進める：重力で動かしてから、重なりとびんの外を、何回か直す
     step() {
-        const r = this.radius;
+        const r = this.RADIUS;
         const { left, right, bottom } = this.inner;
         const balls = this.balls;
+
         balls.forEach(b => {
-            b.vy += 0.25;          // 重力
-            b.vx *= 0.99;
-            b.x += b.vx;
-            b.y += b.vy;
-            if (b.x < left + r) { b.x = left + r; b.vx = -b.vx * 0.3; }
-            if (b.x > right - r) { b.x = right - r; b.vx = -b.vx * 0.3; }
-            if (b.y > bottom - r) { b.y = bottom - r; b.vy = -b.vy * 0.25; b.vx *= 0.8; }
+            const vx = (b.x - b.px) * 0.98;
+            const vy = (b.y - b.py) * 0.98 + 0.25; // 重力
+            b.px = b.x;
+            b.py = b.y;
+            b.x += vx;
+            b.y += vy;
         });
-        // ドロップどうしが重ならないように押しあう
-        for (let i = 0; i < balls.length; i++) {
-            for (let j = i + 1; j < balls.length; j++) {
-                const a = balls[i], b = balls[j];
-                const dx = b.x - a.x, dy = b.y - a.y;
-                const dist2 = dx * dx + dy * dy;
-                if (dist2 >= 4 * r * r || dist2 === 0) continue;
-                const dist = Math.sqrt(dist2);
-                const nx = dx / dist, ny = dy / dist;
-                const push = (2 * r - dist) / 2;
-                a.x -= nx * push; a.y -= ny * push;
-                b.x += nx * push; b.y += ny * push;
-                const relative = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-                if (relative < 0) {
-                    const impulse = -relative * 0.6;
-                    a.vx -= nx * impulse; a.vy -= ny * impulse;
-                    b.vx += nx * impulse; b.vy += ny * impulse;
+
+        for (let iteration = 0; iteration < 4; iteration++) {
+            // 近くのドロップだけ調べるように、ます目に分ける
+            const cell = r * 2;
+            const grid = new Map();
+            balls.forEach((b, i) => {
+                const key = `${Math.floor(b.x / cell)},${Math.floor(b.y / cell)}`;
+                if (!grid.has(key)) grid.set(key, []);
+                grid.get(key).push(i);
+            });
+            balls.forEach((a, i) => {
+                const cx = Math.floor(a.x / cell), cy = Math.floor(a.y / cell);
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        (grid.get(`${cx + dx},${cy + dy}`) || []).forEach(j => {
+                            if (j <= i) return;
+                            const b = balls[j];
+                            const ox = b.x - a.x, oy = b.y - a.y;
+                            const dist2 = ox * ox + oy * oy;
+                            if (dist2 >= 4 * r * r || dist2 === 0) return;
+                            const dist = Math.sqrt(dist2);
+                            const push = (2 * r - dist) / 2;
+                            const nx = ox / dist, ny = oy / dist;
+                            a.x -= nx * push; a.y -= ny * push;
+                            b.x += nx * push; b.y += ny * push;
+                        });
+                    }
                 }
-            }
+            });
+            balls.forEach(b => {
+                if (b.x < left + r) b.x = left + r;
+                if (b.x > right - r) b.x = right - r;
+                if (b.y > bottom - r) b.y = bottom - r;
+            });
         }
+
+        // ほとんど動いていないドロップは、止めておく（ぴくぴくしないように）
+        balls.forEach(b => {
+            if (Math.abs(b.x - b.px) < 0.05 && Math.abs(b.y - b.py) < 0.05) {
+                b.px = b.x;
+                b.py = b.y;
+            }
+        });
     },
 
     draw() {
-        const { ctx, canvas, radius: r } = this;
+        const { ctx, canvas } = this;
+        const r = this.RADIUS;
         const { left, right, top, bottom } = this.inner;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 

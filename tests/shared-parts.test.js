@@ -108,10 +108,11 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     const ctx = await newCtx();
     const { page } = await openPage(ctx, 'tamamultidrops.html');
     const box = await page.$eval('#touchArea', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
-    await page.mouse.move(box.x - 60, box.y); await page.mouse.down();
-    for (let i = 0; i < 10; i++) { await page.mouse.move(box.x, box.y, { steps: 2 }); await page.mouse.move(box.x - 60, box.y, { steps: 2 }); }
+    // ねこの上で押して、左右に こする（はじめて開いた画面でも、すぐに反応する）
+    await page.mouse.move(box.x - 40, box.y); await page.mouse.down();
+    for (let i = 0; i < 3; i++) { await page.mouse.move(box.x + 40, box.y, { steps: 4 }); await page.mouse.move(box.x - 40, box.y, { steps: 4 }); }
     await page.mouse.up(); await page.waitForTimeout(300);
-    ok((await page.$$('.speech-bubble')).length === 1, 'こするとタマがしゃべる');
+    ok((await page.$$('.speech-bubble')).length === 1, 'こするとタマがしゃべる（3往復で）');
     await ctx.close();
   }
 

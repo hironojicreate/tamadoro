@@ -267,6 +267,11 @@ footer p {
     color: #3333ff;
 }
 
+/* 正解するまで、答えの数字はかくしておく（「？」カードの角のすき間から見えないように） */
+.digit.hidden-answer {
+    visibility: hidden;
+}
+
 /* 答えをかくす「？」のカード */
 .q-card {
     width: 100%;
@@ -500,6 +505,10 @@ footer p {
     z-index: 2;
 }
 
+#rescueModal {
+    z-index: 5; /* こするエリア（くろねこ）より上に */
+}
+
 #rescueModal input[type="range"] {
     width: 100%;
 }
@@ -507,24 +516,20 @@ footer p {
 
 /* ---------- タマのおしゃべり ---------- */
 
-/* こするとタマがしゃべるエリア */
+/* こするとタマがしゃべるエリア（上の絵の、くろねこの顔のあたり） */
 #touchArea {
-    width: 20px;
-    height: 100px;
-    border: 0px solid black;
+    width: 150px;
+    height: 13vh; /* 上の絵の中だけ（レベルボタンにかからないように） */
+    max-height: 130px;
     position: absolute;
-    top: 40px;
+    top: 5px;
     left: 48%;
     transform: translateX(-50%);
     z-index: 2;
+    touch-action: none; /* 指でこすっても、画面がスクロールしない */
+    cursor: grab;
 }
 
-#feedback {
-    text-align: center;
-    position: absolute;
-    top: 150px;
-    width: 100%;
-}
 
 #commentArea {
     position: relative;

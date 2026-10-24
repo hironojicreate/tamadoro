@@ -289,7 +289,8 @@ function moveCursorToNextCell() {
         currentCellIndex.row++;
     }
     if (currentCellIndex.row > currentTotalRows) {
-        // すべて終了したの合図を出す
+        // すべて終了したの合図を出す（もういちどちょうせんするまで、入力は受けつけない）
+        toggleKeypad(false);
         if (problemState.level === 5) {
             // レベル5の場合は「がんばったねパネル」を表示
             showCongratsPanel();
@@ -584,6 +585,7 @@ function gridRetryLevel() {
     resetProblemCorrectCount(); // 問題単位の正答数をリセット
     updateCorrectAnswerDisplay(problemState.level);
     startTimer();
+    toggleKeypad(true);
 }
 
 
@@ -988,6 +990,9 @@ document.getElementById('no-button').addEventListener('click', () => {
 let partialInput = ""; // ユーザーの一時的な入力（十の位を保持）
 
 function gridProcessButtonPress(value) {
+    if (!problemState.keypadEnabled) {
+        return;
+    }
     // スライダーをロック
     lockSliders();
     // 現在のセルを取得
