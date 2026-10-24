@@ -328,11 +328,16 @@ const ChartTooltip = {
 
 const DropJar = {
     RADIUS: 10.8,        // ドロップの大きさ（びんの中の半径 px）
-    MAX_SHOWN: 170,      // びんが いっぱいになる数（たし・ひき・かけの全レベルを解放するくらい）。多いときは新しいほうから
-    MOVE_MS: 3000,       // さいごにタップしてから、これだけたったら止める
+    MAX_SHOWN: 170,      // びんが いっぱいになる数
+    MOVE_MS: 8000,       // 空高く飛び出したドロップが全て落ちて落ち着くまで十分な時間を確保
     balls: [],
     images: {},
     running: false,
+    heat: 0,             // 連打の勢い（タップするたびに増え、時間とともに減る）
+    lastShakeAt: 0,      // 最後にタップした時刻
+    jarKick: 0,          // びん自体の揺れ角度
+    lidY: 0,             // コルクのふたの浮き上がり量（飛び出し演出用）
+    lidVy: 0,            // コルクのふたの速度
 
     show(log) {
         const drops = log.filter(e => e.drop).map(e => e.drop);
@@ -343,6 +348,10 @@ const DropJar = {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.inner = { left: 34, right: canvas.width - 34, top: 46, bottom: canvas.height - 18 };
+        this.heat = 0;
+        this.jarKick = 0;
+        this.lidY = 0;
+        this.lidVy = 0;
 
         const shown = drops.slice(-this.MAX_SHOWN);
         const falling = Math.min(8, shown.length);   // 新しい8こは、上から落ちてくる
@@ -361,14 +370,24 @@ const DropJar = {
         const src = dropSrc(drop);
         if (!this.images[src]) {
             const img = new Image();
+            this.images[src] = { ready: false };
+            img.onload = () => {
+                // ミニCanvasに1回だけ焼き付けて高速化
+                const size = 64;
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = size;
+                offCanvas.height = size;
+                offCanvas.getContext('2d').drawImage(img, 0, 0, size, size);
+                offCanvas.ready = true;
+                this.images[src] = offCanvas;
+                this.draw();
+            };
             img.src = src;
-            img.onload = () => this.draw();
-            this.images[src] = img;
         }
-        return { src, x: 0, y: 0, px: 0, py: 0, angle: Math.random() * Math.PI * 2 };
+        return { src, x: 0, y: 0, px: 0, py: 0, angle: Math.random() * Math.PI * 2, va: 0 };
     },
 
-    // 古いドロップを、下から順に、すきまなく積んでおく（少しだけばらつかせる）
+    // 古いドロップを、下から順に、すきまなく積んでおく
     packFromBottom(balls) {
         const r = this.RADIUS;
         const { left, right, bottom } = this.inner;
@@ -384,12 +403,51 @@ const DropJar = {
         });
     },
 
-    // ゆらす（びんをタップしたとき）
+    // ゆらす（びんをタップするたびに勢いが増し、連打で全部飛び出す！）
     shake() {
+        const now = performance.now();
+        const dt = now - (this.lastShakeAt || 0);
+        this.lastShakeAt = now;
+
+        // 素早く連打するほど heat（勢い）がどんどん溜まる（最大 12）
+        if (dt < 450) {
+            this.heat = Math.min(12, this.heat + 1.35);
+        } else {
+            this.heat = Math.max(1.5, this.heat * 0.5 + 1.2);
+        }
+
+        // びん自体も左右にプルッと揺らす
+        this.jarKick = (Math.random() < 0.5 ? -1 : 1) * Math.min(0.08, 0.02 + this.heat * 0.006);
+
+        // コルクのふたをポンッと上に吹き飛ばす
+        this.lidVy = -Math.min(28, 6 + this.heat * 2.5);
+
+        const { bottom } = this.inner;
+
         this.balls.forEach(ball => {
-            ball.px -= (Math.random() - 0.5) * 6;
-            ball.py += Math.random() * 6;
+            // 現在の速度
+            const vx = ball.x - ball.px;
+            const vy = ball.y - ball.py;
+
+            // タップ1回ごとの上向きジャンプ力（連打するほど激しくなる）
+            // 下のほうにあるドロップもしっかり押し上げられるようにボーナスをつける
+            const depthBonus = Math.max(0, (ball.y - 100) / Math.max(1, bottom - 100)) * 4;
+            const jumpPower = 0.01 + this.heat * 1.2 + Math.random() * (5 + this.heat * 1.0) + depthBonus;
+
+            // すでに上へ飛んでいるドロップもさらに加速させて空高く全部打ち上げる！
+            const newVy = Math.max(-5, Math.min(vy, 0) * 0.65 - jumpPower);
+
+            // 左右にも激しく暴れさせる
+            const sidePower = (Math.random() - 0.5) * (8 + this.heat * 2.2);
+            const newVx = Math.max(-18, Math.min(18, vx * 0.8 + sidePower));
+
+            ball.px = ball.x - newVx;
+            ball.py = ball.y - newVy;
+
+            // くるくる回転させる
+            ball.va = (Math.random() - 0.5) * (0.25 + this.heat * 0.05);
         });
+
         this.start();
     },
 
@@ -403,12 +461,24 @@ const DropJar = {
             this.step();
             this.step();
             this.draw();
-            const moving = this.balls.some(b => Math.abs(b.x - b.px) + Math.abs(b.y - b.py) > 0.05);
+
+            // まだ空中に飛んでいるドロップがあるか、動いているドロップがあるかチェック
+            const { top } = this.inner;
+            const anyInAir = this.balls.some(b => b.y < top);
+            const moving = anyInAir || Math.abs(this.lidY) > 0.5 || this.balls.some(b => Math.abs(b.x - b.px) + Math.abs(b.y - b.py) > 0.05);
             this.quietFrames = moving ? 0 : this.quietFrames + 1;
-            // 止まったら・時間がたったら・画面をはなれたら、おしまい（とちゅうでも止める）
-            if (this.quietFrames > 20 || performance.now() > this.stopAt
+
+            // 空中にドロップが残っている間は、時間を延長して必ず全部落ちてくるまで待つ
+            if (anyInAir) {
+                this.stopAt = Math.max(this.stopAt, performance.now() + 3000);
+            }
+
+            if ((this.quietFrames > 25 && !anyInAir) || performance.now() > this.stopAt
                 || document.getElementById('recordsScreen').style.display === 'none') {
                 this.running = false;
+                this.jarKick = 0;
+                this.lidY = 0;
+                this.draw();
                 return;
             }
             requestAnimationFrame(loop);
@@ -416,19 +486,54 @@ const DropJar = {
         requestAnimationFrame(loop);
     },
 
-    // 1こま進める：重力で動かしてから、重なりとびんの外を、何回か直す
+    // 1こま進める：重力で動かしてから、重なりとびんの外を直す
     step() {
         const r = this.RADIUS;
-        const { left, right, bottom } = this.inner;
+        const { left, right, top, bottom } = this.inner;
         const balls = this.balls;
 
+        // 連打していないときは少しずつ heat（勢い）を冷ます
+        if (performance.now() - this.lastShakeAt > 250) {
+            this.heat = Math.max(0, this.heat * 0.985 - 0.02);
+        }
+
+        // びんの揺れの減衰
+        this.jarKick *= -0.82;
+        if (Math.abs(this.jarKick) < 0.001) this.jarKick = 0;
+
+        // コルクのふたの動き（ドロップが上に飛び出している間は上空に退避し、落ち着いたら閉まる）
+        const highestBallY = balls.length > 0 ? Math.min(...balls.map(b => b.y)) : bottom;
+        if (highestBallY < top + 10 || this.heat > 1.5) {
+            // ドロップが飛び出し中：ふたは画面の上の外へ飛んでいく
+            this.lidVy -= 1.2;
+            this.lidY = Math.max(-160, this.lidY + this.lidVy);
+        } else {
+            // ドロップがすべてびんに戻った：重力でふたがスポッと閉まる
+            this.lidVy += 0.8;
+            this.lidY = Math.min(0, this.lidY + this.lidVy);
+            if (this.lidY === 0) this.lidVy = 0;
+        }
+
         balls.forEach(b => {
-            const vx = (b.x - b.px) * 0.98;
-            const vy = (b.y - b.py) * 0.98 + 0.25; // 重力
+            const vx = (b.x - b.px) * 0.99;
+            const vy = (b.y - b.py) * 0.99 + 0.28; // 重力（空から気持ちよく落ちてくる強さ）
             b.px = b.x;
             b.py = b.y;
             b.x += vx;
             b.y += vy;
+
+            // 回転を進める
+            if (b.va) {
+                b.angle += b.va;
+                b.va *= 0.985;
+            } else {
+                b.angle += vx * 0.04;
+            }
+
+            // 最高速連打で飛び出したドロップが上空1200pxより遠くへ行きすぎないようソフトに折り返させる（指を止めたあと気持ちよく降ってくるため）
+            if (b.y < -950 && b.y < b.py) {
+                b.py = b.y + (b.py - b.y) * 0.5;
+            }
         });
 
         for (let iteration = 0; iteration < 4; iteration++) {
@@ -436,11 +541,14 @@ const DropJar = {
             const cell = r * 2;
             const grid = new Map();
             balls.forEach((b, i) => {
+                // 空高く飛んでいる最中は衝突計算を軽くしてスムーズに飛ばす
+                if (b.y < -r * 4) return;
                 const key = `${Math.floor(b.x / cell)},${Math.floor(b.y / cell)}`;
                 if (!grid.has(key)) grid.set(key, []);
                 grid.get(key).push(i);
             });
             balls.forEach((a, i) => {
+                if (a.y < -r * 4) return;
                 const cx = Math.floor(a.x / cell), cy = Math.floor(a.y / cell);
                 for (let dx = -1; dx <= 1; dx++) {
                     for (let dy = -1; dy <= 1; dy++) {
@@ -459,18 +567,49 @@ const DropJar = {
                     }
                 }
             });
+
+            // びんの壁との当たり判定
             balls.forEach(b => {
-                if (b.x < left + r) b.x = left + r;
-                if (b.x > right - r) b.x = right - r;
-                if (b.y > bottom - r) b.y = bottom - r;
+                if (b.y >= top - r) {
+                    // びんの中：左右の壁と底でしっかり跳ね返る
+                    if (b.x < left + r) {
+                        const vx = b.x - b.px;
+                        b.x = left + r;
+                        b.px = b.x + vx * 0.5;
+                    }
+                    if (b.x > right - r) {
+                        const vx = b.x - b.px;
+                        b.x = right - r;
+                        b.px = b.x + vx * 0.5;
+                    }
+                    if (b.y > bottom - r) {
+                        const vy = b.y - b.py;
+                        b.y = bottom - r;
+                        b.py = b.y + vy * 0.35; // 底で少しバウンドする
+                    }
+                } else {
+                    // びんより上（空中）：画面外に散らばりすぎず、落ちてきたときに必ずびんの口（left〜right）へ吸い込まれるようにガイドする
+                    const funnelMargin = Math.min(28, Math.max(0, (top - b.y) * 0.12));
+                    const minX = left + r - funnelMargin;
+                    const maxX = right - r + funnelMargin;
+                    if (b.x < minX) {
+                        b.x = minX;
+                        b.px = b.x;
+                    }
+                    if (b.x > maxX) {
+                        b.x = maxX;
+                        b.px = b.x;
+                    }
+                }
             });
         }
 
-        // ほとんど動いていないドロップは、止めておく（ぴくぴくしないように）
+        // びんの中でほとんど動いていないドロップは、止めておく（ぴくぴくしないように）
         balls.forEach(b => {
-            if (Math.abs(b.x - b.px) < 0.05 && Math.abs(b.y - b.py) < 0.05) {
+            if (b.y >= top && Math.abs(b.x - b.px) < 0.04 && Math.abs(b.y - b.py) < 0.04) {
                 b.px = b.x;
                 b.py = b.y;
+                b.va = 0;
             }
         });
     },
@@ -481,14 +620,26 @@ const DropJar = {
         const { left, right, top, bottom } = this.inner;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        ctx.save();
+        // タップしたときにびん全体が中心を軸に少しプルプル揺れる
+        if (this.jarKick !== 0) {
+            const cx = canvas.width / 2;
+            const cy = (top + bottom) / 2;
+            ctx.translate(cx, cy);
+            ctx.rotate(this.jarKick);
+            ctx.translate(-cx, -cy);
+        }
+
         // びん（うしろ側）
         ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
         roundRect(ctx, left - 10, top - 14, right - left + 20, bottom - top + 26, 26);
         ctx.fill();
 
+        // ドロップの描画（空へ飛び出して画面の上端に消えていくものも滑らかに描画）
         this.balls.forEach(b => {
+            if (b.y < -r * 2) return; // 画面よりずっと上にある間は描画をスキップしてさらに高速化
             const img = this.images[b.src];
-            if (!img || !img.complete) return;
+            if (!img || !img.ready) return;
             ctx.save();
             ctx.translate(b.x, b.y);
             ctx.rotate(b.angle);
@@ -496,17 +647,25 @@ const DropJar = {
             ctx.restore();
         });
 
-        // びん（ガラスのふちと、ふた）
+        // びん（ガラスのふち）
         ctx.strokeStyle = 'rgba(120, 160, 190, 0.9)';
         ctx.lineWidth = 4;
         roundRect(ctx, left - 10, top - 14, right - left + 20, bottom - top + 26, 26);
         ctx.stroke();
-        ctx.fillStyle = '#e8a87c';
-        roundRect(ctx, left - 4, top - 34, right - left + 8, 18, 6);
-        ctx.fill();
+
+        // コルクのふた（タップするとポンッと上に飛んでいき、ドロップが全部戻ると閉まる！）
+        if (top - 34 + this.lidY > -30) {
+            ctx.fillStyle = '#e8a87c';
+            roundRect(ctx, left - 4, top - 34 + this.lidY, right - left + 8, 18, 6);
+            ctx.fill();
+        }
+
+        // びんのガラスのツヤ
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         roundRect(ctx, left - 2, top + 10, 8, bottom - top - 40, 4);
         ctx.fill();
+
+        ctx.restore();
     },
 };
 
@@ -520,7 +679,10 @@ function roundRect(ctx, x, y, w, h, radius) {
     ctx.closePath();
 }
 
-
-document.getElementById('dropJar').addEventListener('click', () => DropJar.shake());
+// PCのクリックでもスマホ・タブレットの高速連打でも気持ちよく反応するように pointerdown に変更
+document.getElementById('dropJar').addEventListener('pointerdown', (e) => {
+    e.preventDefault(); // スマホで高速連打したときに画面がダブルタップ拡大されるのを防ぐ
+    DropJar.shake();
+});
 document.getElementById('calPrev').addEventListener('click', () => Records.moveMonth(-1));
 document.getElementById('calNext').addEventListener('click', () => Records.moveMonth(1));
