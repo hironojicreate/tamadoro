@@ -169,6 +169,5 @@ html[data-mode="hundredgrid"] .coin { z-index: 6; }
 html[data-mode="hundredgrid"] .reward-coin { z-index: 6; }
 html[data-mode="hundredgrid"] #deleteModal { z-index: 10; }
 html[data-mode="hundredgrid"] .speech-bubble { z-index: 4; }
-html[data-mode="hundredgrid"] .speech-bubble p { z-index: 4; }
 html[data-mode="hundredgrid"] #dataModal { z-index: 10; }
 html[data-mode="hundredgrid"] #completionModal { z-index: 5; }

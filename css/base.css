@@ -3,6 +3,13 @@
    モードごとの違い（背景・ボタンの色など）は各モードの CSS で上書きする
    ========================================================= */
 
+/* 数字・記号のフォント（Zen Maru Gothic を、使う文字 0-9 + − × = ? は と だけにしぼったもの。fonts/OFL.txt） */
+@font-face {
+    font-family: 'TamaDigits';
+    src: url('../fonts/zen-maru-gothic-700-tama.woff2') format('woff2');
+    font-display: block; /* 読み込むまで（ほんの一瞬）ほかのフォントで出さない */
+}
+
 /* ブラウザのデフォルトのマージンとパディングをリセット */
 html,
 body {
@@ -199,16 +206,21 @@ footer p {
 
 /* キーを押したとき（:active はマウス、.active はタッチ・物理キー）に縮小 */
 .keypad button:active,
-.keypad button:active img,
+.keypad button:active .key-digit,
 .keypad button.active,
-.keypad button.active img {
+.keypad button.active .key-digit {
     transform: scale(0.9);
 }
 
-.keypad button img {
-    height: 11vh;
-    max-height: 70px;
-    min-height: 40px;
+/* キーの数字（高さは画面の 1/9、40px～70px） */
+.keypad button .key-digit {
+    --key-height: clamp(40px, 11vh, 70px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--key-height);
+    width: calc(var(--key-height) * 250 / 330);
+    font-size: calc(var(--key-height) * 1.3);
     transition: transform 0.1s ease;
     will-change: transform;
 }
@@ -227,8 +239,51 @@ footer p {
     white-space: nowrap;
 }
 
-.symbol-image {
+/* 数字・記号の文字 */
+.digit,
+.digit-card,
+.symbol,
+.key-digit,
+.q-card {
+    font-family: 'TamaDigits', 'Zen Maru Gothic', sans-serif;
+    line-height: 1;
+    color: #000;
+}
+
+.digit,
+.digit-card,
+.q-card {
+    font-size: 19vh;
+}
+
+/* 記号（＋ − × ＝、「5 は 2 と ？」の は・と） */
+.symbol {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 11.4vh;
     height: 15vh;
+    font-size: 15vh;
+}
+
+.symbol.kana {
+    font-size: 11vh;
+}
+
+.symbol.kana-ha {
+    color: #3333ff;
+}
+
+/* 答えをかくす「？」のカード */
+.q-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #fff;
+    border-radius: 1.6vh;
+    color: #ff2929;
 }
 
 .calculation-symbol {
@@ -252,8 +307,10 @@ footer p {
     position: relative;
     width: 12vh;
     height: 16vh;
-    background-size: cover;
-    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden; /* 十の位がないときは幅0にして、数字ごとかくす */
 }
 
 .cover-container {
@@ -371,6 +428,9 @@ footer p {
     width: 12vh;
     height: 16vh;
     position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 不正解：回転しながらはじかれる（移動量は JS で --random-x/y に設定） */
@@ -485,34 +545,25 @@ footer p {
 
 .speech-bubble {
     position: absolute;
-    width: 300px;
-    height: 300px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    transform: translate(-50%, -50%); /* top / left が吹き出しの中心 */
+    width: max-content;
+    max-width: 80vw;
+    padding: 0.8em 1.6em;
+    background-color: #fffcd2; /* クリーム色 */
+    border: 3px solid #d9d2fb; /* うすいむらさきのふち */
+    border-radius: 1.4em;
+    filter: drop-shadow(10px 10px 10px rgba(0, 0, 0, 0.5));
     z-index: 1;
     opacity: 1;
     transition: opacity 0.3s ease-out;
 }
 
-.bubble-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    filter: drop-shadow(10px 10px 10px rgba(0, 0, 0, 0.5));
-}
-
 .speech-bubble p {
-    position: absolute;
-    width: 100%;
+    margin: 0;
     color: black;
     font-size: 14px;
-    margin: 0;
-    top: 48%;
-    left: 47%;
-    transform: translate(-50%, -50%);
+    line-height: 1.5;
     text-align: center;
-    z-index: 2;
 }
 
 

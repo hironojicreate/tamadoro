@@ -4,9 +4,9 @@
 
 let pressCount = 0; // 2けたの答えで、いま何けためを入れているか（0: 十の位, 1: 一の位）
 
-// 問題画面で使う画像を先読み
+// 問題画面で使うドロップの画像を先読み
 document.addEventListener('DOMContentLoaded', () => {
-    ['/img/q.gif', '/img/Smaru.png'].forEach(src => {
+    ['/img/drops/G.svg', '/img/drops/S.svg'].forEach(src => {
         new Image().src = src;
     });
 });
@@ -80,8 +80,8 @@ function updateRemainingProblems() {
 
 // ---------- 式の表示 ----------
 
-// 記号の画像（img/+.png など）
-const SYMBOL_IMAGES = { '+': '+', '-': '-', '×': 'x' };
+// 画面に出す記号（ひきざんは、横棒の長い「−」）
+const SYMBOL_TEXT = { '+': '+', '-': '−', '×': '×' };
 
 function displayProblem(a, b, c) {
     updateRemainingProblems();
@@ -91,8 +91,8 @@ function displayProblem(a, b, c) {
     showNumber('a', a);
     showNumber('b', b);
     showNumber('c', c);
-    setCoverImage('c1cover');
-    setCoverImage('c2cover');
+    showCover('c1cover');
+    showCover('c2cover');
 
     if (currentMode.dots === 'count') {
         showCountDots(a, b);
@@ -101,11 +101,13 @@ function displayProblem(a, b, c) {
     }
 
     // 「5 は 2 と ？」のときは「は」「と」
-    const decompose = currentLevelDef().style === 'decompose';
-    const symbol1 = decompose ? 'h' : SYMBOL_IMAGES[currentMode.symbol];
-    const symbol2 = decompose ? 't' : '=';
-    document.getElementById("calculationSymbol1").innerHTML = `<img src="/img/${symbol1}.png" class="symbol-image">`;
-    document.getElementById("calculationSymbol2").innerHTML = `<img src="/img/${symbol2}.png" class="symbol-image">`;
+    if (currentLevelDef().style === 'decompose') {
+        document.getElementById("calculationSymbol1").innerHTML = '<span class="symbol kana kana-ha">は</span>';
+        document.getElementById("calculationSymbol2").innerHTML = '<span class="symbol kana">と</span>';
+    } else {
+        document.getElementById("calculationSymbol1").innerHTML = `<span class="symbol">${SYMBOL_TEXT[currentMode.symbol]}</span>`;
+        document.getElementById("calculationSymbol2").innerHTML = '<span class="symbol">=</span>';
+    }
 }
 
 // 数字カードを並べる（十の位が0なら十の位の枠をなくす）
@@ -120,30 +122,24 @@ function showNumber(prefix, number) {
 
     if (tens > 0) {
         tensContainer.style.width = '12vh';
-        tensContainer.style.backgroundImage = `url(/img/${tens}.png)`;
+        tensContainer.querySelector('.digit').textContent = tens;
         tensCover.style.display = 'block';
     } else {
         tensContainer.style.width = '0';
+        tensContainer.querySelector('.digit').textContent = '';
         tensCover.style.display = 'none';
     }
 
-    onesContainer.style.backgroundImage = `url(/img/${ones}.png)`;
+    onesContainer.querySelector('.digit').textContent = ones;
     onesContainer.style.width = '12vh';
     onesCover.style.display = 'block';
 }
 
-// 答えの「？」カバー
-function setCoverImage(coverId) {
-    const coverContainer = document.getElementById(coverId);
-    const img = new Image();
-    img.onload = function () {
-        coverContainer.innerHTML = '';
-        img.style.width = '100%';
-        img.style.height = '100%';
-        coverContainer.appendChild(img);
-        coverContainer.style.display = 'block'; // 画像のロード完了後に表示
-    };
-    img.src = "/img/q.gif";
+// 答えをかくす「？」のカード
+function showCover(coverId) {
+    const cover = document.getElementById(coverId);
+    cover.innerHTML = '<div class="q-card">?</div>';
+    cover.style.display = 'block';
 }
 
 
@@ -345,12 +341,12 @@ function handleAnswer(isCorrect) {
 
 // 入力した数字が、答えの枠に飛んでいく（まちがいならはじかれる）
 function shootAtTarget(rect, value, isCorrect) {
-    const img = document.createElement('img');
-    img.src = `/img/${value}.png`;
-    img.className = 'falling-and-shrinking-image';
+    const digit = document.createElement('div');
+    digit.className = 'falling-and-shrinking-image digit-card';
+    digit.textContent = value;
 
     const newDiv = document.createElement('div');
-    newDiv.appendChild(img);
+    newDiv.appendChild(digit);
     newDiv.style.position = 'absolute';
     newDiv.style.left = `${rect.left}px`;
     newDiv.style.top = `${rect.top}px`;
@@ -376,12 +372,12 @@ function bounceOffTarget(target) {
     }, 150);
 }
 
-// 正解した「？」カバーが広がって消える
+// 正解した「？」カードが広がって消える
 function enlargeAndFadeImage(coverId) {
-    const img = document.getElementById(coverId).querySelector('img');
-    if (img) {
-        img.classList.add('expand-and-fade');
-        setTimeout(() => img.remove(), 1000);
+    const card = document.getElementById(coverId).querySelector('.q-card');
+    if (card) {
+        card.classList.add('expand-and-fade');
+        setTimeout(() => card.remove(), 1000);
     }
 }
 

@@ -47,8 +47,15 @@ const ProblemPatterns = {
     },
 };
 
-// ドロップの色（img/Lmaru.png など）
-//   L 水色 / M / B / A / R / K / P / Y / C / O / S / G 金
+// ドロップの色：L 水色 / M みどり / B 青 / A あか / R むらさき / K きみどり / P ピンク
+//               Y 黄色 / C うすむらさき / O オレンジ / S 銀 / G 金
+// 保存データには、以前からの画像名（/img/Lmaru.png）で記録する
 function dropImage(letter) {
     return `/img/${letter}maru.png`;
+}
+
+// 保存データの画像名 → 画面に出す、球のドロップ（img/drops/L.svg。tools/make_drops.py でつくる）
+function dropSrc(image) {
+    const match = /\/img\/([A-Z])maru\.png$/.exec(image || '');
+    return match ? `/img/drops/${match[1]}.svg` : image;
 }

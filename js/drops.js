@@ -44,7 +44,7 @@ function throwCoin(level, special = false, coinSize = 50, howManyCoins = 1, useE
 // コインを1枚つくって画面の上から投げる
 function launchCoin(src, coinSize, bounce) {
     const coin = document.createElement('img');
-    coin.src = src;
+    coin.src = dropSrc(src);
     coin.className = 'coin';
     coin.style.width = `${coinSize}px`;
     coin.style.height = `${coinSize}px`;
@@ -164,7 +164,7 @@ function createRewardCoin(level) {
     const coinImage = problemState.mistakeCount === 0 ? '/img/Gmaru.png' : problemState.levelToImage[level];
 
     const rewardCoin = document.createElement('img');
-    rewardCoin.src = coinImage;
+    rewardCoin.src = dropSrc(coinImage);
     rewardCoin.className = 'reward-coin';
     rewardCoin.style.position = 'fixed';
     rewardCoin.style.top = '50%';  // 中央に配置
@@ -218,7 +218,7 @@ function clearCoinsOnDOM() {
 //問題画面の右上に、これまでのコインを並べる
 function createRewardCoinFromInfo(coinInfo) {
     const rewardCoin = document.createElement('img');
-    rewardCoin.src = coinInfo.image;
+    rewardCoin.src = dropSrc(coinInfo.image);
     rewardCoin.className = 'reward-coin';
     rewardCoin.style.position = 'fixed';
     rewardCoin.style.width = '50px';
@@ -264,7 +264,7 @@ function displayLatestCoins(level, containerId, limit = 5) {
         coinWrapper.style.display = 'inline-block';
 
         const img = document.createElement('img');
-        img.src = coin.image;
+        img.src = dropSrc(coin.image);
         img.className = 'main-reward-coin';
         img.style.width = currentMode.menuCoinSize;
         img.style.height = currentMode.menuCoinSize;

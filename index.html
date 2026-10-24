@@ -12,6 +12,9 @@
     <meta http-equiv="Expires" content="0">
     <link rel="canonical" href="https://addsubmaster.web.app/">
 
+    <!-- 数字・記号のフォント（Zen Maru Gothic を、使う文字だけにしぼったもの） -->
+    <link rel="preload" href="fonts/zen-maru-gothic-700-tama.woff2" as="font" type="font/woff2" crossorigin>
+
     <!-- 共通 → さいしょの画面 → モードごとの違い -->
     <link href="css/base.css" rel="stylesheet" type="text/css" />
     <link href="css/home.css" rel="stylesheet" type="text/css" />
@@ -78,22 +81,22 @@
 <!-- ================= テンキー ================= -->
     <div id="keypadScreen" class="keypad" style="display: none;">
         <div class="key-row">
-            <button class="num" data-value="7"><img src="/img/7.png" alt="7"></button>
-            <button class="num" data-value="8"><img src="/img/8.png" alt="8"></button>
-            <button class="num" data-value="9"><img src="/img/9.png" alt="9"></button>
+            <button class="num" data-value="7"><span class="key-digit">7</span></button>
+            <button class="num" data-value="8"><span class="key-digit">8</span></button>
+            <button class="num" data-value="9"><span class="key-digit">9</span></button>
         </div>
         <div class="key-row">
-            <button class="num" data-value="4"><img src="/img/4.png" alt="4"></button>
-            <button class="num" data-value="5"><img src="/img/5.png" alt="5"></button>
-            <button class="num" data-value="6"><img src="/img/6.png" alt="6"></button>
+            <button class="num" data-value="4"><span class="key-digit">4</span></button>
+            <button class="num" data-value="5"><span class="key-digit">5</span></button>
+            <button class="num" data-value="6"><span class="key-digit">6</span></button>
         </div>
         <div class="key-row">
-            <button class="num" data-value="1"><img src="/img/1.png" alt="1"></button>
-            <button class="num" data-value="2"><img src="/img/2.png" alt="2"></button>
-            <button class="num" data-value="3"><img src="/img/3.png" alt="3"></button>
+            <button class="num" data-value="1"><span class="key-digit">1</span></button>
+            <button class="num" data-value="2"><span class="key-digit">2</span></button>
+            <button class="num" data-value="3"><span class="key-digit">3</span></button>
         </div>
         <div class="key-row">
-            <button class="num" data-value="0"><img src="/img/0.png" alt="0"></button>
+            <button class="num" data-value="0"><span class="key-digit">0</span></button>
         </div>
     </div>
 
@@ -144,16 +147,18 @@
                 </div>
                 <div class="number-set">
                     <div id="a1" class="num-container">
+                        <span class="digit"></span>
                         <div id="a1cover" class="cover-containera"></div>
                     </div>
                     <div id="a2" class="num-container">
+                        <span class="digit"></span>
                         <div id="a2cover" class="cover-containera"></div>
                     </div>
                 </div>
             </div>
 
             <div class="calculation-symbol" id="calculationSymbol1">
-                <img src="/img/+.png" class="symbol-image">
+                <span class="symbol">+</span>
             </div>
 
             <div class="num-big-container">
@@ -163,16 +168,18 @@
                 </div>
                 <div class="number-set">
                     <div id="b1" class="num-container">
+                        <span class="digit"></span>
                         <div id="b1cover" class="cover-containerb"></div>
                     </div>
                     <div id="b2" class="num-container">
+                        <span class="digit"></span>
                         <div id="b2cover" class="cover-containerb"></div>
                     </div>
                 </div>
             </div>
 
             <div class="calculation-symbol" id="calculationSymbol2">
-                <img src="/img/=.png" class="symbol-image">
+                <span class="symbol">=</span>
             </div>
 
             <div class="num-big-container">
@@ -182,9 +189,11 @@
                 </div>
                 <div class="number-set">
                     <div id="c1" class="num-container">
+                        <span class="digit"></span>
                         <div id="c1cover" class="cover-container"></div>
                     </div>
                     <div id="c2" class="num-container">
+                        <span class="digit"></span>
                         <div id="c2cover" class="cover-container"></div>
                     </div>
                 </div>

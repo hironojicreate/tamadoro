@@ -80,65 +80,32 @@ async function loadMessages() {
     return cachedMessages;
 }
 
-//猫にしゃべらせる関数。
-function displayComment(areaType, imageSize, text) {
+// タマの吹き出し（形は CSS の .speech-bubble）
+//   message.areaType：S 短い / M ふつう / L 長いメッセージ（長いほど少し下に出す）
+//   吹き出しの中心が、たてはこの範囲（px）、よこは画面の 40%～60% のどこかに来る
+const BUBBLE_CENTER_Y = { S: [110, 180], M: [130, 200], L: [160, 210] };
 
+function displayComment(message) {
     const area = document.getElementById('commentArea');
-    area.innerHTML = '';  // Clear previous content
+    area.innerHTML = '';  // 前の吹き出しを消す
 
+    const [minY, maxY] = BUBBLE_CENTER_Y[message.areaType] || BUBBLE_CENTER_Y.M;
     const bubble = document.createElement('div');
     bubble.className = 'speech-bubble';
-
-    const img = document.createElement('img');
-    img.alt = "Speech Bubble";
-    img.className = 'bubble-image';
-    img.style.width = imageSize; // Optional: If you want to adjust the size dynamically
-    img.style.height = imageSize; // Optional: If you want to adjust the size dynamically
-
-    // エリアタイプに応じた画像パスの決定
-    switch (areaType) {
-        case 'S':
-            img.src = '/img/fukidasiS.png';
-            bubble.style.top = `${Math.random() * (120 - 50) - 40}px`;  // 60px to 200px
-            const horizontalPositionS = 40 + Math.random() * 20; // 40% to 60%
-            bubble.style.left = `${horizontalPositionS}%`;
-            bubble.style.transform = 'translateX(-50%)'; // 中心を画面中央から指定した%へ移動
-            break;
-        case 'M':
-            img.src = '/img/fukidasiM.png';
-            bubble.style.top = `${Math.random() * (110 - 40) - 20}px`;  // 60px to 200px
-            const horizontalPositionM = 40 + Math.random() * 20; // 40% to 60%
-            bubble.style.left = `${horizontalPositionM}%`;
-            bubble.style.transform = 'translateX(-50%)'; // 中心を画面中央から指定した%へ移動
-            break;
-        case 'L':
-            img.src = '/img/fukidasiL.png';
-            bubble.style.top = `${Math.random() * (90 - 40) + 10}px`;  // 60px to 200px
-            const horizontalPositionL = 40 + Math.random() * 20; // 40% to 60%
-            bubble.style.left = `${horizontalPositionL}%`;
-            bubble.style.transform = 'translateX(-50%)'; // 中心を画面中央から指定した%へ移動
-            break;
-    }
+    bubble.style.top = `${minY + Math.random() * (maxY - minY)}px`;
+    bubble.style.left = `${40 + Math.random() * 20}%`;
 
     const p = document.createElement('p');
-    p.innerHTML = text;
-    bubble.appendChild(img);
+    p.innerHTML = message.text;
     bubble.appendChild(p);
-
     area.appendChild(bubble);
-    // 条件によって遅延時間を変更
-    const delay = (problemState.lvTenClear || problemState.lvElevenClear) ? 20000 : 3000;
 
+    // お祝いのメッセージは長めに出しておく
+    const delay = (problemState.lvTenClear || problemState.lvElevenClear) ? 20000 : 3000;
     setTimeout(() => {
-        // bubbleがまだareaの子要素であることを確認
-        if (bubble.parentNode === area) {  
-            bubble.style.opacity = '0'; // フェードアウト開始
-            setTimeout(() => {
-                // 再度、bubbleがareaの子要素であることを確認してから削除
-                if (bubble.parentNode === area) {
-                    area.removeChild(bubble);  // DOMからbubbleを削除
-                }
-            }, 1000); // CSSのtransitionの時間と同じかそれ以上を指定
+        if (bubble.parentNode === area) {
+            bubble.style.opacity = '0'; // フェードアウト
+            setTimeout(() => bubble.remove(), 1000);
         }
     }, delay);
 }
@@ -155,7 +122,7 @@ async function displayCachedMessage(moveCount) {
     if (problemState.lvTenClear) {
         const specialMessageLv10 = messages.find(message => message.ID === "25");
         if (specialMessageLv10) {
-            displayComment(specialMessageLv10.areaType, specialMessageLv10.imageSize, specialMessageLv10.text);
+            displayComment(specialMessageLv10);
             throwCoin(10, false, 60, 1, problemState.useExistingCoins);
             problemState.lvTenClear = false;  // Stateをリセット
             return;  // 処理をここで終了
@@ -166,7 +133,7 @@ async function displayCachedMessage(moveCount) {
     if (problemState.lvElevenClear) {
         const specialMessageLv11 = messages.find(message => message.ID === "26");
         if (specialMessageLv11) {
-            displayComment(specialMessageLv11.areaType, specialMessageLv11.imageSize, specialMessageLv11.text);
+            displayComment(specialMessageLv11);
             throwCoin(11, false, 90, 1, problemState.useExistingCoins);
             problemState.lvElevenClear = false;  // Stateをリセット
             return;  // 処理をここで終了
@@ -177,7 +144,7 @@ async function displayCachedMessage(moveCount) {
     if (moveCount > 100) {
         const specialMessage = messages.find(message => message.ID === "20");
         if (specialMessage) {
-            displayComment(specialMessage.areaType, specialMessage.imageSize, specialMessage.text);
+            displayComment(specialMessage);
             return; // 処理をここで終了
         }
     }
@@ -202,6 +169,6 @@ async function displayCachedMessage(moveCount) {
 
     if (selectedMessage) {
         lastSelectedId = selectedMessage.ID; // 選択されたメッセージのIDを記録
-        displayComment(selectedMessage.areaType, selectedMessage.imageSize, selectedMessage.text);
+        displayComment(selectedMessage);
     }
 }
