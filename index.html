@@ -426,54 +426,86 @@
         <!-- レイヤー2：使い回しの枠＆水面ボード（枠の色はモードごとに自動で水色／ピンクに変わる） -->
         <div class="opening-board"></div>
 
-        <!-- レイヤー3：4モード共通のタマ（#touchArea）＋モード別つや文字 -->
+<!-- レイヤー3：4モード共通のタマ（#touchArea）＋モード別つや文字 -->
         <div class="opening-header-logo">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 185" width="100%" height="100%">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 185" width="100%" height="100%">
                 <defs>
-                    <!-- 百マスの「ドロップス」用グラデーション（ラベンダー〜ピーチ） -->
-                    <linearGradient id="grad-hyaku-drops" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <!-- #openingScreen 専用の影・ツヤ・グラデーション定義 -->
+                    <filter id="op-candy-shadow" x="-15%" y="-15%" width="140%" height="140%">
+                        <feDropShadow dx="2" dy="4" stdDeviation="2.5" flood-color="#333333" flood-opacity="0.45"/>
+                    </filter>
+                    <linearGradient id="op-candy-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.92"/>
+                        <stop offset="32%" stop-color="#ffffff" stop-opacity="0.35"/>
+                        <stop offset="48%" stop-color="#ffffff" stop-opacity="0.0"/>
+                    </linearGradient>
+                    <!-- ラベンダー（タマの） -->
+                    <linearGradient id="op-grad-tama" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#c39bd3"/>
+                        <stop offset="55%" stop-color="#9b82f3"/>
+                        <stop offset="100%" stop-color="#5dade2"/>
+                    </linearGradient>
+                    <!-- オレンジ（たしざん・百マス） -->
+                    <linearGradient id="op-grad-add" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffb347"/>
+                        <stop offset="55%" stop-color="#ff7e5f"/>
+                        <stop offset="100%" stop-color="#e84393"/>
+                    </linearGradient>
+                    <!-- ブルー（ひきざん） -->
+                    <linearGradient id="op-grad-sub" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#4facfe"/>
+                        <stop offset="50%" stop-color="#2b58de"/>
+                        <stop offset="100%" stop-color="#192a56"/>
+                    </linearGradient>
+                    <!-- グリーン（かけざん） -->
+                    <linearGradient id="op-grad-multi" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#a8ff78"/>
+                        <stop offset="50%" stop-color="#2ecc71"/>
+                        <stop offset="100%" stop-color="#117864"/>
+                    </linearGradient>
+                    <!-- 百マスの「ドロップス」用（ラベンダー〜ピーチ） -->
+                    <linearGradient id="op-grad-hyaku-drops" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="#d2b4de"/>
                         <stop offset="50%" stop-color="#a9cce3"/>
                         <stop offset="100%" stop-color="#f5b7b1"/>
                     </linearGradient>
                 </defs>
 
-                <!-- ===== モード別のタイトル文字（文字部分はクリック判定を透過させる） ===== -->
-                <g font-family="'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', sans-serif" font-weight="900" filter="url(#candy-shadow)" pointer-events="none">
+                <!-- ===== モード別のタイトル文字（タマにかぶらないよう左右にスペースを確保） ===== -->
+                <g font-family="'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', sans-serif" font-weight="900" filter="url(#op-candy-shadow)" pointer-events="none">
 
-                    <!-- ① たしざんモードの文字（原画 tasidoro.jpg 準拠） -->
+                    <!-- ① たしざんモードの文字 -->
                     <g class="mode-title title-add">
-                        <!-- タマの（ラベンダー） -->
-                        <g transform="translate(88, 108) rotate(-12)">
+                        <g transform="translate(45, 108) rotate(-12)">
                             <text x="0" y="0" font-size="56" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">タ</text>
-                            <text x="0" y="0" font-size="56" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-tama)">タ</text>
-                            <text x="0" y="-2" font-size="56" fill="url(#candy-gloss)">タ</text>
+                            <text x="0" y="0" font-size="56" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">タ</text>
+                            <text x="0" y="-2" font-size="56" fill="url(#op-candy-gloss)">タ</text>
                         </g>
-                        <g transform="translate(132, 85) rotate(-8)">
+                        <g transform="translate(89, 85) rotate(-8)">
                             <text x="0" y="0" font-size="52" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">マ</text>
-                            <text x="0" y="0" font-size="52" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-tama)">マ</text>
-                            <text x="0" y="-2" font-size="52" fill="url(#candy-gloss)">マ</text>
+                            <text x="0" y="0" font-size="52" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">マ</text>
+                            <text x="0" y="-2" font-size="52" fill="url(#op-candy-gloss)">マ</text>
                         </g>
-                        <g transform="translate(174, 65)">
+                        <g transform="translate(131, 65)">
                             <text x="0" y="0" font-size="48" stroke="#5b2c6f" stroke-width="9" stroke-linejoin="round" fill="none">の</text>
-                            <text x="0" y="0" font-size="48" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" fill="url(#grad-tama)">の</text>
-                            <text x="0" y="-2" font-size="48" fill="url(#candy-gloss)">の</text>
+                            <text x="0" y="0" font-size="48" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" fill="url(#op-grad-tama)">の</text>
+                            <text x="0" y="-2" font-size="48" fill="url(#op-candy-gloss)">の</text>
                         </g>
-                        <!-- たしざん（オレンジ） -->
-                        <g transform="translate(200, 106)">
+                        <!-- たしざん（左へ移動してタマの左頬と離す） -->
+                        <g transform="translate(158, 106)">
                             <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#78281f" stroke-width="11" stroke-linejoin="round" fill="none">たしざん</text>
-                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-add)">たしざん</text>
-                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#candy-gloss)">たしざん</text>
+                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-add)">たしざん</text>
+                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#op-candy-gloss)">たしざん</text>
                             <ellipse cx="18" cy="-38" rx="6" ry="3" transform="rotate(-25 18 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="72" cy="-38" rx="6" ry="3" transform="rotate(-25 72 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="132" cy="-38" rx="6" ry="3" transform="rotate(-25 132 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="190" cy="-38" rx="6" ry="3" transform="rotate(-25 190 -38)" fill="#ffffff" opacity="0.95"/>
                         </g>
-                        <!-- ドロップス（オレンジ） -->
-                        <g transform="translate(595, 105)">
+                        <!-- ドロップス（右へ移動してタマのしっぽと離す） -->
+                        <g transform="translate(715, 105)">
                             <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#78281f" stroke-width="11" stroke-linejoin="round" fill="none">ドロップス</text>
-                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-add)">ドロップス</text>
-                            <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#candy-gloss)">ドロップス</text>
+                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-add)">ドロップス</text>
+                            <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#op-candy-gloss)">ドロップス</text>
                             <ellipse cx="18" cy="-40" rx="6" ry="3" transform="rotate(-25 18 -40)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="78" cy="-38" rx="6" ry="3" transform="rotate(-25 78 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="135" cy="-32" rx="5" ry="2.5" transform="rotate(-25 135 -32)" fill="#ffffff" opacity="0.95"/>
@@ -482,39 +514,36 @@
                         </g>
                     </g>
 
-                    <!-- ② ひきざんモードの文字（原画 hikidoro.jpg 準拠） -->
+                    <!-- ② ひきざんモードの文字 -->
                     <g class="mode-title title-sub">
-                        <!-- タマの（オレンジ） -->
-                        <g transform="translate(88, 108) rotate(-12)">
+                        <g transform="translate(45, 108) rotate(-12)">
                             <text x="0" y="0" font-size="56" stroke="#78281f" stroke-width="10" stroke-linejoin="round" fill="none">タ</text>
-                            <text x="0" y="0" font-size="56" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-add)">タ</text>
-                            <text x="0" y="-2" font-size="56" fill="url(#candy-gloss)">タ</text>
+                            <text x="0" y="0" font-size="56" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-add)">タ</text>
+                            <text x="0" y="-2" font-size="56" fill="url(#op-candy-gloss)">タ</text>
                         </g>
-                        <g transform="translate(132, 85) rotate(-8)">
+                        <g transform="translate(89, 85) rotate(-8)">
                             <text x="0" y="0" font-size="52" stroke="#78281f" stroke-width="10" stroke-linejoin="round" fill="none">マ</text>
-                            <text x="0" y="0" font-size="52" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-add)">マ</text>
-                            <text x="0" y="-2" font-size="52" fill="url(#candy-gloss)">マ</text>
+                            <text x="0" y="0" font-size="52" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-add)">マ</text>
+                            <text x="0" y="-2" font-size="52" fill="url(#op-candy-gloss)">マ</text>
                         </g>
-                        <g transform="translate(174, 65)">
+                        <g transform="translate(131, 65)">
                             <text x="0" y="0" font-size="48" stroke="#78281f" stroke-width="9" stroke-linejoin="round" fill="none">の</text>
-                            <text x="0" y="0" font-size="48" stroke="#fff5eb" stroke-width="3" stroke-linejoin="round" fill="url(#btn-grad-add)">の</text>
-                            <text x="0" y="-2" font-size="48" fill="url(#candy-gloss)">の</text>
+                            <text x="0" y="0" font-size="48" stroke="#fff5eb" stroke-width="3" stroke-linejoin="round" fill="url(#op-grad-add)">の</text>
+                            <text x="0" y="-2" font-size="48" fill="url(#op-candy-gloss)">の</text>
                         </g>
-                        <!-- ひきざん（水色〜ブルー） -->
-                        <g transform="translate(200, 106)">
+                        <g transform="translate(158, 106)">
                             <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#1b1464" stroke-width="11" stroke-linejoin="round" fill="none">ひきざん</text>
-                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#e0fbfc" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-sub)">ひきざん</text>
-                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#candy-gloss)">ひきざん</text>
+                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#e0fbfc" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-sub)">ひきざん</text>
+                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#op-candy-gloss)">ひきざん</text>
                             <ellipse cx="18" cy="-38" rx="6" ry="3" transform="rotate(-25 18 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="75" cy="-38" rx="6" ry="3" transform="rotate(-25 75 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="132" cy="-38" rx="6" ry="3" transform="rotate(-25 132 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="190" cy="-38" rx="6" ry="3" transform="rotate(-25 190 -38)" fill="#ffffff" opacity="0.95"/>
                         </g>
-                        <!-- ドロップス（水色〜ブルー） -->
-                        <g transform="translate(595, 105)">
+                        <g transform="translate(715, 105)">
                             <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#1b1464" stroke-width="11" stroke-linejoin="round" fill="none">ドロップス</text>
-                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#e0fbfc" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-sub)">ドロップス</text>
-                            <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#candy-gloss)">ドロップス</text>
+                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#e0fbfc" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-sub)">ドロップス</text>
+                            <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#op-candy-gloss)">ドロップス</text>
                             <ellipse cx="18" cy="-40" rx="6" ry="3" transform="rotate(-25 18 -40)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="78" cy="-38" rx="6" ry="3" transform="rotate(-25 78 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="135" cy="-32" rx="5" ry="2.5" transform="rotate(-25 135 -32)" fill="#ffffff" opacity="0.95"/>
@@ -523,39 +552,36 @@
                         </g>
                     </g>
 
-                    <!-- ③ かけざんモードの文字（原画 kakedoro.webp 準拠） -->
+                    <!-- ③ かけざんモードの文字 -->
                     <g class="mode-title title-multi">
-                        <!-- タマの（ラベンダー） -->
-                        <g transform="translate(88, 108) rotate(-12)">
+                        <g transform="translate(45, 108) rotate(-12)">
                             <text x="0" y="0" font-size="56" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">タ</text>
-                            <text x="0" y="0" font-size="56" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-tama)">タ</text>
-                            <text x="0" y="-2" font-size="56" fill="url(#candy-gloss)">タ</text>
+                            <text x="0" y="0" font-size="56" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">タ</text>
+                            <text x="0" y="-2" font-size="56" fill="url(#op-candy-gloss)">タ</text>
                         </g>
-                        <g transform="translate(132, 85) rotate(-8)">
+                        <g transform="translate(89, 85) rotate(-8)">
                             <text x="0" y="0" font-size="52" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">マ</text>
-                            <text x="0" y="0" font-size="52" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-tama)">マ</text>
-                            <text x="0" y="-2" font-size="52" fill="url(#candy-gloss)">マ</text>
+                            <text x="0" y="0" font-size="52" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">マ</text>
+                            <text x="0" y="-2" font-size="52" fill="url(#op-candy-gloss)">マ</text>
                         </g>
-                        <g transform="translate(174, 65)">
+                        <g transform="translate(131, 65)">
                             <text x="0" y="0" font-size="48" stroke="#5b2c6f" stroke-width="9" stroke-linejoin="round" fill="none">の</text>
-                            <text x="0" y="0" font-size="48" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" fill="url(#grad-tama)">の</text>
-                            <text x="0" y="-2" font-size="48" fill="url(#candy-gloss)">の</text>
+                            <text x="0" y="0" font-size="48" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" fill="url(#op-grad-tama)">の</text>
+                            <text x="0" y="-2" font-size="48" fill="url(#op-candy-gloss)">の</text>
                         </g>
-                        <!-- かけざん（エメラルドグリーン） -->
-                        <g transform="translate(200, 106)">
+                        <g transform="translate(158, 106)">
                             <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#145a32" stroke-width="11" stroke-linejoin="round" fill="none">かけざん</text>
-                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#f0fff4" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-multi)">かけざん</text>
-                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#candy-gloss)">かけざん</text>
+                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#f0fff4" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-multi)">かけざん</text>
+                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#op-candy-gloss)">かけざん</text>
                             <ellipse cx="18" cy="-38" rx="6" ry="3" transform="rotate(-25 18 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="75" cy="-38" rx="6" ry="3" transform="rotate(-25 75 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="132" cy="-38" rx="6" ry="3" transform="rotate(-25 132 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="190" cy="-38" rx="6" ry="3" transform="rotate(-25 190 -38)" fill="#ffffff" opacity="0.95"/>
                         </g>
-                        <!-- ドロップス（エメラルドグリーン） -->
-                        <g transform="translate(595, 105)">
+                        <g transform="translate(715, 105)">
                             <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#145a32" stroke-width="11" stroke-linejoin="round" fill="none">ドロップス</text>
-                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#f0fff4" stroke-width="3.5" stroke-linejoin="round" fill="url(#btn-grad-multi)">ドロップス</text>
-                            <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#candy-gloss)">ドロップス</text>
+                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#f0fff4" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-multi)">ドロップス</text>
+                            <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#op-candy-gloss)">ドロップス</text>
                             <ellipse cx="18" cy="-40" rx="6" ry="3" transform="rotate(-25 18 -40)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="78" cy="-38" rx="6" ry="3" transform="rotate(-25 78 -38)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="135" cy="-32" rx="5" ry="2.5" transform="rotate(-25 135 -32)" fill="#ffffff" opacity="0.95"/>
@@ -564,69 +590,61 @@
                         </g>
                     </g>
 
-                    <!-- ④ 百マスたしざんモードの文字（原画 keisan_hyaku_tasu.webp 準拠） -->
+                    <!-- ④ 百マスたしざんモードの文字 -->
                     <g class="mode-title title-hundredgrid">
-                        <!-- タマの（ラベンダー） -->
-                        <g transform="translate(88, 108) rotate(-12)">
+                        <g transform="translate(45, 108) rotate(-12)">
                             <text x="0" y="0" font-size="54" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">タ</text>
-                            <text x="0" y="0" font-size="54" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-tama)">タ</text>
-                            <text x="0" y="-2" font-size="54" fill="url(#candy-gloss)">タ</text>
+                            <text x="0" y="0" font-size="54" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">タ</text>
+                            <text x="0" y="-2" font-size="54" fill="url(#op-candy-gloss)">タ</text>
                         </g>
-                        <g transform="translate(130, 85) rotate(-8)">
+                        <g transform="translate(87, 85) rotate(-8)">
                             <text x="0" y="0" font-size="50" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">マ</text>
-                            <text x="0" y="0" font-size="50" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-tama)">マ</text>
-                            <text x="0" y="-2" font-size="50" fill="url(#candy-gloss)">マ</text>
+                            <text x="0" y="0" font-size="50" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">マ</text>
+                            <text x="0" y="-2" font-size="50" fill="url(#op-candy-gloss)">マ</text>
                         </g>
-                        <g transform="translate(170, 65)">
+                        <g transform="translate(127, 65)">
                             <text x="0" y="0" font-size="46" stroke="#5b2c6f" stroke-width="9" stroke-linejoin="round" fill="none">の</text>
-                            <text x="0" y="0" font-size="46" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" fill="url(#grad-tama)">の</text>
-                            <text x="0" y="-2" font-size="46" fill="url(#candy-gloss)">の</text>
+                            <text x="0" y="0" font-size="46" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" fill="url(#op-grad-tama)">の</text>
+                            <text x="0" y="-2" font-size="46" fill="url(#op-candy-gloss)">の</text>
                         </g>
-                        <!-- 大きな「百マス」（オレンジ） -->
-                        <g transform="translate(195, 114)">
+                        <!-- 大きな「百マス」 -->
+                        <g transform="translate(155, 114)">
                             <text x="0" y="0" font-size="78" letter-spacing="-3" stroke="#78281f" stroke-width="12" stroke-linejoin="round" fill="none">百マス</text>
-                            <text x="0" y="0" font-size="78" letter-spacing="-3" stroke="#fff5eb" stroke-width="4" stroke-linejoin="round" fill="url(#btn-grad-add)">百マス</text>
-                            <text x="0" y="-2" font-size="78" letter-spacing="-3" fill="url(#candy-gloss)">百マス</text>
+                            <text x="0" y="0" font-size="78" letter-spacing="-3" stroke="#fff5eb" stroke-width="4" stroke-linejoin="round" fill="url(#op-grad-add)">百マス</text>
+                            <text x="0" y="-2" font-size="78" letter-spacing="-3" fill="url(#op-candy-gloss)">百マス</text>
                             <ellipse cx="22" cy="-52" rx="7" ry="3.5" transform="rotate(-25 22 -52)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="98" cy="-48" rx="7" ry="3.5" transform="rotate(-25 98 -48)" fill="#ffffff" opacity="0.95"/>
                             <ellipse cx="172" cy="-50" rx="7" ry="3.5" transform="rotate(-25 172 -50)" fill="#ffffff" opacity="0.95"/>
                         </g>
-                        <!-- 右上の「たしざん」（オレンジ） -->
-                        <g transform="translate(555, 78)">
+                        <!-- 右上の「たしざん」 -->
+                        <g transform="translate(685, 75)">
                             <text x="0" y="0" font-size="50" letter-spacing="-1" stroke="#78281f" stroke-width="10" stroke-linejoin="round" fill="none">たしざん</text>
-                            <text x="0" y="0" font-size="50" letter-spacing="-1" stroke="#fff5eb" stroke-width="3" stroke-linejoin="round" fill="url(#btn-grad-add)">たしざん</text>
-                            <text x="0" y="-2" font-size="50" letter-spacing="-1" fill="url(#candy-gloss)">たしざん</text>
+                            <text x="0" y="0" font-size="50" letter-spacing="-1" stroke="#fff5eb" stroke-width="3" stroke-linejoin="round" fill="url(#op-grad-add)">たしざん</text>
+                            <text x="0" y="-2" font-size="50" letter-spacing="-1" fill="url(#op-candy-gloss)">たしざん</text>
                         </g>
-                        <!-- 右下の「ドロップス」（ラベンダー〜ピンク） -->
-                        <g transform="translate(595, 138)">
+                        <!-- 右下の「ドロップス」 -->
+                        <g transform="translate(715, 138)">
                             <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#5b2c6f" stroke-width="11" stroke-linejoin="round" fill="none">ドロップス</text>
-                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#grad-hyaku-drops)">ドロップス</text>
-                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#candy-gloss)">ドロップス</text>
+                            <text x="0" y="0" font-size="60" letter-spacing="-2" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-hyaku-drops)">ドロップス</text>
+                            <text x="0" y="-2" font-size="60" letter-spacing="-2" fill="url(#op-candy-gloss)">ドロップス</text>
                         </g>
                     </g>
                 </g>
 
-                <!-- ===== タマ本体（ここが id="touchArea"！タマの絵をこするとしゃべる） ===== -->
-                <g id="touchArea" transform="translate(76, 0)">
-                    <!-- ひげの間なども途切れずなでられるよう、タマの顔サイズの透明クッションを敷く -->
+                <!-- ===== タマ本体（中央 x=560 に配置。ここが id="touchArea"！） ===== -->
+                <g id="touchArea" transform="translate(152, 0)">
                     <ellipse cx="408" cy="60" rx="95" ry="60" fill="transparent"/>
-                    <!-- ひげ -->
                     <g stroke="#111111" stroke-width="1.8" stroke-linecap="round" fill="none">
                         <path d="M 332,76 Q 310,73 292,79"/><path d="M 334,86 Q 312,86 295,95"/>
                         <path d="M 484,76 Q 506,73 524,79"/><path d="M 482,86 Q 504,86 521,95"/>
                     </g>
-                    <!-- しっぽ -->
                     <path d="M 505,115 C 514,102 522,88 520,76 C 518,67 510,67 508,74 C 506,80 513,83 508,87 C 501,92 490,82 493,66 C 496,49 514,43 528,51 C 543,60 544,86 526,115 Z" fill="#050505"/>
-                    <!-- 頭・耳・頬 -->
                     <path d="M 346,105 C 322,94 322,64 338,44 C 341,25 344,7 355,3 C 365,-1 378,12 387,25 C 400,23 416,23 429,25 C 438,12 451,-1 461,3 C 472,7 475,25 478,44 C 494,64 494,94 470,105 Z" fill="#050505"/>
-                    <!-- 前足 -->
                     <ellipse cx="364" cy="108" rx="14" ry="9" fill="#050505"/>
                     <ellipse cx="452" cy="108" rx="14" ry="9" fill="#050505"/>
-                    <!-- 左目 -->
                     <ellipse cx="375" cy="59" rx="15.5" ry="14.5" fill="#ffffff"/>
                     <circle cx="379" cy="60" r="10.5" fill="#c58b18"/>
                     <circle cx="372" cy="54" r="5" fill="#ffffff"/>
-                    <!-- 右目 -->
                     <ellipse cx="441" cy="59" rx="15.5" ry="14.5" fill="#ffffff"/>
                     <circle cx="445" cy="60" r="10.5" fill="#c58b18"/>
                     <circle cx="438" cy="54" r="5" fill="#ffffff"/>

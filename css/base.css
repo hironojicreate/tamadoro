@@ -67,12 +67,12 @@ html[data-mode="multi"] #openingScreen .opening-board {
 /* レイヤー3：タマとモード別タイトルのヘッダー（枠の上辺にタマの手がピタッと乗る） */
 #openingScreen .opening-header-logo {
     position: absolute;
-    top: calc(14vh - clamp(58px, 9.5vw, 105px));
-    left: 50%;
+    top: calc(14vh - clamp(52px, 8.2vw, 96px));
+    left: 48%; /* 右上の「にがてちょうせん！」ボタンと重なりにくいよう少しだけ左寄り中央に */
     transform: translateX(-50%);
-    width: clamp(520px, 84vw, 960px);
+    width: clamp(540px, 86vw, 1020px);
     z-index: 2;
-    pointer-events: none; /* 外枠はクリックを透過し、中のタマ（#touchArea）だけ反応させる */
+    pointer-events: none;
 }
 
 #openingScreen .opening-header-logo svg {
