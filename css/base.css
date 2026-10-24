@@ -514,3 +514,30 @@ footer p {
     text-align: center;
     z-index: 2;
 }
+
+
+/* ---------- 画面ごとに出し分ける部品 ---------- */
+
+/* データ管理モーダル：さいしょの画面だけ／計算の画面だけ */
+html[data-mode="home"] .mode-only,
+html:not([data-mode="home"]) .home-only {
+    display: none !important;
+}
+
+/* 百マスのクリア画面には「おめでとう！」を出さない */
+html[data-mode="hundredgrid"] .drill-only {
+    display: none;
+}
+
+/* 移動ボタン：たしざん ⇔ ひきざん だけ、となりのモードへのボタンがある */
+#goToAdd,
+#goToSub {
+    display: none;
+}
+html[data-mode="add"] #goToSub,
+html[data-mode="sub"] #goToAdd {
+    display: inline-block;
+}
+
+#dataModal { z-index: 3; }
+#deleteModal { z-index: 1000; }

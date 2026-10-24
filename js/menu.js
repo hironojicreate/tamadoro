@@ -10,7 +10,7 @@ function switchLevel(level, title) {
     document.getElementById('keypadScreen').style.display = 'block';
     document.getElementById(currentEngine().screenId).style.display = 'block';
     document.getElementById('openingScreen').style.display = 'none';
-    document.getElementById('pageTitle').textContent = title;
+    document.querySelector(`#${currentEngine().screenId} .page-title`).textContent = title;
 }
 
 function returnMenu() {
@@ -36,7 +36,6 @@ function unlockLevels() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', unlockLevels);
 
 
 // rescue：選んだレベルまで遊べるように、ドロップを復元する

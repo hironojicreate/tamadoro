@@ -5,6 +5,7 @@
     MODES.sub = {
         id: 'sub',
         name: 'ひきざん',
+        pageTitle: 'タマの【ひきざん】ドロップス',
         engine: 'drill',
         storagePrefix: 'sub',
         bestTimePrefix: 'subtraction',

@@ -1,13 +1,14 @@
-/* かけざんページ専用のスタイル（共通部分は css/base.css） */
+/* かけざん専用のスタイル（共通部分は css/base.css）
+   どのルールも <html data-mode="…"> がこのモードのときだけ効く */
 
 /* レベルが多いので縦にスクロールできるようにする */
-html,
-body {
+html[data-mode="multi"],
+html[data-mode="multi"] body {
     overflow-x: hidden;
     overflow-y: auto;
 }
 
-#openingScreen {
+html[data-mode="multi"] #openingScreen {
     background-image: url('../img/kakedoro.webp');
     background-size: cover; /* 画面全体にフィット */
     background-position: top;
@@ -17,19 +18,19 @@ body {
     overflow: visible;
 }
 
-.select-level-buttons {
+html[data-mode="multi"] .select-level-buttons {
     background-color: transparent;
     top: 15%;
     gap: 5px;
 }
 
-.coin-container {
+html[data-mode="multi"] .coin-container {
     margin-top: 1px;
     font-size: 12px;
 }
 
 /* レベルボタン：段ごとに色を変える */
-:root {
+html[data-mode="multi"] {
     --color-lv1: #E6F7FF;
     --color-lv2: #CCEFFF;
     --color-lv3: #99DFFF;
@@ -60,7 +61,7 @@ body {
     --color-lv28: #FFD700; /* 金色 */
 }
 
-.select-level-buttons button {
+html[data-mode="multi"] .select-level-buttons button {
     width: 18vw;
     height: 4vh;
     padding: 5px 20px;
@@ -79,36 +80,36 @@ body {
 }
 
 /* レベルごとにカラーを適用 */
-#level1 { background-color: var(--color-lv1); }
-#level2 { background-color: var(--color-lv2); }
-#level3 { background-color: var(--color-lv3); }
-#level4 { background-color: var(--color-lv4); }
-#level5 { background-color: var(--color-lv5); }
-#level6 { background-color: var(--color-lv6); }
-#level7 { background-color: var(--color-lv7); }
-#level8 { background-color: var(--color-lv8); }
-#level9 { background-color: var(--color-lv9); }
-#level10 { background-color: var(--color-lv10); }
-#level11 { background-color: var(--color-lv11); }
-#level12 { background-color: var(--color-lv12); }
-#level13 { background-color: var(--color-lv13); }
-#level14 { background-color: var(--color-lv14); }
-#level15 { background-color: var(--color-lv15); }
-#level16 { background-color: var(--color-lv16); }
-#level17 { background-color: var(--color-lv17); }
-#level18 { background-color: var(--color-lv18); }
-#level19 { background-color: var(--color-lv19); }
-#level20 { background-color: var(--color-lv20); }
-#level21 { background-color: var(--color-lv21); }
-#level22 { background-color: var(--color-lv22); }
-#level23 { background-color: var(--color-lv23); }
-#level24 { background-color: var(--color-lv24); }
-#level25 { background-color: var(--color-lv25); }
-#level26 { background-color: var(--color-lv26); }
-#level27 { background-color: var(--color-lv27); }
+html[data-mode="multi"] #level1 { background-color: var(--color-lv1); }
+html[data-mode="multi"] #level2 { background-color: var(--color-lv2); }
+html[data-mode="multi"] #level3 { background-color: var(--color-lv3); }
+html[data-mode="multi"] #level4 { background-color: var(--color-lv4); }
+html[data-mode="multi"] #level5 { background-color: var(--color-lv5); }
+html[data-mode="multi"] #level6 { background-color: var(--color-lv6); }
+html[data-mode="multi"] #level7 { background-color: var(--color-lv7); }
+html[data-mode="multi"] #level8 { background-color: var(--color-lv8); }
+html[data-mode="multi"] #level9 { background-color: var(--color-lv9); }
+html[data-mode="multi"] #level10 { background-color: var(--color-lv10); }
+html[data-mode="multi"] #level11 { background-color: var(--color-lv11); }
+html[data-mode="multi"] #level12 { background-color: var(--color-lv12); }
+html[data-mode="multi"] #level13 { background-color: var(--color-lv13); }
+html[data-mode="multi"] #level14 { background-color: var(--color-lv14); }
+html[data-mode="multi"] #level15 { background-color: var(--color-lv15); }
+html[data-mode="multi"] #level16 { background-color: var(--color-lv16); }
+html[data-mode="multi"] #level17 { background-color: var(--color-lv17); }
+html[data-mode="multi"] #level18 { background-color: var(--color-lv18); }
+html[data-mode="multi"] #level19 { background-color: var(--color-lv19); }
+html[data-mode="multi"] #level20 { background-color: var(--color-lv20); }
+html[data-mode="multi"] #level21 { background-color: var(--color-lv21); }
+html[data-mode="multi"] #level22 { background-color: var(--color-lv22); }
+html[data-mode="multi"] #level23 { background-color: var(--color-lv23); }
+html[data-mode="multi"] #level24 { background-color: var(--color-lv24); }
+html[data-mode="multi"] #level25 { background-color: var(--color-lv25); }
+html[data-mode="multi"] #level26 { background-color: var(--color-lv26); }
+html[data-mode="multi"] #level27 { background-color: var(--color-lv27); }
 
 /* 特別なエフェクト */
-#level28 {
+html[data-mode="multi"] #level28 {
     background-color: var(--color-lv28);
     animation: shine 2s infinite; /* キラキラのエフェクト */
 }
@@ -119,6 +120,6 @@ body {
     100% { box-shadow: 0 0 5px gold; }
 }
 
-.returnButton {
+html[data-mode="multi"] .returnButton {
     background-color: #c2ffdf;
 }

@@ -2,6 +2,7 @@
 MODES.hundredgrid = {
     id: 'hundredgrid',
     name: '百マスたしざん',
+    pageTitle: 'タマの【百ます［+］】ドロップス',
     engine: 'grid',
     storagePrefix: 'hundredgrid',     // ドロップの保存キー hundredgrid_coins_3 など
     bestTimePrefix: 'hundredgrid',    // ベストタイムの保存キー（秒で保存）

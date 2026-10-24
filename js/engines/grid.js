@@ -912,11 +912,26 @@ function restoreSliders() {
 const audio = new Audio('se/complete.mp3');
 audio.preload = 'auto'; // 音声を事前に読み込む
 
+// スクリーンショット用のライブラリ（html2canvas）は、使うときだけ読み込む
+function loadHtml2canvas() {
+    if (window.html2canvas) {
+        return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
 async function captureScreenshot() {
     try {
-        // 音声を再生
+        // 音声を再生（タップの直後に鳴らさないと、iPad などでは鳴らないことがある）
         audio.currentTime = 0; // 再生位置をリセット
         audio.play();
+        await loadHtml2canvas();
         // キャプチャ対象（画面全体の場合はbodyを指定）
         const targetElement = document.body;
 

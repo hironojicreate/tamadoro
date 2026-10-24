@@ -72,8 +72,8 @@ document.getElementById('fileInput').addEventListener('change', function (event)
             showNotification("データをよみこめませんでした。");
         } finally {
             closeDataModal();
-            // 計算ページなら、メニュー画面を読み込んだデータで描き直す
-            if (typeof returnMenu === 'function') {
+            // 計算の画面なら、メニュー画面を読み込んだデータで描き直す
+            if (currentMode) {
                 returnMenu();
             }
         }

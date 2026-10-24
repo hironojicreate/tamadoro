@@ -21,6 +21,7 @@
     MODES.multi = {
         id: 'multi',
         name: 'かけざん',
+        pageTitle: 'タマの【かけ算】ドロップス',
         engine: 'drill',
         storagePrefix: 'multi',
         bestTimePrefix: 'multiplication',

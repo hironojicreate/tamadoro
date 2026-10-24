@@ -5,6 +5,7 @@
     MODES.add = {
         id: 'add',
         name: 'たしざん',
+        pageTitle: 'タマの【たしざん】ドロップス',
         engine: 'drill',
         storagePrefix: 'add',             // ドロップの保存キー add_coins_3 など
         bestTimePrefix: 'addition',       // ベストタイムの保存キー addition_level_3_best_time など

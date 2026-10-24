@@ -48,7 +48,7 @@ function setMode(id) {
         problemState.levelToImage[i + 1] = dropImage(level.drop);
     });
 
-    document.body.setAttribute('data-mode', id);
+    document.documentElement.setAttribute('data-mode', id);
 }
 
 // いまのモードのエンジン

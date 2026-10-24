@@ -355,6 +355,3 @@ document.getElementById('toggleDateButton').addEventListener('click', function (
     button.textContent = showDates ? "ひづけOFF" : "ひづけON";
 });
 
-
-// ページの読み込み時にメニューへコインを表示
-document.addEventListener('DOMContentLoaded', displayAllLevelsCoins);

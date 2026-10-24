@@ -1,13 +1,14 @@
-/* 百マスページ専用のスタイル（共通部分は css/base.css） */
+/* 百マス専用のスタイル（共通部分は css/base.css）
+   どのルールも <html data-mode="…"> がこのモードのときだけ効く */
 
-#openingScreen {
+html[data-mode="hundredgrid"] #openingScreen {
     background-image: url('../img/keisan_hyaku_tasu.webp');
 }
 
 
 /* ---------- 百マスの表 ---------- */
 
-#calculation-grid {
+html[data-mode="hundredgrid"] #calculation-grid {
     border-collapse: collapse;
     width: auto;
     text-align: center;
@@ -15,7 +16,7 @@
     top: 7%; /* 画面上から10% */
 }
 
-#calculation-grid td {
+html[data-mode="hundredgrid"] #calculation-grid td {
     border: 1px solid #000;
     width: 50px; /* セルの幅 */
     height: 50px; /* セルの高さ */
@@ -25,20 +26,20 @@
 }
 
 /* 1列目の色をとても薄い黄色 */
-#calculation-grid td:first-child {
+html[data-mode="hundredgrid"] #calculation-grid td:first-child {
     background-color: #ffffe0; /* 薄い黄色 */
     font-weight: bold; /* 数字を太字にする */
 }
 
 /* 1行目の色をとても薄い青 */
-#calculation-grid tr:first-child td {
+html[data-mode="hundredgrid"] #calculation-grid tr:first-child td {
     /*background-color: #e0f7ff; /* 薄い青 */
     background-color: #ffffe0; /* 薄い青 */
     font-weight: bold; /* 数字を太字にする */
 }
 
 /* 左上セルの色 (交差部分) */
-#calculation-grid tr:first-child td:first-child {
+html[data-mode="hundredgrid"] #calculation-grid tr:first-child td:first-child {
     /* background-color: #ffd9d9; /* 淡い赤色 */
     background-color: #ffffff; /* 淡い赤色 */
     font-weight: normal; /* 左上セルは太字にしない */
@@ -52,20 +53,20 @@
 
 
 /* 入力対象セルのスタイル */
-.input-target {
+html[data-mode="hundredgrid"] .input-target {
     box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.3), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
     background-color: #fec8c8 !important; /* 少し明るい背景色 */
 }
 
 /* 問題セルを濃い色で強調 */
-.problem-number-top {
+html[data-mode="hundredgrid"] .problem-number-top {
     /*background-color: #8ac2ff !important; /* 濃い青 (1行目) */
     background-color: #c2da69 !important; /* 濃い青 (1行目) */
     /*color: #fff !important;*/
     font-weight: bold !important;
 }
 
-.problem-number {
+html[data-mode="hundredgrid"] .problem-number {
     /*background-color: #ffdf61 !important; /* 濃い黄色 (1列目) */
     background-color: #ffdf61 !important; /* 濃い黄色 (1列目) */
     /*color: #f03333 !important;*/
@@ -73,18 +74,18 @@
 }
 
 /* 灰色のライン */
-.line-highlight {
+html[data-mode="hundredgrid"] .line-highlight {
     background-color: rgba(200, 200, 200, 0.2) !important; /* 半透明の灰色 */
 }
 
 
 /* Lv10 の色変更 */
-.color-red {
+html[data-mode="hundredgrid"] .color-red {
     color: #d4e4f7;
     background-color: #bcd7f5;
 }
 
-.color-yellow {
+html[data-mode="hundredgrid"] .color-yellow {
     color: #dedede;
     background-color: #ffffff;
 }
@@ -92,13 +93,13 @@
 
 
 /* 十の位が入力された状態を示す */
-.partial-input {
+html[data-mode="hundredgrid"] .partial-input {
     background-color: rgba(255, 255, 0, 0.3) !important; /* 薄い黄色 */
 }
 
 
 /* 正誤判定 */
-.correct {
+html[data-mode="hundredgrid"] .correct {
     color: red !important;
     font-size: 1.5em !important;
     animation: correctAnimation 0.5s ease-in-out !important;
@@ -113,7 +114,7 @@
     }
 }
 
-.incorrect {
+html[data-mode="hundredgrid"] .incorrect {
     background-color: #c2c2c2 !important;
     color: #ffffff !important;
     font-weight: normal !important;
@@ -122,17 +123,17 @@
 
 /* ---------- タイムの記録・わたしの問題・がんばったねパネル ---------- */
 
-#recordDisplay {
+html[data-mode="hundredgrid"] #recordDisplay {
   position: relative; /* 必須 */
   z-index: 4; /* 前面に表示 */
 }
 
-#customize-level6 {
+html[data-mode="hundredgrid"] #customize-level6 {
   position: absolute; /* 必須 */
   z-index: 3; /* 背面に表示 */
 }
 
-#recordList {
+html[data-mode="hundredgrid"] #recordList {
 list-style: none;
 padding: 0;
 margin: 0;
@@ -144,28 +145,30 @@ transition: max-height 0.5s ease; /* アニメーションで展開 */
 }
 
 
-#recordList.show {
+html[data-mode="hundredgrid"] #recordList.show {
 max-height: 500px; /* 展開後の最大高さを適宜設定 */
 }
 
 
-#congrats-panel button {
+html[data-mode="hundredgrid"] #congrats-panel button {
 margin: 10px;
 padding: 10px 20px;
 font-size: 16px;
 cursor: pointer;
 }
 
-#congrats-panel button:hover {
+html[data-mode="hundredgrid"] #congrats-panel button:hover {
 background-color: #f0f0f0;
 }
 
 
 /* ---------- 百マスの表より前に出す ---------- */
 
-.notification { z-index: 10; }
-.coin { z-index: 6; }
-.reward-coin { z-index: 6; }
-#deleteModal { z-index: 10; }
-.speech-bubble { z-index: 4; }
-.speech-bubble p { z-index: 4; }
+html[data-mode="hundredgrid"] .notification { z-index: 10; }
+html[data-mode="hundredgrid"] .coin { z-index: 6; }
+html[data-mode="hundredgrid"] .reward-coin { z-index: 6; }
+html[data-mode="hundredgrid"] #deleteModal { z-index: 10; }
+html[data-mode="hundredgrid"] .speech-bubble { z-index: 4; }
+html[data-mode="hundredgrid"] .speech-bubble p { z-index: 4; }
+html[data-mode="hundredgrid"] #dataModal { z-index: 10; }
+html[data-mode="hundredgrid"] #completionModal { z-index: 5; }

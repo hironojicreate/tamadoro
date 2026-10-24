@@ -1,10 +1,11 @@
-/* たしざんページ専用のスタイル（共通部分は css/base.css） */
+/* たしざん専用のスタイル（共通部分は css/base.css）
+   どのルールも <html data-mode="…"> がこのモードのときだけ効く */
 
-#openingScreen {
+html[data-mode="add"] #openingScreen {
     background-image: url('../img/tasidoro.jpg');
 }
 
 /* 「ひきざんへ！」ボタンの上に置く */
-#goToIndex {
+html[data-mode="add"] #goToIndex {
     bottom: 83px;
 }

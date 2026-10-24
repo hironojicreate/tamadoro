@@ -1,17 +1,18 @@
-/* ひきざんページ専用のスタイル（共通部分は css/base.css） */
+/* ひきざん専用のスタイル（共通部分は css/base.css）
+   どのルールも <html data-mode="…"> がこのモードのときだけ効く */
 
-#openingScreen {
+html[data-mode="sub"] #openingScreen {
     background-image: url('../img/hikidoro.jpg');
 }
 
 /* レベルボタンは青系 */
-.select-level-buttons button {
+html[data-mode="sub"] .select-level-buttons button {
     background-color: #87CEEB;
     color: #002255;
     border: 2px solid #00008B;
 }
 
 /* 「たしざんへ！」ボタンの上に置く */
-#goToIndex {
+html[data-mode="sub"] #goToIndex {
     bottom: 83px;
 }

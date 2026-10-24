@@ -322,7 +322,9 @@ function handleAnswer(isCorrect) {
             }
         }
         toggleKeypad(false);
+        const state = problemState;
         setTimeout(() => {
+            if (state !== problemState) return; // そのあいだに別のモードへ移った
             generateLvProblem(problemState.level);
             pressCount = 0;
             toggleKeypad(true);
