@@ -1,9 +1,10 @@
 // 画面の切り替え
 //   #/            さいしょの画面
 //   #/add など    そのモードのレベル選択画面（MODES のキー）
+//   #/records     タマのきろく（#/records/add のように、はじめに見るモードも指定できる）
 
 const HOME_TITLE = document.title;
-const SCREENS = ['homeScreen', 'openingScreen', 'drillScreen', 'hundredgridScreen', 'keypadScreen'];
+const SCREENS = ['homeScreen', 'openingScreen', 'drillScreen', 'hundredgridScreen', 'keypadScreen', 'recordsScreen'];
 
 function showOnly(screenId) {
     SCREENS.forEach(id => {
@@ -23,6 +24,7 @@ function closeEverything() {
         document.getElementById(id).style.display = 'none';
     });
     closeDataModal();
+    ChartTooltip.hide();
     document.getElementById('commentArea').innerHTML = '';
     document.getElementById('commandInput').value = '';
     document.getElementById('toggleDateButton').textContent = 'ひづけON';
@@ -52,14 +54,29 @@ function openMode(id) {
     window.scrollTo(0, 0);
 }
 
+function openRecords(tab) {
+    const from = currentMode ? `#/${currentMode.id}` : (document.documentElement.dataset.mode === 'records' ? Records.returnTo : '#/');
+    closeEverything();
+    currentMode = null;
+    problemState = createProblemState();
+    Records.returnTo = from;
+    document.documentElement.setAttribute('data-mode', 'records');
+    document.title = 'タマのきろく';
+    showOnly('recordsScreen');
+    Records.open(tab);
+}
+
 function route() {
-    const id = location.hash.replace(/^#\/?/, '');
+    const [id, sub] = location.hash.replace(/^#\/?/, '').split('/');
     if (MODES[id]) {
         openMode(id);
+    } else if (id === 'records') {
+        openRecords(sub);
     } else {
         openHome();
     }
 }
 
+History.migrate(); // 記録をはじめる前のドロップを取りこむ（1回だけ）
 window.addEventListener('hashchange', route);
 route();

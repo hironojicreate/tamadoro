@@ -1,0 +1,383 @@
+/* 「タマのきろく」画面（#/records） */
+
+/* この画面だけは縦にスクロールする */
+html[data-mode="records"],
+html[data-mode="records"] body {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
+    min-height: 100%;
+}
+
+html[data-mode="records"] body {
+    background: #eaf6fb;
+    color: #333;
+    font-family: 'Segoe UI', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+}
+
+#recordsScreen {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 12px 16px 40px;
+    box-sizing: border-box;
+}
+
+.records-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+/* base.css の h1（問題画面のタイトル）をこの画面では使わない */
+#recordsScreen h1 {
+    position: static;
+    font-size: 26px;
+    color: #2c3e50;
+}
+
+.records-back {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: none;
+    background-color: rgba(34, 193, 195, 0.85);
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.records-top {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 720px) {
+    .records-top {
+        grid-template-columns: 1fr;
+    }
+}
+
+.records-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 12px 16px 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.records-card h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: #2c3e50;
+}
+
+.records-card h2 small {
+    font-size: 12px;
+    font-weight: normal;
+    color: #777;
+}
+
+.records-card h3 {
+    margin: 16px 0 6px;
+    font-size: 15px;
+}
+
+.records-note {
+    margin: 4px 0 8px;
+    font-size: 12px;
+    color: #777;
+}
+
+
+/* ---------- ドロップびん ---------- */
+
+.jar-card {
+    text-align: center;
+}
+
+#dropJar {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    background: linear-gradient(#f5fbff, #dff1fa);
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.drop-total {
+    margin: 8px 0 0;
+    font-size: 20px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+
+/* ---------- ドロップカレンダー ---------- */
+
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.calendar-nav button {
+    border: none;
+    background: #eaf6fb;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    color: #2c3e50;
+}
+
+.calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.calendar-head {
+    text-align: center;
+    font-size: 12px;
+    color: #777;
+}
+
+.calendar-day {
+    min-height: 58px;
+    border-radius: 8px;
+    background: #f7fafc;
+    padding: 2px 4px;
+    box-sizing: border-box;
+}
+
+.calendar-day.today {
+    outline: 2px solid #22c1c3;
+}
+
+.calendar-date {
+    font-size: 11px;
+    color: #555;
+}
+
+.calendar-drops {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+}
+
+.calendar-drops img {
+    width: 16px;
+    height: 16px;
+}
+
+.calendar-more {
+    font-size: 10px;
+    color: #555;
+}
+
+
+/* ---------- モードのタブ ---------- */
+
+.records-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.records-tabs button {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 2px solid #22c1c3;
+    background: #fff;
+    color: #1a7a7b;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.records-tabs button.active {
+    background: #22c1c3;
+    color: #fff;
+}
+
+
+/* ---------- レベルごとのきろく ---------- */
+
+.level-records {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.level-records th,
+.level-records td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #eef1f3;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.level-records thead th {
+    font-size: 12px;
+    color: #777;
+    font-weight: normal;
+}
+
+.level-records td.num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.sparkline {
+    display: block;
+    overflow: visible;
+}
+
+.spark-line {
+    fill: none;
+    stroke: #2a78d6;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.spark-dot {
+    fill: #2a78d6;
+    stroke: #fff;
+    stroke-width: 2;
+}
+
+.spark-dot.best {
+    fill: #1c5cab;
+}
+
+.spark-hit {
+    fill: transparent;
+    cursor: pointer;
+}
+
+
+/* ---------- にがてマップ ---------- */
+
+.weak-grid {
+    border-collapse: separate;
+    border-spacing: 2px;
+    font-size: 12px;
+}
+
+.weak-grid th {
+    width: 28px;
+    height: 24px;
+    color: #555;
+    font-weight: normal;
+}
+
+.weak-grid td {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    text-align: center;
+    color: #999;
+    cursor: default;
+}
+
+.weak-grid td.empty {
+    background: #f0efec;
+}
+
+.weak-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #555;
+}
+
+.weak-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.weak-legend i {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+}
+
+.weak-legend i.empty {
+    background: #f0efec;
+}
+
+.weak-list {
+    margin: 0;
+    padding-left: 24px;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+
+/* ---------- グラフのふきだし ---------- */
+
+.chart-tooltip {
+    position: absolute;
+    z-index: 20;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #2c3e50;
+    color: #fff;
+    font-size: 13px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+
+/* ---------- ほかの画面の「きろく」ボタン ---------- */
+
+/* さいしょの画面：モードの絵のボタンと同じ大きさ */
+#homeRecords {
+    width: calc(500px * 2 / 5);
+    height: calc(160px * 2 / 5);
+    margin: 0 20px;
+    border-radius: 20px;
+    border: 2px solid #22c1c3;
+    background: rgba(255, 255, 255, 0.85);
+    color: #1a7a7b;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+#homeRecords:hover {
+    transform: scale(1.1);
+}
+
+#goToRecords {
+    position: fixed;
+    right: 5px;
+    bottom: 83px; /* 「さいしょへ！」の上 */
+    background-color: rgba(255, 168, 76, 0.85);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* たしざん・ひきざんは「さいしょへ！」が上にあるので、さらに上に */
+html[data-mode="add"] #goToRecords,
+html[data-mode="sub"] #goToRecords {
+    bottom: 131px;
+}

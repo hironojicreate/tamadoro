@@ -25,6 +25,9 @@ function drillStartLevel(level) {
     problemState.level = level;
     problemState.patterns = currentLevelDef().patterns();
     problemState.solved = [];
+    problemState.reviewQueue = [];   // まちがえた問題（最後にもういちど出す）
+    problemState.isReview = false;
+    problemState.levelMistakes = 0;  // このレベルでまちがえた回数（記録用）
     problemState.correctStreak = 0;
     problemState.mistakeCount = 0;
     problemState.mistakes = []; // 前回の間違いリストを持ち越さない
@@ -54,6 +57,12 @@ function generateLvProblem(level) {
     );
 
     if (unsolvedPatterns.length === 0) {
+        // ぜんぶ出したら、まちがえた問題をもういちど
+        if (problemState.reviewQueue.length > 0) {
+            problemState.isReview = true;
+            showProblem(...problemState.reviewQueue.shift());
+            return;
+        }
         document.getElementById("remaining-problems").textContent = `のこり0${currentMode.texts.unit}！おわったよ！！`;
         toggleKeypad(false);
         drillShowModal(level);
@@ -63,18 +72,30 @@ function generateLvProblem(level) {
     // 「n のだん」「さかさ」は順番どおり、ほかはランダム
     const index = currentLevelDef().order === 'ordered' ? 0 : Math.floor(Math.random() * unsolvedPatterns.length);
     const [a, b] = unsolvedPatterns[index];
-    problemState.currentProblem = { a, b };
+    showProblem(a, b);
+    problemState.solved.push([a, b]);
+}
 
+function showProblem(a, b) {
+    problemState.currentProblem = { a, b };
+    problemState.problemStartedAt = Date.now();
     const c = currentLevelDef().style === 'decompose' ? a - b : currentMode.calc(a, b);
     displayProblem(a, b, c);
-    problemState.solved.push([a, b]);
+}
+
+// 記録用の問題の名前（「7+6」「5は2と」など）
+function problemKey() {
+    const { a, b } = problemState.currentProblem;
+    return currentLevelDef().style === 'decompose' ? `${a}は${b}と` : `${a}${currentMode.symbol}${b}`;
 }
 
 //残りの問題数
 function updateRemainingProblems() {
     problemState.howManyOriginalProblems = problemState.patterns.length;
-    problemState.remainingQuestions = problemState.patterns.length - problemState.solved.length;
-    document.getElementById("remaining-problems").textContent = `のこり${problemState.remainingQuestions}${currentMode.texts.unit}`;
+    problemState.remainingQuestions = problemState.patterns.length - problemState.solved.length
+        + problemState.reviewQueue.length + (problemState.isReview ? 1 : 0);
+    document.getElementById("remaining-problems").textContent = `のこり${problemState.remainingQuestions}${currentMode.texts.unit}`
+        + (problemState.isReview ? '（もういちど！）' : '');
 }
 
 
@@ -302,11 +323,17 @@ function recordMistake(answerText) {
 
 function handleAnswer(isCorrect) {
     if (isCorrect) {
+        History.recordProblem(currentMode.id, problemKey(), !problemState.mistakeMade, Date.now() - problemState.problemStartedAt);
+        // まちがえた問題は、レベルの最後にもういちど（もういちどの問題は1回だけ）
+        if (problemState.mistakeMade && !problemState.isReview) {
+            const { a, b } = problemState.currentProblem;
+            problemState.reviewQueue.push([a, b]);
+        }
         // 間違いがなかった場合のみ、正答の連続カウントを進めてドロップを投げる
         if (!problemState.mistakeMade) {
             problemState.correctStreak++;
             const perfect = currentMode.perfectClear[problemState.level];
-            if (perfect && problemState.howManyOriginalProblems === problemState.correctStreak) {
+            if (perfect && problemState.levelMistakes === 0 && problemState.howManyOriginalProblems === problemState.correctStreak) {
                 // ノーミスでクリア！
                 throwCoin(problemState.level, true, 300, perfect.coins);
                 problemState[perfect.flag] = true;
@@ -329,6 +356,7 @@ function handleAnswer(isCorrect) {
     } else {
         problemState.mistakeMade = true;
         problemState.mistakeCount += 1;
+        problemState.levelMistakes += 1;
         problemState.correctStreak = 0;
         if (problemState.mistakeCount >= currentMode.maxMistakes) {
             showMistakeModal();
@@ -395,10 +423,19 @@ function drillShowModal(level) {
         `${currentMode.texts.best} ${bestTime !== null ? formatTime(bestTime) : '--:--'}`;
 
     document.getElementById('completionModal').style.display = 'flex';
-    createRewardCoin(level);
+    const drop = createRewardCoin(level);
+
+    History.addEntry({
+        mode: currentMode.id, level, ms: endTime - startTime,
+        total: problemState.patterns.length, miss: problemState.levelMistakes, cleared: true, drop,
+    });
 }
 
 function showMistakeModal() {
+    History.addEntry({
+        mode: currentMode.id, level: problemState.level, ms: Date.now() - startTime,
+        total: problemState.patterns.length, miss: problemState.levelMistakes, cleared: false, drop: null,
+    });
     document.getElementById('maxMistakes').textContent = currentMode.maxMistakes;
     const mistakeList = document.getElementById('mistakeList');
     mistakeList.innerHTML = '';

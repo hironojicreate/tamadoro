@@ -22,6 +22,7 @@
     <link href="css/subtraction.css" rel="stylesheet" type="text/css" />
     <link href="css/multiplication.css" rel="stylesheet" type="text/css" />
     <link href="css/hundredgrid.css" rel="stylesheet" type="text/css" />
+    <link href="css/records.css" rel="stylesheet" type="text/css" />
 
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="16x16" href="/img/tama_16x16.png">
@@ -53,8 +54,11 @@
                 <button id="homeSub" aria-label="ひきざん" onclick="location.hash = '#/sub'"></button>
                 <button id="homeMulti" aria-label="かけざん" onclick="location.hash = '#/multi'"></button>
                 <button id="homeHundredgrid" aria-label="百マスたしざん" onclick="location.hash = '#/hundredgrid'"></button>
+                <button id="homeRecords" onclick="location.hash = '#/records'">タマのきろく</button>
             </div>
             <textarea id="instructions" readonly>
+      ・「タマのきろく」で、タイムのうつりかわりや ドロップのカレンダーが 見られるよ。
+    　　まちがえた もんだいは、さいごに もういちど でるよ。2026/10/24
       ・ひきざんのコインが出ないときがあったのを、なおしたよ。2024/11/28
     　・「百マスたしざん」をもうすぐ公開2024/11/24
     　・「かけざん」を選べるようになったよ！2024/10/31
@@ -76,6 +80,55 @@
             </p>
         </footer>
     </div>
+
+
+<!-- ================= タマのきろく（js/records.js） ================= -->
+    <div id="recordsScreen" style="display: none;">
+        <header class="records-header">
+            <button class="records-back" onclick="location.hash = Records.returnTo">もどる</button>
+            <h1>タマのきろく</h1>
+        </header>
+
+        <div class="records-top">
+            <section class="records-card jar-card">
+                <h2>ドロップびん</h2>
+                <canvas id="dropJar" width="300" height="380" role="img"></canvas>
+                <p id="dropTotal" class="drop-total"></p>
+                <p class="records-note">びんを タップすると ゆれるよ</p>
+            </section>
+            <section class="records-card calendar-card">
+                <h2>ドロップカレンダー</h2>
+                <div class="calendar-nav">
+                    <button id="calPrev" aria-label="まえの月">◀</button>
+                    <span id="calTitle"></span>
+                    <button id="calNext" aria-label="つぎの月">▶</button>
+                </div>
+                <div id="calendar" class="calendar"></div>
+            </section>
+        </div>
+
+        <nav id="recordsTabs" class="records-tabs"></nav>
+
+        <section class="records-card">
+            <h2>レベルごとの きろく</h2>
+            <p class="records-note">タイムのグラフは、せんが さがると はやくなったということ！（てんに さわると、日づけと タイム）</p>
+            <table class="level-records">
+                <thead>
+                    <tr><th scope="col">レベル</th><th scope="col">クリア</th><th scope="col">さいこう</th><th scope="col">タイムのうつりかわり（さいきん20かい）</th></tr>
+                </thead>
+                <tbody id="levelRecords"></tbody>
+            </table>
+        </section>
+
+        <section class="records-card" id="weakSection">
+            <h2>にがてマップ <small>（おとなのひとへ）</small></h2>
+            <p class="records-note">1もんずつの きろくから、まちがえた わりあいを 色で あらわしています。マスに さわると くわしく出ます。</p>
+            <div id="weakMap"></div>
+            <h3>にがてな もんだい</h3>
+            <ol id="weakList" class="weak-list"></ol>
+        </section>
+    </div>
+    <div id="chartTooltip" class="chart-tooltip" hidden></div>
 
 
 <!-- ================= テンキー ================= -->
@@ -115,6 +168,7 @@
         <div class="select-level-buttons"></div>
 
         <!-- 移動 -->
+        <button id="goToRecords" onclick="location.hash = `#/records/${currentMode.id}`">きろく</button>
         <button id="goToIndex" onclick="location.hash = '#/'">さいしょへ！</button>
         <button id="goToSub" onclick="location.hash = '#/sub'">ひきざんへ！</button>
         <button id="goToAdd" onclick="location.hash = '#/add'">たしざんへ！</button>
@@ -331,6 +385,7 @@
     <script src="js/modes/multiplication.js"></script>
     <script src="js/modes/hundredgrid.js"></script>
     <script src="js/state.js"></script>
+    <script src="js/history.js"></script>
     <script src="js/drops.js"></script>
     <script src="js/data-modal.js"></script>
     <script src="js/menu.js"></script>
@@ -339,6 +394,7 @@
     <script src="js/engines/drill.js"></script>
     <script src="js/engines/grid.js"></script>
     <script src="js/keypad.js"></script>
+    <script src="js/records.js"></script>
     <script src="js/home.js"></script>
     <script src="js/app.js"></script>
 

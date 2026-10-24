@@ -1,0 +1,11 @@
+{
+  "name": "tamadoro-tests",
+  "private": true,
+  "description": "タマドロのブラウザテスト（Playwright）",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

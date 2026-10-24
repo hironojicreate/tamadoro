@@ -520,6 +520,7 @@ function gridShowModal(level) {
     const clearTimeElement = document.getElementById('clearTime');
     const bestTimeElement = document.getElementById('bestTime');
     let rewardGenerated = false; // ご褒美コインが生成されたかのフラグ
+    let drop = null;
 
     // クリアタイムの設定
     let clearTime = stopTimer(); // タイマーをストップし、経過時間を「分：秒」で取得
@@ -529,7 +530,7 @@ function gridShowModal(level) {
         clearTimeElement.textContent = `クリアタイム ${formatMilliseconds(elapsedMilliseconds)}`;
 
         saveBestTime(level, elapsedMilliseconds / 1000); // 秒単位で保存
-        createRewardCoin(level); // ご褒美コインを生成
+        drop = createRewardCoin(level); // ご褒美コインを生成
         rewardGenerated = true; // フラグを更新
 
         // 記録を追加（秒単位で保存、表示時は「分：秒」にフォーマット）
@@ -552,13 +553,10 @@ function gridShowModal(level) {
     modal.style.display = 'flex'; // モーダルを表示
     unlockSliders(); //スライダーをunlock
 
-    // ログを出力
-    console.log(`正答率: ${correctRate}% (${problemCorrectCount}/${totalQuestions})`);
-    console.log(rewardGenerated
-        ? "Reward coin created for achieving 80% or more correct answers."
-        : "Reward coin not created due to insufficient correct rate."
-    );
-    console.log(`Level: ${level}, Current Time: ${clearTime}`);
+    History.addEntry({
+        mode: currentMode.id, level, ms: endTime - startTime,
+        total: totalQuestions, miss: problemState.mistakeCount, cleared: rewardGenerated, drop,
+    });
 }
 
 

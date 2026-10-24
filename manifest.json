@@ -5,7 +5,7 @@
   "display": "fullscreen",
   "background_color": "#ffffff",
   "theme_color": "#000000",
-  "description": "小学校低学年を対象とした、足し算、引き算の反復学習アプリ。ドロップをゲットして次の問題へ挑戦！",
+  "description": "小学校低学年を対象とした、たし算・ひき算・かけ算・百ます計算の反復学習アプリ。ドロップをゲットして次の問題へ挑戦！",
   "icons": [
     {
       "src": "/img/tama_48x48.png",

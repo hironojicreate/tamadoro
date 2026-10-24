@@ -129,6 +129,7 @@ function deleteData() {
     for (let level = 1; level <= currentMode.levelCount; level++) {
         localStorage.removeItem(TamaStore.coinsKey(level));
     }
+    History.removeMode(currentMode.id); // きろく画面の記録も消す
     if (currentMode.onDeleteData) {
         currentMode.onDeleteData(); // モードごとの追加データ（百マスのタイム記録など）
     }

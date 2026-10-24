@@ -155,7 +155,7 @@ function enableDrag(coin) {
 }
 
 
-//ご褒美コイン生成
+//ご褒美コイン生成（もらったドロップの画像名を返す）
 function createRewardCoin(level) {
     const existingCoins = document.querySelectorAll('.reward-coin');
     const offset = existingCoins.length * 50;  // 新しいコインは前のコインの左に50pxずつずれます。
@@ -198,6 +198,7 @@ function createRewardCoin(level) {
             rewardCoin.style.left = `calc(100% - ${finalRight}px)`;
         }, 500);
     }, 10);
+    return coinImage; // もらったドロップ（記録用）
 }
 
 
