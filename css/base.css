@@ -804,3 +804,20 @@ button.no-weak .weak-badge {
 .gear-btn:active {
     transform: rotate(90deg) scale(0.92);
 }
+
+/* 「？」カードが枠をこえて大きく広がれるようにする */
+.calculation-container,
+.num-big-container,
+.number-set,
+.num-container,
+.cover-container,
+.q-card,
+.q-card svg {
+    overflow: visible !important;
+}
+
+/* 広がっている最中の「？」が他の枠の下に隠れないよう一番手前に出す */
+.expand-and-fade {
+    z-index: 100;
+    pointer-events: none;
+}

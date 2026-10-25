@@ -598,13 +598,27 @@ function bounceOffTarget(target) {
     }, 150);
 }
 
-// 正解した「？」カードが広がって消える
+// 正解した「？」カードが広がって消える（枠から見切れないよう、座標を計算してbody直下に出す）
 function enlargeAndFadeImage(coverId) {
     const cover = document.getElementById(coverId);
     cover.parentElement.querySelector('.digit').classList.remove('hidden-answer');
     const card = cover.querySelector('.q-card');
     if (card) {
-        card.classList.add('expand-and-fade');
+        const rect = card.getBoundingClientRect();
+        card.style.position = 'fixed';
+        card.style.left = `${rect.left}px`;
+        card.style.top = `${rect.top}px`;
+        card.style.width = `${rect.width}px`;
+        card.style.height = `${rect.height}px`;
+        card.style.margin = '0';
+        card.style.zIndex = '1000';
+        card.style.pointerEvents = 'none';
+        document.body.appendChild(card); // 枠（cover）の中から外に出す！
+
+        // 次のフレームで拡大アニメを開始
+        requestAnimationFrame(() => {
+            card.classList.add('expand-and-fade');
+        });
         setTimeout(() => card.remove(), 1000);
     }
 }
