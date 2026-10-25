@@ -8,9 +8,20 @@ function makeProblemKey(def, a, b) {
     return def.style === 'decompose' ? `${a}は${b}と` : `${a}${currentMode.symbol}${b}`;
 }
 
+// 指定したレベルに1度でも挑戦したことがあるか（ドロップ獲得 または プレイ履歴があるか）
+function hasPlayedLevel(level) {
+    if (!currentMode) return false;
+    const coins = TamaStore.readJSON(`${currentMode.storagePrefix}_coins_${level}`, []);
+    if (coins.length > 0) return true;
+    return History.getLog().some(e => e.mode === currentMode.id && e.level === level);
+}
+
 // 指定したレベルの「苦手問題（hp > 0）」のリストを返す
 function getWeakPatternsForLevel(level) {
     if (!currentMode || currentMode.engine !== 'drill') return [];
+    // まだ1度も挑戦していないレベルは、苦手なし（空）とする
+    if (!hasPlayedLevel(level)) return [];
+
     const def = currentMode.levels[level - 1];
     if (!def || typeof def.patterns !== 'function') return [];
 
