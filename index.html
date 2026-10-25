@@ -328,17 +328,50 @@
         </textarea>
         </div>
         <div id="Disclaimer">
-            <p>【WEBアプリの扱い】本WEBアプリは個人データを収集しません。予告なく改良、提供終了を行います。<br>データの消失について責任をもてません。データ強制復元は保存復元ボタンより/rescueを実行してください。
+            <p>本WEBアプリは個人データを収集しません。予告なく改良、提供終了を行います。データの消失について責任をもてません。データ強制復元：設定ボタンから/rescueを実行。
             </p>
         </div>
 
-        <!-- 保存・復元ボタン -->
-        <button id="openDataModalHome" onclick="openDataModal();"
-            style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer; z-index:10;">ドロップのセーブ/ロード</button>
+        <!-- 保存・復元ボタン（歯車） -->
+        <button id="openDataModalHome" class="gear-btn" onclick="openDataModal();" aria-label="ドロップのセーブ・ロード・設定">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+                <defs>
+                    <linearGradient id="gear-grad-home" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#80deea"/>
+                        <stop offset="50%" stop-color="#4dd0e1"/>
+                        <stop offset="100%" stop-color="#0097a7"/>
+                    </linearGradient>
+                    <linearGradient id="gear-gloss-home" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+                        <stop offset="45%" stop-color="#ffffff" stop-opacity="0.0"/>
+                    </linearGradient>
+                    <filter id="gear-shadow-home" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="1" dy="3" stdDeviation="2" flood-color="#000000" flood-opacity="0.4"/>
+                    </filter>
+                </defs>
+                <g filter="url(#gear-shadow-home)">
+                    <!-- 8つの丸みのある歯 -->
+                    <g fill="url(#gear-grad-home)" stroke="#ffffff" stroke-width="5" stroke-linejoin="round">
+                        <rect x="40" y="6" width="20" height="88" rx="8"/>
+                        <rect x="40" y="6" width="20" height="88" rx="8" transform="rotate(45 50 50)"/>
+                        <rect x="40" y="6" width="20" height="88" rx="8" transform="rotate(90 50 50)"/>
+                        <rect x="40" y="6" width="20" height="88" rx="8" transform="rotate(135 50 50)"/>
+                    </g>
+                    <!-- 歯の継ぎ目を消してぷっくりさせる本体円 -->
+                    <circle cx="50" cy="50" r="32" fill="url(#gear-grad-home)"/>
+                    <!-- 上半分のツヤ -->
+                    <path d="M 22,42 A 28,26 0 0,1 78,42 A 28,18 0 0,1 22,42 Z" fill="url(#gear-gloss-home)"/>
+                    <!-- 中心の穴（ドーナツ部分） -->
+                    <circle cx="50" cy="50" r="14" fill="#1b263b" stroke="#ffffff" stroke-width="4"/>
+                    <!-- ドロップ風の光沢粒 -->
+                    <ellipse cx="34" cy="28" rx="6" ry="3" transform="rotate(-30 34 28)" fill="#ffffff" opacity="0.9"/>
+                </g>
+            </svg>
+        </button>
 
         <footer>
             <p>&copy; 2026 Rela All rights reserved.
-                <span id="version">Ver.6.0.0</span>
+                <span id="version">Ver.6.1.0</span>
             </p>
         </footer>
     </div>
@@ -662,22 +695,46 @@
         <!-- レベル選択ボタン（js/level-select.js がモードの定義からつくる） -->
         <div class="select-level-buttons"></div>
 
-        <!-- にがてちょうせんモード切り替えボタン -->
-        <button id="toggleWeakMode" onclick="toggleWeakMode()" style="display: none;">🔥 にがてちょうせん！</button>
+        <!-- 右上のナビゲーション（1段目：にがてちょうせん ／ 2段目：もどる・きろく） -->
+        <div class="top-right-nav">
+            <button id="toggleWeakMode" onclick="toggleWeakMode()" style="display: none;">🔥 にがてちょうせん！</button>
+            <div class="nav-sub-row">
+                <button id="goToIndex" onclick="location.hash = '#/'">もどる</button>
+                <button id="goToRecords" onclick="location.hash = `#/records/${currentMode.id}`">きろく</button>
+            </div>
+        </div>
 
-        <!-- 移動 -->
-        <button id="goToRecords" onclick="location.hash = `#/records/${currentMode.id}`">きろく</button>
-        <button id="goToIndex" onclick="location.hash = '#/'">さいしょへ！</button>
-        <button id="goToSub" onclick="location.hash = '#/sub'">ひきざんへ！</button>
-        <button id="goToAdd" onclick="location.hash = '#/add'">たしざんへ！</button>
-
-        <footer>
-            <p>&copy; 2026 Rela All rights reserved.</p>
-        </footer>
-
-        <!-- 保存・復元ボタン -->
-        <button id="openDataModal" onclick="openDataModal();"
-            style="position: fixed; right: 0px; bottom: 0px; background-color: transparent; border: 1px solid gray; color: gray; padding: 5px 10px; cursor: pointer;">ドロップのセーブ/そのた</button>
+        <!-- 保存・復元ボタン（歯車） -->
+        <button id="openDataModal" class="gear-btn" onclick="openDataModal();" aria-label="ドロップのセーブ・そのた">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+                <defs>
+                    <linearGradient id="gear-grad-op" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#80deea"/>
+                        <stop offset="50%" stop-color="#4dd0e1"/>
+                        <stop offset="100%" stop-color="#0097a7"/>
+                    </linearGradient>
+                    <linearGradient id="gear-gloss-op" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+                        <stop offset="45%" stop-color="#ffffff" stop-opacity="0.0"/>
+                    </linearGradient>
+                    <filter id="gear-shadow-op" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="1" dy="3" stdDeviation="2" flood-color="#000000" flood-opacity="0.4"/>
+                    </filter>
+                </defs>
+                <g filter="url(#gear-shadow-op)">
+                    <g fill="url(#gear-grad-op)" stroke="#ffffff" stroke-width="5" stroke-linejoin="round">
+                        <rect x="40" y="6" width="20" height="88" rx="8"/>
+                        <rect x="40" y="6" width="20" height="88" rx="8" transform="rotate(45 50 50)"/>
+                        <rect x="40" y="6" width="20" height="88" rx="8" transform="rotate(90 50 50)"/>
+                        <rect x="40" y="6" width="20" height="88" rx="8" transform="rotate(135 50 50)"/>
+                    </g>
+                    <circle cx="50" cy="50" r="32" fill="url(#gear-grad-op)"/>
+                    <path d="M 22,42 A 28,26 0 0,1 78,42 A 28,18 0 0,1 22,42 Z" fill="url(#gear-gloss-op)"/>
+                    <circle cx="50" cy="50" r="14" fill="#1b263b" stroke="#ffffff" stroke-width="4"/>
+                    <ellipse cx="34" cy="28" rx="6" ry="3" transform="rotate(-30 34 28)" fill="#ffffff" opacity="0.9"/>
+                </g>
+            </svg>
+        </button>
     </div>
 
 
@@ -859,7 +916,7 @@
         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2;">
     </div>
     <div id="dataModal"
-        style="display:none; position: fixed; bottom: 10px; right: 10px; background: white; padding: 20px;">
+        style="display:none; position: fixed; top: 70px; left: 15px; background: white; padding: 20px; border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,0.3);">
         <div style="text-align: center;">
             <h2>★おとなのひとに やりかたをきいてください★</h2>
             <p class="home-only">ゲットしたドロップのまいすうを、

@@ -109,7 +109,7 @@ html[data-mode="hundredgrid"] #openingScreen .title-hundredgrid {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start; /* ← center から flex-start に変更（ボタンの頭をピタッと揃える） */
 }
 
 .level-pair.empty {
@@ -154,11 +154,11 @@ html[data-mode="hundredgrid"] #openingScreen .title-hundredgrid {
 
 
 /* ---------- 画面移動ボタン ---------- */
-
+/*
 #goToIndex {
     position: fixed;
     right: 5px;
-    bottom: 35px; /* ほかのモードへのボタンがあるページでは上にずらす */
+    bottom: 35px; 
     background-color: rgba(34, 193, 195, 0.7);
     color: white;
     border: none;
@@ -179,7 +179,6 @@ html[data-mode="hundredgrid"] #openingScreen .title-hundredgrid {
     background-color: rgba(26, 122, 123, 0.8);
     transform: scale(0.95);
 }
-
 #goToAdd,
 #goToSub {
     position: fixed;
@@ -194,21 +193,20 @@ html[data-mode="hundredgrid"] #openingScreen .title-hundredgrid {
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     transition: background-color 0.3s, transform 0.3s;
 }
-
 #goToAdd { background-color: rgba(255, 99, 71, 0.7); }
 #goToAdd:hover { background-color: rgba(255, 69, 58, 0.8); transform: scale(1.05); }
 #goToAdd:active { background-color: rgba(204, 55, 46, 0.8); transform: scale(0.95); }
-
 #goToSub { background-color: rgba(0, 123, 255, 0.7); }
 #goToSub:hover { background-color: rgba(0, 86, 179, 0.8); transform: scale(1.05); }
 #goToSub:active { background-color: rgba(0, 68, 148, 0.8); transform: scale(0.95); }
+*/
 
 footer {
     position: fixed;
     bottom: 0;
     width: 100%;
     text-align: center;
-    padding: 5px 0;
+    padding: 8px 0;
     background-color: rgba(248, 248, 248, 0.8);
 }
 
@@ -629,6 +627,7 @@ html[data-mode="hundredgrid"] .drill-only {
 }
 
 /* 移動ボタン：たしざん ⇔ ひきざん だけ、となりのモードへのボタンがある */
+/*
 #goToAdd,
 #goToSub {
     display: none;
@@ -637,27 +636,43 @@ html[data-mode="add"] #goToSub,
 html[data-mode="sub"] #goToAdd {
     display: inline-block;
 }
+    */
 
 #dataModal { z-index: 3; }
 #deleteModal { z-index: 1000; }
 
-/* ================= にがてちょうせん！モード ================= */
+/* ================= 右上ナビゲーション（にがて・もどる・きろく） ================= */
 
-#toggleWeakMode {
+.top-right-nav {
     position: fixed;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 14px;
     z-index: 10;
-    padding: 8px 16px;
-    font-size: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch; /* 上のボタンの幅に合わせて下の2つのボタンもピタッと揃う */
+    gap: 6px;
+}
+
+.nav-sub-row {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+/* 1段目：🔥 にがてちょうせん！ */
+#toggleWeakMode {
+    padding: 6px 16px;
+    font-size: 15px;
     font-weight: bold;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
     color: #fff;
     background: linear-gradient(135deg, #ff7043, #e53935);
     border: 2px solid #fff;
     border-radius: 999px;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
     cursor: pointer;
-    transition: transform 0.15s ease, background 0.2s ease;
+    transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 #toggleWeakMode:hover {
@@ -667,6 +682,50 @@ html[data-mode="sub"] #goToAdd {
 #toggleWeakMode.active {
     background: linear-gradient(135deg, #d32f2f, #b71c1c);
     box-shadow: 0 0 12px rgba(255, 87, 34, 0.8);
+}
+
+/* 2段目：「もどる」「きろく」共通のぷっくりカプセルデザイン */
+#goToIndex,
+#goToRecords {
+    position: static !important; /* records.css等の右下固定を強制解除 */
+    right: auto !important;
+    bottom: auto !important;
+    top: auto !important;
+    left: auto !important;
+    flex: 1;
+    padding: 5px 12px !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    font-family: 'M PLUS Rounded 1c', sans-serif !important;
+    color: #fff !important;
+    border: 2px solid #fff !important;
+    border-radius: 999px !important; /* カプセル型を強制適用 */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22) !important;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+/* 「もどる」：枠や歯車と調和するアクアブルー */
+#goToIndex {
+    background: linear-gradient(135deg, #26c6da, #0097a7) !important;
+}
+
+/* 「きろく」：ドロップ感のあるオレンジ〜ゴールド */
+#goToRecords {
+    background: linear-gradient(135deg, #ffb74d, #f57c00) !important;
+}
+
+#goToIndex:hover,
+#goToRecords:hover {
+    transform: scale(1.06);
+    filter: brightness(1.08);
+}
+
+#goToIndex:active,
+#goToRecords:active {
+    transform: scale(0.95);
 }
 
 /* にがてモードONのときのレベル選択ボタン */
@@ -710,7 +769,7 @@ button.no-weak .weak-badge {
 
 /* 👑 特訓コースボタン */
 .special-course-pair {
-    margin-top: 10px;
+    margin-top: 0;
 }
 
 #openingScreen.weak-mode-active button.special-course-btn {
@@ -719,4 +778,29 @@ button.no-weak .weak-badge {
     color: #4e342e !important;
     font-weight: bold;
     box-shadow: 0 4px 12px rgba(255, 111, 0, 0.4);
+}
+
+/* ================= 左上の歯車ボタン（セーブ・設定） ================= */
+
+.gear-btn {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    width: clamp(44px, 6vw, 56px);
+    height: clamp(44px, 6vw, 56px);
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease;
+}
+
+.gear-btn:hover {
+    transform: rotate(45deg) scale(1.1);
+    filter: brightness(1.08);
+}
+
+.gear-btn:active {
+    transform: rotate(90deg) scale(0.92);
 }

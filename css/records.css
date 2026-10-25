@@ -385,3 +385,11 @@ html[data-mode="add"] #goToRecords,
 html[data-mode="sub"] #goToRecords {
     bottom: 131px;
 }
+
+/* 「タマのきろく」画面の「もどる」ボタンを右上に移動 */
+#recordsScreen .records-back {
+    position: fixed;
+    top: 12px;
+    right: 14px;
+    z-index: 10;
+}

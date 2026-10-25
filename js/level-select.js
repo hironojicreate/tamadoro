@@ -63,7 +63,7 @@ function toggleWeakMode(forceState) {
     if (toggleBtn) {
         toggleBtn.style.display = (currentMode && currentMode.engine === 'drill') ? 'block' : 'none';
         toggleBtn.classList.toggle('active', isWeakMode);
-        toggleBtn.textContent = isWeakMode ? '🔥 にがてモード中（もどる）' : '🔥 にがてちょうせん！';
+        toggleBtn.textContent = isWeakMode ? '🔥 にがてモードを終わる' : '🔥 にがてちょうせん！';
     }
 
     updateWeakBadges();
@@ -98,7 +98,7 @@ function updateWeakBadges() {
     const specialPair = document.getElementById('tamaSpecialPair');
     if (specialPair) {
         const allWeak = getAllUnlockedWeakPatterns();
-        specialPair.style.display = isWeakMode ? 'block' : 'none';
+        specialPair.style.display = isWeakMode ? 'flex' : 'none';
         const specialBtn = document.getElementById('levelSpecial');
         if (specialBtn) {
             specialBtn.innerHTML = allWeak.length > 0
@@ -156,7 +156,7 @@ function renderLevelButtons() {
         const specialPair = document.createElement('div');
         specialPair.className = 'level-pair special-course-pair';
         specialPair.id = 'tamaSpecialPair';
-        specialPair.style.display = isWeakMode ? 'block' : 'none';
+        specialPair.style.display = isWeakMode ? 'flex' : 'none';
 
         const specialBtn = document.createElement('button');
         specialBtn.id = 'levelSpecial';

@@ -6,22 +6,44 @@ html[data-mode="multi"],
 html[data-mode="multi"] body {
     overflow-x: hidden;
     overflow-y: auto;
+    height: auto;
+    min-height: 100%;
 }
 
 html[data-mode="multi"] #openingScreen {
-    background-image: url('../img/kakedoro.webp');
-    background-size: cover; /* 画面全体にフィット */
-    background-position: top;
-    background-attachment: scroll; /* 背景がスクロールに合わせて動く */
-    height: auto; /* コンテンツに応じた高さ */
+    background-image: url('../img/bg_space.svg') !important;
+    background-size: cover;
+    background-position: center top;
+    background-attachment: fixed; /* スクロールしても宇宙背景が途切れない */
+    height: auto;                 /* ボタンの量に合わせて自動で下に伸びる */
     min-height: 100vh;
+    padding-top: 15vh;            /* 上のタマ＆タイトルロゴ分の余白 */
+    padding-bottom: 5vh;          /* 下のピンク枠の外側の余白 */
+    box-sizing: border-box;
     overflow: visible;
 }
 
+/* おしゃべりエリアが100vhで高さを止めないように、背景全体に重ねる */
+html[data-mode="multi"] #commentArea {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* ボタン一覧の absolute を解除して、ボタンの分だけ背景とピンク枠が下に伸びるようにする */
 html[data-mode="multi"] .select-level-buttons {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
     background-color: transparent;
-    top: 15%;
     gap: 5px;
+    margin: 0 auto;
+    padding: 10px 0 20px; /* ピンク枠の中の余白 */
+    z-index: 1;
 }
 
 html[data-mode="multi"] .coin-container {
