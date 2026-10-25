@@ -327,53 +327,176 @@ const ChartTooltip = {
 // ---------- ドロップびん（集めたドロップが、ころころ積もる） ----------
 
 const DropJar = {
-    RADIUS: 10.8,        // ドロップの大きさ（びんの中の半径 px）
-    MAX_SHOWN: 170,      // びんが いっぱいになる数
-    MOVE_MS: 8000,       // 空高く飛び出したドロップが全て落ちて落ち着くまで十分な時間を確保
+    BASE_RADIUS: 10.8,      // 基本のドロップ半径（px）
+    MAX_VISUAL_BALLS: 350,  // 画面が重くならないための最大表示粒数（これを超えると自動間引き）
+    MOVE_MS: 5000,          // アニメーション全体の最大安全タイマー（ミリ秒）
+    SETTLE_MS: 1200,        // 玉がびん内に戻ってから物理計算を完全停止するまでの時間（ミリ秒）
     balls: [],
     images: {},
     running: false,
-    heat: 0,             // 連打の勢い（タップするたびに増え、時間とともに減る）
-    lastShakeAt: 0,      // 最後にタップした時刻
-    jarKick: 0,          // びん自体の揺れ角度
-    lidY: 0,             // コルクのふたの浮き上がり量（飛び出し演出用）
-    lidVy: 0,            // コルクのふたの速度
+    heat: 0,                // 連打の勢い
+    lastShakeAt: 0,         // 最後にタップした時刻
+    jarKick: 0,             // びん自体の揺れ角度
+    lidY: 0,                // コルクのふたの浮き上がり量
+    lidVy: 0,               // コルクのふたの速度
+    lidAngle: 0,            // コルクのふたの傾き角度（ラジアン）
+    lidVa: 0,               // コルクのふたの角速度
+    lidRocking: false,      // ふたが閉まる瞬間のなじみ中か
+    baseR: 10.8,            // 個数に応じて自動調整された現在の基準半径
+    mergeQueue: [],         // タッチで1つずつ発動する合体予約リスト
+    pendingMerges: 0,       // ユーザーのクリックによって発動待機中の合体数
+    mergeCooldown: 0,       // 合体直後の余韻フレーム
+    settleBoost: 0,         // 合体直後に素早くピタッと落ち着かせるフレーム数
+    settleDeadline: 0,      // 落下後にぷるぷる計算を強制終了する時刻
+    activeMerges: [],       // 現在進行中の合体アニメーション
+    popEffects: [],         // 「ピカッ！」のフラッシュ＆光の輪エフェクト
+    sparkles: [],           // 「キラキラ✨」の星パーティクル
 
     show(log) {
         const drops = log.filter(e => e.drop).map(e => e.drop);
-        document.getElementById('dropTotal').textContent = `ぜんぶで ${drops.length} こ`;
+        const total = drops.length;
+        document.getElementById('dropTotal').textContent = `ぜんぶで ${total} こ`;
 
         const canvas = document.getElementById('dropJar');
-        canvas.setAttribute('aria-label', `ドロップびん。ドロップが ${drops.length} こ はいっている`);
+        canvas.setAttribute('aria-label', `ドロップびん。ドロップが ${total} こ はいっている`);
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.inner = { left: 34, right: canvas.width - 34, top: 46, bottom: canvas.height - 18 };
         this.heat = 0;
         this.jarKick = 0;
-        this.lidY = 0;
         this.lidVy = 0;
+        this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.20;
+        this.lidVa = 0;
+        this.lidRocking = false;
+        this.mergeQueue = [];
+        this.pendingMerges = 0;
+        this.mergeCooldown = 0;
+        this.settleBoost = 0;
+        this.activeMerges = [];
+        this.popEffects = [];
+        this.sparkles = [];
 
-        const shown = drops.slice(-this.MAX_SHOWN);
-        const falling = Math.min(8, shown.length);   // 新しい8こは、上から落ちてくる
-        this.balls = shown.map(drop => this.newBall(drop));
-        this.packFromBottom(this.balls.slice(0, shown.length - falling));
-        this.balls.slice(shown.length - falling).forEach((ball, i) => {
-            ball.x = this.inner.left + this.RADIUS + Math.random() * (this.inner.right - this.inner.left - this.RADIUS * 2);
-            ball.y = this.inner.top - this.RADIUS * 2 - i * this.RADIUS * 3;
-            ball.px = ball.x;
-            ball.py = ball.y;
-        });
+        // ページを開くたびに毎回「均一サイズで詰める ＞ 1クリックごとに100玉・1000玉」を準備する
+        this.setupBallsAndMerges(drops);
         this.start();
     },
 
-    newBall(drop) {
+    // 毎回最初はすべて均一な大きさで自然に詰め、クリックごとの「100玉生成 → 10個で1000玉生成」を予約する
+    setupBallsAndMerges(drops) {
+        const total = drops.length;
+        const count100 = Math.floor(total / 100);
+        const count1000 = Math.floor(total / 1000);
+        const remainder = total % 100;
+        const balls = [];
+
+        // 総数が多いときは100個グループも端数も同じ比率で表示粒数を間引き、すべての粒のサイズを完全統一する
+        const visualRatio = total > this.MAX_VISUAL_BALLS ? this.MAX_VISUAL_BALLS / total : 1;
+        const ballsPer100 = count100 > 0 ? Math.max(12, Math.round(100 * visualRatio)) : 100;
+        const remainderBalls = remainder > 0 ? Math.max(1, Math.round(remainder * visualRatio)) : 0;
+
+        const { left, right, top, bottom } = this.inner;
+        const cx = (left + right) / 2;
+
+        // 100個ごとの塊を生成（1クリックごとに1つずつ100玉になり、10個たまると次のクリックで1000玉になる）
+        for (let bIdx = 0; bIdx < count100; bIdx++) {
+            const groupId = `m100_${bIdx}`;
+            const startIdx = bIdx * 100;
+            for (let m = 0; m < ballsPer100; m++) {
+                const k = startIdx + Math.min(99, Math.floor((m * 100) / ballsPer100));
+                const ball = this.newBall(drops[k], 1.0, 1);
+                ball.mergeGroup = groupId;
+                balls.push(ball);
+            }
+            const offsetX = count100 === 1 ? 0 : ((bIdx % 3) - 1) * 28;
+            const offsetY = Math.min(36, Math.floor((bIdx % 10) / 3) * -16);
+            this.mergeQueue.push({
+                type: 'to100',
+                groupId,
+                drop: drops[(bIdx + 1) * 100 - 1],
+                targetX: cx + offsetX,
+                targetY: (top + bottom) / 2 + 20 + offsetY,
+            });
+
+            // 100玉が10個揃うごとに、次のクリックで1000玉へ合体する予約を入れる
+            if ((bIdx + 1) % 10 === 0) {
+                const k1000 = Math.floor(bIdx / 10);
+                this.mergeQueue.push({
+                    type: 'to1000',
+                    drop: drops[(bIdx + 1) * 100 - 1],
+                    targetX: cx + (k1000 % 2 === 0 ? -15 : 15) * (count1000 > 1 ? 1 : 0),
+                    targetY: (top + bottom) / 2 + 25,
+                });
+            }
+        }
+
+        // 100個未満の端数の通常ドロップ（100個グループと全く同じ大きさ）
+        const remStart = count100 * 100;
+        for (let m = 0; m < remainderBalls; m++) {
+            const k = remStart + Math.min(remainder - 1, Math.floor((m * remainder) / remainderBalls));
+            balls.push(this.newBall(drops[k], 1.0, 1));
+        }
+
+        this.balls = balls;
+        this.updateRadii(true);
+
+        // 新しい最大8個は上から落ちてくる
+        const falling = Math.min(8, this.balls.length);
+        this.lidY = falling > 0 ? -60 : -22;
+        this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.20;
+        this.lidVa = 0;
+        this.lidRocking = false;
+
+        const packedBalls = this.balls.slice(0, this.balls.length - falling);
+        const fallingBalls = this.balls.slice(this.balls.length - falling);
+
+        // 下層のドロップを配置し、画面表示前に物理計算を回して隙間なく落ち着かせ、完全静止させる
+        this.packFromBottom(packedBalls);
+        this.balls = packedBalls;
+        for (let s = 0; s < 65; s++) {
+            this.settleStep();
+        }
+        packedBalls.forEach(b => {
+            b.px = b.x;
+            b.py = b.y;
+            b.va = 0;
+            b.settled = true;
+            b.calmFrames = 20;
+        });
+
+        // 上から落ちてくるドロップを配置
+        fallingBalls.forEach((ball, i) => {
+            ball.x = left + ball.r + Math.random() * (right - left - ball.r * 2);
+            ball.y = top - ball.r * 2 - i * ball.r * 2.8;
+            ball.px = ball.x;
+            ball.py = ball.y;
+            ball.settled = false;
+        });
+
+        this.balls = packedBalls.concat(fallingBalls);
+    },
+
+    // 実際に表示されている粒の面積合計から基準半径を計算する（extraAreaは合体で増える予定の面積）
+    updateRadii(instant = false, extraArea = 0) {
+        const visualArea = this.balls.reduce((sum, b) => sum + (b.merging ? 0 : b.scale * b.scale), extraArea);
+        if (visualArea > 110) {
+            this.baseR = Math.max(4.5, this.BASE_RADIUS * Math.sqrt(110 / visualArea));
+        } else {
+            this.baseR = this.BASE_RADIUS;
+        }
+        this.balls.forEach(b => {
+            if (b.merging) return;
+            b.targetR = this.baseR * b.scale;
+            if (instant || !b.r) b.r = b.targetR;
+        });
+    },
+
+    newBall(drop, scale = 1.0, tier = 1) {
         const src = dropSrc(drop);
         if (!this.images[src]) {
             const img = new Image();
             this.images[src] = { ready: false };
             img.onload = () => {
-                // ミニCanvasに1回だけ焼き付けて高速化
-                const size = 64;
+                const size = 96;
                 const offCanvas = document.createElement('canvas');
                 offCanvas.width = size;
                 offCanvas.height = size;
@@ -384,75 +507,173 @@ const DropJar = {
             };
             img.src = src;
         }
-        return { src, x: 0, y: 0, px: 0, py: 0, angle: Math.random() * Math.PI * 2, va: 0 };
+        const r = this.baseR * scale;
+        return {
+            src, scale, tier, r, targetR: r,
+            x: 0, y: 0, px: 0, py: 0,
+            angle: Math.random() * Math.PI * 2, va: 0,
+            settled: false, wasHit: false,
+            calmFrames: 0, merging: false,
+            glow: 0, popTimer: 0,
+        };
     },
 
-    // 古いドロップを、下から順に、すきまなく積んでおく
+    // 初期配置：千鳥（ハニカム）＋ランダムな揺らぎを入れて不自然な格子整列を防ぐ
     packFromBottom(balls) {
-        const r = this.RADIUS;
         const { left, right, bottom } = this.inner;
-        const perRow = Math.floor((right - left) / (r * 2));
-        balls.forEach((ball, i) => {
-            const row = Math.floor(i / perRow);
-            const col = i % perRow;
-            const shift = row % 2 === 1 ? r : 0;
-            ball.x = Math.min(right - r, left + r + shift + col * r * 2 + (Math.random() - 0.5) * 2);
-            ball.y = bottom - r - row * r * 1.75;
-            ball.px = ball.x;
-            ball.py = ball.y;
+        const width = right - left;
+        let row = 0;
+        let y = bottom;
+
+        let idx = 0;
+        while (idx < balls.length) {
+            const sampleR = balls[idx].r;
+            const maxInRow = Math.max(1, Math.floor(width / (sampleR * 2)));
+            const countInRow = Math.min(balls.length - idx, maxInRow);
+            const rowSpan = countInRow * sampleR * 2;
+            const extraSpace = Math.max(0, width - rowSpan);
+            const rowOffset = (row % 2 === 1 ? extraSpace * 0.65 : extraSpace * 0.25) + (Math.random() - 0.5) * sampleR * 0.5;
+            let x = left + Math.max(0, Math.min(extraSpace, rowOffset));
+            let rowHeight = 0;
+
+            for (let c = 0; c < countInRow; c++) {
+                const ball = balls[idx++];
+                const r = ball.r;
+                const jitterX = (Math.random() - 0.5) * r * 0.45;
+                const jitterY = (Math.random() - 0.5) * r * 0.35;
+                ball.x = Math.min(right - r, Math.max(left + r, x + r + jitterX));
+                ball.y = Math.min(bottom - r, y - r + jitterY);
+                ball.px = ball.x;
+                ball.py = ball.y;
+                x += r * 2 + (extraSpace / Math.max(1, countInRow)) * 0.25;
+                rowHeight = Math.max(rowHeight, r * 2);
+            }
+            y -= rowHeight * 0.85;
+            row++;
+        }
+    },
+
+    // 画面表示前に内部で実行する初期馴染ませ用の物理ステップ
+    settleStep() {
+        const { left, right, bottom } = this.inner;
+        const balls = this.balls;
+        const cell = Math.max(14, this.baseR * 3.2);
+
+        balls.forEach(b => {
+            const vx = (b.x - b.px) * 0.65;
+            const vy = (b.y - b.py) * 0.65 + 0.45;
+            b.px = b.x;
+            b.py = b.y;
+            b.x += vx;
+            b.y += vy;
+        });
+
+        for (let iter = 0; iter < 5; iter++) {
+            const grid = new Map();
+            balls.forEach((b, i) => {
+                const key = `${Math.floor(b.x / cell)},${Math.floor(b.y / cell)}`;
+                if (!grid.has(key)) grid.set(key, []);
+                grid.get(key).push(i);
+            });
+            balls.forEach((a, i) => {
+                const cx = Math.floor(a.x / cell), cy = Math.floor(a.y / cell);
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        (grid.get(`${cx + dx},${cy + dy}`) || []).forEach(j => {
+                            if (j <= i) return;
+                            const b = balls[j];
+                            const minDist = a.r + b.r;
+                            const ox = b.x - a.x, oy = b.y - a.y;
+                            const dist2 = ox * ox + oy * oy;
+                            if (dist2 >= minDist * minDist || dist2 === 0) return;
+                            const dist = Math.sqrt(dist2);
+                            const overlap = (minDist - dist) * 0.5;
+                            const nx = ox / dist, ny = oy / dist;
+                            a.x -= nx * overlap;
+                            a.y -= ny * overlap;
+                            b.x += nx * overlap;
+                            b.y += ny * overlap;
+                        });
+                    }
+                }
+            });
+            balls.forEach(b => {
+                if (b.x < left + b.r) b.x = left + b.r;
+                if (b.x > right - b.r) b.x = right - b.r;
+                if (b.y > bottom - b.r) b.y = bottom - b.r;
+            });
+        }
+    },
+
+    // 全ドロップの静止状態を解除して動かす
+    wakeAllBalls() {
+        this.balls.forEach(b => {
+            b.settled = false;
+            b.calmFrames = 0;
         });
     },
 
-    // ゆらす（びんをタップするたびに勢いが増し、連打で全部飛び出す！）
+    // びんをタッチ（クリック）したときの処理
     shake() {
+        // ① まだ合体していない100個・1000個の塊があるときは、1クリックにつき次の1個だけを合体させる
+        if (this.mergeQueue.length > 0 || this.activeMerges.length > 0) {
+            if (this.mergeQueue.length > 0) {
+                if (this.activeMerges.length === 0) {
+                    this.pendingMerges = 1;
+                    this.mergeCooldown = 0;
+                } else {
+                    this.pendingMerges = Math.min(1, this.mergeQueue.length);
+                }
+            }
+            this.jarKick = (Math.random() < 0.5 ? -1 : 1) * 0.035;
+            this.start();
+            return;
+        }
+
+        // ② 合体がすべて終わったあとのタッチは、蓋がポンと開いて全部飛び出す！
+        this.wakeAllBalls();
         const now = performance.now();
         const dt = now - (this.lastShakeAt || 0);
         this.lastShakeAt = now;
 
-        // 素早く連打するほど heat（勢い）がどんどん溜まる（最大 12）
         if (dt < 450) {
             this.heat = Math.min(12, this.heat + 1.35);
         } else {
             this.heat = Math.max(1.5, this.heat * 0.5 + 1.2);
         }
 
-        // びん自体も左右にプルッと揺らす
         this.jarKick = (Math.random() < 0.5 ? -1 : 1) * Math.min(0.08, 0.02 + this.heat * 0.006);
-
-        // コルクのふたをポンッと上に吹き飛ばす
-        this.lidVy = -Math.min(28, 6 + this.heat * 2.5);
+        this.lidVy = -Math.min(24, 8 + this.heat * 2.2);
+        this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.22;
+        this.lidVa = 0;
+        this.lidRocking = false;
 
         const { bottom } = this.inner;
 
         this.balls.forEach(ball => {
-            // 現在の速度
             const vx = ball.x - ball.px;
             const vy = ball.y - ball.py;
-
-            // タップ1回ごとの上向きジャンプ力（連打するほど激しくなる）
-            // 下のほうにあるドロップもしっかり押し上げられるようにボーナスをつける
             const depthBonus = Math.max(0, (ball.y - 100) / Math.max(1, bottom - 100)) * 4;
-            const jumpPower = 0.01 + this.heat * 1.2 + Math.random() * (5 + this.heat * 1.0) + depthBonus;
+            const weightFactor = ball.scale > 1 ? 0.92 : 1.0;
+            const jumpPower = (0.5 + this.heat * 1.35 + Math.random() * (5.5 + this.heat * 1.1) + depthBonus) * weightFactor;
 
-            // すでに上へ飛んでいるドロップもさらに加速させて空高く全部打ち上げる！
             const newVy = Math.max(-5, Math.min(vy, 0) * 0.65 - jumpPower);
-
-            // 左右にも激しく暴れさせる
             const sidePower = (Math.random() - 0.5) * (8 + this.heat * 2.2);
             const newVx = Math.max(-18, Math.min(18, vx * 0.8 + sidePower));
 
             ball.px = ball.x - newVx;
             ball.py = ball.y - newVy;
-
-            // くるくる回転させる
             ball.va = (Math.random() - 0.5) * (0.25 + this.heat * 0.05);
+            ball.wasHit = false;
         });
 
         this.start();
     },
 
     start() {
-        this.stopAt = performance.now() + this.MOVE_MS;
+        const now = performance.now();
+        this.stopAt = now + this.MOVE_MS;
+        this.settleDeadline = now + this.SETTLE_MS;
         this.quietFrames = 0;
         if (this.running) return;
         this.running = true;
@@ -462,22 +683,59 @@ const DropJar = {
             this.step();
             this.draw();
 
-            // まだ空中に飛んでいるドロップがあるか、動いているドロップがあるかチェック
+            const nowTime = performance.now();
             const { top } = this.inner;
-            const anyInAir = this.balls.some(b => b.y < top);
-            const moving = anyInAir || Math.abs(this.lidY) > 0.5 || this.balls.some(b => Math.abs(b.x - b.px) + Math.abs(b.y - b.py) > 0.05);
-            this.quietFrames = moving ? 0 : this.quietFrames + 1;
+            const anyInAir = this.balls.some(b => !b.settled && !b.merging && (b.y < top || (b.y - b.py) < -1.5));
+            const isMerging = (this.pendingMerges > 0 && this.mergeQueue.length > 0) || this.activeMerges.length > 0;
+            const hasEffects = this.popEffects.length > 0 || this.sparkles.length > 0 || this.balls.some(b => b.glow > 0.01 || b.popTimer > 0);
+            const lidMoving = Math.abs(this.lidY) > 0.5 || Math.abs(this.lidVy) > 0.1 || this.lidRocking || Math.abs(this.lidAngle) > 0.006;
 
-            // 空中にドロップが残っている間は、時間を延長して必ず全部落ちてくるまで待つ
-            if (anyInAir) {
-                this.stopAt = Math.max(this.stopAt, performance.now() + 3000);
+            // 空中に玉がある・合体吸引中・ふたが開いている間は物理計算のタイマーを延長する
+            if (anyInAir || isMerging || this.lidY < 0) {
+                this.settleDeadline = nowTime + this.SETTLE_MS;
+                this.stopAt = Math.max(this.stopAt, nowTime + 2800);
+            }
+            // キラキラエフェクトが出ている間は全体タイマーだけ延長して最後まで綺麗に描画する
+            if (hasEffects) {
+                this.stopAt = Math.max(this.stopAt, nowTime + 600);
             }
 
-            if ((this.quietFrames > 25 && !anyInAir) || performance.now() > this.stopAt
+            // 物理計算の締め切り（settleDeadline）を過ぎたら、エフェクト中であっても玉のぷるぷるはピタッと完全停止させる
+            if (!anyInAir && !isMerging && nowTime > this.settleDeadline) {
+                this.balls.forEach(b => {
+                    if (!b.merging) {
+                        b.px = b.x;
+                        b.py = b.y;
+                        b.va = 0;
+                        b.settled = true;
+                    }
+                });
+            }
+
+            const ballsMoving = this.balls.some(b => !b.settled && !b.merging);
+            const moving = anyInAir || isMerging || lidMoving || ballsMoving || hasEffects;
+            this.quietFrames = moving ? 0 : this.quietFrames + 1;
+
+            if ((this.quietFrames > 6 && !anyInAir && !isMerging && !hasEffects && this.lidY === 0 && !this.lidRocking)
+                || nowTime > this.stopAt
                 || document.getElementById('recordsScreen').style.display === 'none') {
                 this.running = false;
                 this.jarKick = 0;
                 this.lidY = 0;
+                this.lidVy = 0;
+                this.lidAngle = 0;
+                this.lidVa = 0;
+                this.lidRocking = false;
+                this.popEffects = [];
+                this.sparkles = [];
+                this.balls.forEach(b => {
+                    b.px = b.x;
+                    b.py = b.y;
+                    b.va = 0;
+                    b.glow = 0;
+                    b.popTimer = 0;
+                    b.settled = true;
+                });
                 this.draw();
                 return;
             }
@@ -486,142 +744,512 @@ const DropJar = {
         requestAnimationFrame(loop);
     },
 
-    // 1こま進める：重力で動かしてから、重なりとびんの外を直す
-    step() {
-        const r = this.RADIUS;
-        const { left, right, top, bottom } = this.inner;
-        const balls = this.balls;
+    // 合体した瞬間に「ピカッ！」のフラッシュと「キラキラ✨」を生成する
+    spawnMergeEffects(x, y, baseRadius, is1000, ball) {
+        // ① ピカッと光るフラッシュ＆スターバースト光線＆二重リング
+        this.popEffects.push({
+            x,
+            y,
+            r: baseRadius * 0.5,
+            maxR: baseRadius * (is1000 ? 4.8 : 3.4),
+            age: 0,
+            maxAge: is1000 ? 76 : 56,
+            is1000,
+        });
 
-        // 連打していないときは少しずつ heat（勢い）を冷ます
-        if (performance.now() - this.lastShakeAt > 250) {
-            this.heat = Math.max(0, this.heat * 0.985 - 0.02);
+        // ② パッと飛び散るキラキラ✨パーティクル
+        const palette = is1000
+            ? ['#ffffff', '#fff799', '#ffd700', '#ffae00', '#a8f0ff', '#ffb8e6']
+            : ['#ffffff', '#fff9b0', '#ffe066', '#b8f2ff'];
+
+        const burstCount = is1000 ? 26 : 16;
+        for (let i = 0; i < burstCount; i++) {
+            const angle = (Math.PI * 2 * i) / burstCount + (Math.random() - 0.5) * 0.35;
+            const speed = (1.6 + Math.random() * (is1000 ? 3.8 : 2.6));
+            const dist = baseRadius * (0.2 + Math.random() * 0.4);
+            this.sparkles.push({
+                x: x + Math.cos(angle) * dist,
+                y: y + Math.sin(angle) * dist,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 0.35,
+                size: (is1000 ? 5.5 : 4.5) + Math.random() * (is1000 ? 6.5 : 4.5),
+                color: palette[i % palette.length],
+                rot: Math.random() * Math.PI,
+                vRot: (Math.random() - 0.5) * 0.12,
+                age: 0,
+                delay: 0,
+                maxAge: (is1000 ? 110 : 85) + Math.floor(Math.random() * 55), // 約1.5〜2.5秒で消える
+                twinkleSpeed: 0.22 + Math.random() * 0.18,
+                phase: Math.random() * Math.PI * 2,
+                isStar: i % 3 !== 2,
+            });
         }
 
-        // びんの揺れの減衰
-        this.jarKick *= -0.82;
-        if (Math.abs(this.jarKick) < 0.001) this.jarKick = 0;
-
-        // コルクのふたの動き（ドロップが上に飛び出している間は上空に退避し、落ち着いたら閉まる）
-        const highestBallY = balls.length > 0 ? Math.min(...balls.map(b => b.y)) : bottom;
-        if (highestBallY < top + 10 || this.heat > 1.5) {
-            // ドロップが飛び出し中：ふたは画面の上の外へ飛んでいく
-            this.lidVy -= 1.2;
-            this.lidY = Math.max(-160, this.lidY + this.lidVy);
-        } else {
-            // ドロップがすべてびんに戻った：重力でふたがスポッと閉まる
-            this.lidVy += 0.8;
-            this.lidY = Math.min(0, this.lidY + this.lidVy);
-            if (this.lidY === 0) this.lidVy = 0;
+        // ③ 合体したドロップの周りから時間差でふわっと湧き出る余韻のキラキラ（約2秒間）
+        const afterCount = is1000 ? 14 : 8;
+        for (let i = 0; i < afterCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = baseRadius * (0.55 + Math.random() * 0.75);
+            this.sparkles.push({
+                followBall: ball,
+                offsetX: Math.cos(angle) * dist,
+                offsetY: Math.sin(angle) * dist,
+                x: x + Math.cos(angle) * dist,
+                y: y + Math.sin(angle) * dist,
+                vx: (Math.random() - 0.5) * 0.25,
+                vy: -0.25 - Math.random() * 0.35,
+                size: (is1000 ? 5.0 : 4.0) + Math.random() * 4.5,
+                color: palette[i % palette.length],
+                rot: Math.random() * Math.PI,
+                vRot: (Math.random() - 0.5) * 0.08,
+                age: 0,
+                delay: 18 + Math.floor(i * (is1000 ? 9 : 11) + Math.random() * 10),
+                maxAge: 65 + Math.floor(Math.random() * 35),
+                twinkleSpeed: 0.25 + Math.random() * 0.15,
+                phase: Math.random() * Math.PI * 2,
+                isStar: true,
+            });
         }
+    },
 
-        balls.forEach(b => {
-            const vx = (b.x - b.px) * 0.99;
-            const vy = (b.y - b.py) * 0.99 + 0.28; // 重力（空から気持ちよく落ちてくる強さ）
-            b.px = b.x;
-            b.py = b.y;
-            b.x += vx;
-            b.y += vy;
+    // ユーザーのクリックで許可された分（pendingMerges）だけ1つずつ合体を進める
+    updateMerge() {
+        // フラッシュ＆光の輪の更新
+        this.popEffects.forEach(ef => {
+            ef.age++;
+            const p = ef.age / ef.maxAge;
+            ef.r = ef.maxR * (1 - Math.pow(1 - p, 2.6));
+        });
+        this.popEffects = this.popEffects.filter(ef => ef.age < ef.maxAge);
 
-            // 回転を進める
-            if (b.va) {
-                b.angle += b.va;
-                b.va *= 0.985;
-            } else {
-                b.angle += vx * 0.04;
+        // キラキラ✨パーティクルの更新
+        this.sparkles.forEach(sp => {
+            if (sp.delay > 0) {
+                sp.delay--;
+                if (sp.followBall) {
+                    sp.x = sp.followBall.x + sp.offsetX;
+                    sp.y = sp.followBall.y + sp.offsetY;
+                }
+                return;
             }
+            sp.age++;
+            sp.x += sp.vx;
+            sp.y += sp.vy;
+            sp.vx *= 0.94;
+            sp.vy = sp.vy * 0.94 + 0.012; // 空気抵抗でふわっと減速
+            sp.rot += sp.vRot;
+        });
+        this.sparkles = this.sparkles.filter(sp => sp.age < sp.maxAge);
 
-            // 最高速連打で飛び出したドロップが上空1200pxより遠くへ行きすぎないようソフトに折り返させる（指を止めたあと気持ちよく降ってくるため）
-            if (b.y < -950 && b.y < b.py) {
-                b.py = b.y + (b.py - b.y) * 0.5;
+        // 合体した大玉の余韻グローとぷるん演出の更新
+        this.balls.forEach(b => {
+            if (b.glow > 0) {
+                b.glow = Math.max(0, b.glow - 0.0065); // 約2秒間ふんわり輝く
+            }
+            if (b.popTimer > 0) {
+                b.popTimer--;
             }
         });
 
-        for (let iteration = 0; iteration < 4; iteration++) {
-            // 近くのドロップだけ調べるように、ます目に分ける
-            const cell = r * 2;
+        if (this.mergeCooldown > 0) {
+            this.mergeCooldown--;
+        }
+
+        // クリックされた分だけキューから1つ取り出して合体を開始する
+        if (this.pendingMerges > 0 && this.mergeQueue.length > 0 && this.activeMerges.length === 0 && this.mergeCooldown <= 0) {
+            this.pendingMerges--;
+            const next = this.mergeQueue.shift();
+            const targets = next.type === 'to100'
+                ? this.balls.filter(b => b.mergeGroup === next.groupId && !b.merging)
+                : this.balls.filter(b => b.tier === 100 && !b.merging).slice(0, 10);
+
+            if (targets.length > 0) {
+                const is1000 = next.type === 'to1000';
+                const newScale = is1000 ? 2.0 : 1.5;
+
+                // 合体する粒たちの現在位置の平均を求め、高すぎない自然な位置で合体させる
+                const avgY = targets.reduce((s, b) => s + b.y, 0) / targets.length;
+                const { left, right, top, bottom } = this.inner;
+                const targetR = this.baseR * newScale;
+                const cx = Math.min(right - targetR - 4, Math.max(left + targetR + 4, next.targetX));
+                const cy = Math.min(bottom - targetR - 8, Math.max(top + 40, Math.max(next.targetY, avgY - 12)));
+
+                this.wakeAllBalls();
+                targets.forEach(b => { b.merging = true; });
+
+                // 合体後の玉の分も含めて、集まっている最中に周囲の玉のサイズ変更を先に済ませる
+                this.updateRadii(false, newScale * newScale);
+
+                this.activeMerges.push({
+                    ...next,
+                    targets,
+                    cx,
+                    cy,
+                    targetScale: newScale,
+                    timer: 0,
+                    duration: 32, // ギュッと集まる時間
+                });
+            }
+        }
+
+        // 進行中の合体アニメーションを更新
+        for (let i = this.activeMerges.length - 1; i >= 0; i--) {
+            const m = this.activeMerges[i];
+            m.timer++;
+
+            if (m.timer <= m.duration) {
+                const progress = m.timer / m.duration;
+                const pull = 0.11 + progress * progress * 0.28;
+                m.targets.forEach(b => {
+                    b.x += (m.cx - b.x) * pull;
+                    b.y += (m.cy - b.y) * pull;
+                    b.px = b.x;
+                    b.py = b.y;
+                    b.r = Math.max(2.5, b.r * 0.978);
+                });
+            } else {
+                // ピカッ！と合体して1個の大きなドロップに変わる
+                const targetSet = new Set(m.targets);
+                this.balls = this.balls.filter(b => !targetSet.has(b));
+
+                const is1000 = m.type === 'to1000';
+                const newBall = this.newBall(m.drop, m.targetScale, is1000 ? 1000 : 100);
+                this.balls.push(newBall);
+
+                // 合体中にスペースもサイズも調整済みなので、物理半径はそのままピタッと出現させる
+                this.updateRadii(true);
+                this.wakeAllBalls();
+
+                newBall.x = m.cx;
+                newBall.y = m.cy;
+                newBall.px = m.cx;
+                newBall.py = m.cy;
+                newBall.r = newBall.targetR;
+                newBall.va = 0;
+                newBall.glow = 1.0;      // 出現後のキラキラ発光オーラ
+                newBall.popTimer = 36;   // 見た目だけぷるんと弾むアニメーション
+
+                this.settleBoost = 22;
+                this.settleDeadline = performance.now() + 900; // 物理は0.9秒以内にピタッと静止させる
+                this.jarKick = (Math.random() < 0.5 ? -1 : 1) * (is1000 ? 0.045 : 0.028);
+
+                // フラッシュ＆キラキラ✨を生成
+                this.spawnMergeEffects(m.cx, m.cy, newBall.targetR, is1000, newBall);
+
+                this.activeMerges.splice(i, 1);
+                this.mergeCooldown = 8;
+            }
+        }
+    },
+
+    // 1こま進める：重力で動かしてから、重なりとびんの外を直す
+    step() {
+        const { left, right, top, bottom } = this.inner;
+        const cxJar = (left + right) / 2;
+        const balls = this.balls;
+
+        this.updateMerge();
+
+        if (performance.now() - this.lastShakeAt > 250) {
+            this.heat = Math.max(0, this.heat * 0.95 - 0.05);
+        }
+        if (this.settleBoost > 0) {
+            this.settleBoost--;
+        }
+
+        this.jarKick *= -0.78;
+        if (Math.abs(this.jarKick) < 0.001) this.jarKick = 0;
+
+        // 半径の補間（合体吸引中に素早く完了させる）
+        let radiusChanging = false;
+        balls.forEach(b => {
+            if (b.merging) return;
+            if (Math.abs(b.r - b.targetR) > 0.05) {
+                b.r += (b.targetR - b.r) * 0.45;
+                radiusChanging = true;
+            } else {
+                b.r = b.targetR;
+            }
+        });
+
+        // コルクのふたの動き（落下中に傾きを整え、着地したら往復振動せずコトンと一発で閉まる）
+        const anyOut = balls.some(b => !b.settled && !b.merging && (b.y - b.r < top - 4 || (b.y - b.py) < -2.5));
+        if (anyOut || this.heat > 1.0) {
+            this.lidRocking = false;
+            this.lidVy -= 1.6;
+            this.lidY += this.lidVy;
+            if (this.lidY <= -60) {
+                this.lidY = -60;
+                this.lidVy = 0;
+            }
+            const targetTilt = (this.lidAngle >= 0 ? 1 : -1) * 0.20;
+            this.lidAngle += (targetTilt - this.lidAngle) * 0.12;
+        } else if (this.lidY < 0 || this.lidVy < 0) {
+            this.lidRocking = false;
+            this.lidVy += 0.65;
+            this.lidY += this.lidVy;
+            if (this.lidY > -28) {
+                this.lidAngle *= 0.82;
+            }
+            if (this.lidY >= 0) {
+                this.lidY = 0;
+                this.lidVy = 0;
+                this.lidVa = 0;
+                this.lidAngle = (this.lidAngle >= 0 ? 1 : -1) * Math.min(0.06, Math.abs(this.lidAngle));
+                this.lidRocking = true;
+            }
+        } else if (this.lidRocking) {
+            this.lidAngle *= 0.52;
+            if (Math.abs(this.lidAngle) < 0.006) {
+                this.lidAngle = 0;
+                this.lidVa = 0;
+                this.lidRocking = false;
+            }
+        }
+
+        // 停止時刻（settleDeadline）が近づくにつれて減衰を強め、ぷるぷるを残さず滑らかに完全停止へ導く
+        const timeRemaining = Math.max(0, (this.settleDeadline || (performance.now() + 1000)) - performance.now());
+        const calmRatio = Math.min(1, timeRemaining / 600);
+
+        // 重力移動（空中の玉は減衰 0.99＋重力 0.52 でスパッと気持ちよく落下させる）
+        const activeBalls = [];
+        const isShaking = this.heat > 0.5;
+        const gravity = 0.52;
+
+        balls.forEach(b => {
+            if (b.merging) return;
+            activeBalls.push(b);
+            if (b.settled) {
+                b.sx = b.x;
+                b.sy = b.y;
+                return;
+            }
+
+            let dampX = 0.99;
+            let dampY = 0.99;
+            if (!isShaking && b.wasHit) {
+                const baseDamp = this.settleBoost > 0 ? 0.72 : 0.84;
+                dampX = baseDamp * (0.4 + 0.6 * calmRatio);
+                dampY = Math.min(0.92, (baseDamp + 0.06) * (0.4 + 0.6 * calmRatio));
+            }
+
+            const vx = (b.x - b.px) * dampX;
+            const vy = (b.y - b.py) * dampY + gravity;
+            b.sx = b.x;
+            b.sy = b.y;
+            b.hit = false;
+            b.x += vx;
+            b.y += vy;
+        });
+
+        const iterations = isShaking ? 4 : 6;
+        const cell = Math.max(14, this.baseR * 3.2);
+
+        for (let iteration = 0; iteration < iterations; iteration++) {
+            // 合体進行中の中心点にスペースを空けておき、合体完了時の重なり爆発を防ぐ
+            if (this.activeMerges.length > 0) {
+                this.activeMerges.forEach(m => {
+                    const reserveR = this.baseR * m.targetScale * Math.min(1, (m.timer / m.duration) * 1.05);
+                    activeBalls.forEach(b => {
+                        const minDist = reserveR + b.r;
+                        const ox = b.x - m.cx, oy = b.y - m.cy;
+                        const dist2 = ox * ox + oy * oy;
+                        if (dist2 >= minDist * minDist || dist2 === 0) return;
+                        const dist = Math.sqrt(dist2);
+                        const overlap = minDist - dist;
+                        b.x += (ox / dist) * overlap * 0.6;
+                        b.y += (oy / dist) * overlap * 0.6;
+                        b.settled = false;
+                        b.hit = true;
+                    });
+                });
+            }
+
             const grid = new Map();
-            balls.forEach((b, i) => {
-                // 空高く飛んでいる最中は衝突計算を軽くしてスムーズに飛ばす
-                if (b.y < -r * 4) return;
+            activeBalls.forEach((b, i) => {
+                if (b.y < -b.r * 4) return;
                 const key = `${Math.floor(b.x / cell)},${Math.floor(b.y / cell)}`;
                 if (!grid.has(key)) grid.set(key, []);
                 grid.get(key).push(i);
             });
-            balls.forEach((a, i) => {
-                if (a.y < -r * 4) return;
+
+            activeBalls.forEach((a, i) => {
+                if (a.y < -a.r * 4) return;
                 const cx = Math.floor(a.x / cell), cy = Math.floor(a.y / cell);
                 for (let dx = -1; dx <= 1; dx++) {
                     for (let dy = -1; dy <= 1; dy++) {
                         (grid.get(`${cx + dx},${cy + dy}`) || []).forEach(j => {
                             if (j <= i) return;
-                            const b = balls[j];
-                            const ox = b.x - a.x, oy = b.y - a.y;
+                            const b = activeBalls[j];
+                            if (a.settled && b.settled) return;
+
+                            const minDist = a.r + b.r;
+                            let ox = b.x - a.x, oy = b.y - a.y;
                             const dist2 = ox * ox + oy * oy;
-                            if (dist2 >= 4 * r * r || dist2 === 0) return;
+                            if (dist2 >= minDist * minDist || dist2 === 0) return;
                             const dist = Math.sqrt(dist2);
-                            const push = (2 * r - dist) / 2;
-                            const nx = ox / dist, ny = oy / dist;
-                            a.x -= nx * push; a.y -= ny * push;
-                            b.x += nx * push; b.y += ny * push;
+                            const overlap = minDist - dist;
+
+                            // 壁際などでほぼ真上に重なっている場合は、衝突解決の中でびんの中央側へわずかに傾けて自然に転がり落とす
+                            if (Math.abs(ox) < minDist * 0.22 && Math.abs(oy) > minDist * 0.85) {
+                                const upper = a.y < b.y ? a : b;
+                                const dirToCenter = upper.x < cxJar ? 1 : -1;
+                                ox = (upper === a ? -dirToCenter : dirToCenter) * minDist * 0.22;
+                            }
+
+                            const norm = Math.hypot(ox, oy) || 1;
+                            const nx = ox / norm, ny = oy / norm;
+
+                            if (overlap > 0.22) {
+                                a.settled = false;
+                                b.settled = false;
+                            }
+
+                            a.hit = true;
+                            b.hit = true;
+
+                            if (a.settled) {
+                                b.x += nx * overlap;
+                                b.y += ny * overlap;
+                            } else if (b.settled) {
+                                a.x -= nx * overlap;
+                                a.y -= ny * overlap;
+                            } else {
+                                const ma = a.scale;
+                                const mb = b.scale;
+                                const totalM = ma + mb;
+                                const ratioA = mb / totalM;
+                                const ratioB = ma / totalM;
+                                a.x -= nx * overlap * ratioA;
+                                a.y -= ny * overlap * ratioA;
+                                b.x += nx * overlap * ratioB;
+                                b.y += ny * overlap * ratioB;
+                            }
                         });
                     }
                 }
             });
 
-            // びんの壁との当たり判定
-            balls.forEach(b => {
+            // びんの壁と底との当たり判定
+            activeBalls.forEach(b => {
+                if (b.settled) return;
+                const r = b.r;
                 if (b.y >= top - r) {
-                    // びんの中：左右の壁と底でしっかり跳ね返る
                     if (b.x < left + r) {
-                        const vx = b.x - b.px;
                         b.x = left + r;
-                        b.px = b.x + vx * 0.5;
+                        b.hit = true;
                     }
                     if (b.x > right - r) {
-                        const vx = b.x - b.px;
                         b.x = right - r;
-                        b.px = b.x + vx * 0.5;
+                        b.hit = true;
                     }
                     if (b.y > bottom - r) {
-                        const vy = b.y - b.py;
                         b.y = bottom - r;
-                        b.py = b.y + vy * 0.35; // 底で少しバウンドする
+                        b.hit = true;
                     }
                 } else {
-                    // びんより上（空中）：画面外に散らばりすぎず、落ちてきたときに必ずびんの口（left〜right）へ吸い込まれるようにガイドする
                     const funnelMargin = Math.min(28, Math.max(0, (top - b.y) * 0.12));
                     const minX = left + r - funnelMargin;
                     const maxX = right - r + funnelMargin;
-                    if (b.x < minX) {
-                        b.x = minX;
-                        b.px = b.x;
-                    }
-                    if (b.x > maxX) {
-                        b.x = maxX;
-                        b.px = b.x;
-                    }
+                    if (b.x < minX) b.x = minX;
+                    if (b.x > maxX) b.x = maxX;
                 }
             });
         }
 
-        // びんの中でほとんど動いていないドロップは、止めておく（ぴくぴくしないように）
-        balls.forEach(b => {
-            if (b.y >= top && Math.abs(b.x - b.px) < 0.04 && Math.abs(b.y - b.py) < 0.04) {
-                b.px = b.x;
-                b.py = b.y;
+        // 衝突解決後の実移動量から次ステップの速度を更新し、動きが小さい粒は即座に固定してぷるぷるを防ぐ
+        activeBalls.forEach(b => {
+            b.wasHit = b.hit;
+            if (b.settled) return;
+
+            let newVx = b.x - b.sx;
+            let newVy = b.y - b.sy;
+
+            if (!isShaking && b.hit) {
+                if (newVy < 0) newVy *= 0.35;
+                if (b.y >= bottom - b.r - 0.5) {
+                    newVx *= 0.72;
+                } else {
+                    newVx *= 0.82;
+                }
+
+                const settleThreshold = 0.25 + (1 - calmRatio) * 0.35;
+                const spd = Math.hypot(newVx, newVy);
+                if (!radiusChanging && this.activeMerges.length === 0 && b.y >= top && spd < settleThreshold) {
+                    b.x = b.sx;
+                    b.y = b.sy;
+                    b.px = b.sx;
+                    b.py = b.sy;
+                    b.va = 0;
+                    b.calmFrames = (b.calmFrames || 0) + 1;
+                    if (b.calmFrames > 2) {
+                        b.settled = true;
+                    }
+                    return;
+                }
+            }
+
+            b.calmFrames = 0;
+            b.px = b.x - newVx;
+            b.py = b.y - newVy;
+
+            // はっきり動いているときだけ回転させる
+            const speed = Math.hypot(newVx, newVy);
+            if (Math.abs(b.va) > 0.005) {
+                b.angle += b.va;
+                b.va *= isShaking ? 0.92 : 0.65;
+            } else if (speed > 1.1) {
+                b.angle += newVx * 0.035;
+            } else {
                 b.va = 0;
+            }
+
+            if (b.y < -950 && b.y < b.py) {
+                b.py = b.y + (b.py - b.y) * 0.5;
             }
         });
     },
 
+    // キラキラの4つ角スター（✨）を描画するヘルパー
+    drawSparkleStar(ctx, x, y, size, rot, color, alpha) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+        // 中心のふんわりした光彩
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 1.3);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.45, color);
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 1.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // シャープな4つ角の星（✨）
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        const outer = size;
+        const inner = size * 0.22;
+        for (let i = 0; i < 4; i++) {
+            const ang = (i * Math.PI) / 2;
+            const nextAng = ang + Math.PI / 4;
+            if (i === 0) ctx.moveTo(Math.cos(ang) * outer, Math.sin(ang) * outer);
+            else ctx.lineTo(Math.cos(ang) * outer, Math.sin(ang) * outer);
+            ctx.lineTo(Math.cos(nextAng) * inner, Math.sin(nextAng) * inner);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    },
+
     draw() {
         const { ctx, canvas } = this;
-        const r = this.RADIUS;
         const { left, right, top, bottom } = this.inner;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         ctx.save();
-        // タップしたときにびん全体が中心を軸に少しプルプル揺れる
         if (this.jarKick !== 0) {
             const cx = canvas.width / 2;
             const cy = (top + bottom) / 2;
@@ -635,16 +1263,151 @@ const DropJar = {
         roundRect(ctx, left - 10, top - 14, right - left + 20, bottom - top + 26, 26);
         ctx.fill();
 
-        // ドロップの描画（空へ飛び出して画面の上端に消えていくものも滑らかに描画）
+        // 合体に向けてギュッと集まっている最中の中心の光の予兆
+        this.activeMerges.forEach(m => {
+            const p = m.timer / m.duration;
+            const glowR = this.baseR * m.targetScale * (0.4 + p * 1.3);
+            const grad = ctx.createRadialGradient(m.cx, m.cy, 0, m.cx, m.cy, glowR);
+            grad.addColorStop(0, `rgba(255, 255, 255, ${0.85 * p})`);
+            grad.addColorStop(0.5, m.type === 'to1000' ? `rgba(255, 215, 0, ${0.55 * p})` : `rgba(255, 245, 160, ${0.45 * p})`);
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.save();
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(m.cx, m.cy, glowR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+
+        // ドロップの描画
         this.balls.forEach(b => {
-            if (b.y < -r * 2) return; // 画面よりずっと上にある間は描画をスキップしてさらに高速化
+            const r = b.r;
+            if (b.y < -r * 2) return;
             const img = this.images[b.src];
             if (!img || !img.ready) return;
+
+            // 合体直後の大玉は見た目だけ少しぷるんと弾ませる（物理半径は変えないので周りは揺れない）
+            let drawR = r;
+            if (b.popTimer > 0) {
+                const t = 1 - b.popTimer / 36;
+                drawR = r * (1 + Math.sin(t * Math.PI * 2.5) * 0.25 * (1 - t));
+            }
+
             ctx.save();
             ctx.translate(b.x, b.y);
+
+            // 合体して生まれた大玉の背後で数秒間輝く余韻オーラ
+            if (b.glow > 0.01) {
+                const auraR = drawR * (1.75 + Math.sin(b.glow * 18) * 0.12);
+                const aura = ctx.createRadialGradient(0, 0, drawR * 0.4, 0, 0, auraR);
+                aura.addColorStop(0, b.tier === 1000 ? `rgba(255, 235, 110, ${b.glow * 0.85})` : `rgba(255, 255, 210, ${b.glow * 0.75})`);
+                aura.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = aura;
+                ctx.beginPath();
+                ctx.arc(0, 0, auraR, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
             ctx.rotate(b.angle);
-            ctx.drawImage(img, -r, -r, r * 2, r * 2);
+            ctx.drawImage(img, -drawR, -drawR, drawR * 2, drawR * 2);
+
+            // 1.5倍・2倍の記念ドロップにはツヤの縁取りを添える
+            if (b.tier >= 100) {
+                ctx.beginPath();
+                ctx.arc(0, 0, drawR - 1, 0, Math.PI * 2);
+                ctx.strokeStyle = b.tier === 1000 ? 'rgba(255, 230, 80, 0.9)' : 'rgba(255, 255, 255, 0.75)';
+                ctx.lineWidth = b.tier === 1000 ? 2.8 : 2.0;
+                ctx.stroke();
+            }
             ctx.restore();
+        });
+
+        // 「ピカッ！」と合体した瞬間のフラッシュ・クロス光線・二重リング
+        this.popEffects.forEach(ef => {
+            const p = ef.age / ef.maxAge;
+            ctx.save();
+
+            // ① 中心の強いフラッシュ（最初の瞬間ピカッと光る）
+            if (p < 0.45) {
+                const flashAlpha = (1 - p / 0.45);
+                const flashR = ef.maxR * (0.65 + p * 0.8);
+                const grad = ctx.createRadialGradient(ef.x, ef.y, 0, ef.x, ef.y, flashR);
+                grad.addColorStop(0, `rgba(255, 255, 255, ${flashAlpha})`);
+                grad.addColorStop(0.4, ef.is1000 ? `rgba(255, 230, 90, ${flashAlpha * 0.85})` : `rgba(255, 250, 190, ${flashAlpha * 0.75})`);
+                grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(ef.x, ef.y, flashR, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // ② 放射状に伸びるスターバースト光線
+            if (p < 0.6) {
+                const rayAlpha = (1 - p / 0.6) * 0.95;
+                const rayLen = ef.maxR * (0.75 + p * 0.75);
+                const rayWidth = ef.is1000 ? 4.5 : 3.2;
+                const rays = ef.is1000 ? 8 : 4;
+                ctx.save();
+                ctx.translate(ef.x, ef.y);
+                ctx.rotate(p * 0.35);
+                ctx.globalAlpha = rayAlpha;
+                ctx.fillStyle = '#ffffff';
+                for (let rIdx = 0; rIdx < rays; rIdx++) {
+                    ctx.save();
+                    ctx.rotate((rIdx * Math.PI) / (rays / 2));
+                    const len = rIdx % 2 === 1 ? rayLen * 0.68 : rayLen;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -rayWidth);
+                    ctx.lineTo(len, 0);
+                    ctx.lineTo(0, rayWidth);
+                    ctx.lineTo(-len, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+                ctx.restore();
+            }
+
+            // ③ 外側へ広がる二重の光のリング
+            const ringAlpha = Math.pow(1 - p, 1.5);
+            ctx.beginPath();
+            ctx.arc(ef.x, ef.y, ef.r, 0, Math.PI * 2);
+            ctx.strokeStyle = ef.is1000 ? '#ffd700' : '#ffffff';
+            ctx.globalAlpha = ringAlpha;
+            ctx.lineWidth = (ef.is1000 ? 5.5 : 4.0) * (1 - p * 0.6);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(ef.x, ef.y, ef.r * 0.72, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ffffff';
+            ctx.globalAlpha = ringAlpha * 0.75;
+            ctx.lineWidth = 2.2 * (1 - p * 0.5);
+            ctx.stroke();
+
+            ctx.restore();
+        });
+
+        // 「キラキラ✨」パーティクルの描画
+        this.sparkles.forEach(sp => {
+            if (sp.delay > 0) return;
+            const p = sp.age / sp.maxAge;
+            const fade = p < 0.15 ? p / 0.15 : Math.pow(1 - (p - 0.15) / 0.85, 1.3);
+            const twinkle = 0.55 + 0.45 * Math.sin(sp.age * sp.twinkleSpeed + sp.phase);
+            const alpha = fade * twinkle;
+            if (alpha <= 0.02) return;
+
+            const curSize = sp.size * (0.65 + 0.35 * twinkle) * (1 - p * 0.3);
+            if (sp.isStar) {
+                this.drawSparkleStar(ctx, sp.x, sp.y, curSize, sp.rot, sp.color, alpha);
+            } else {
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = sp.color;
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, curSize * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
         });
 
         // びん（ガラスのふち）
@@ -653,11 +1416,22 @@ const DropJar = {
         roundRect(ctx, left - 10, top - 14, right - left + 20, bottom - top + 26, 26);
         ctx.stroke();
 
-        // コルクのふた（タップするとポンッと上に飛んでいき、ドロップが全部戻ると閉まる！）
-        if (top - 34 + this.lidY > -30) {
+        // コルクのふた（傾きに応じてビンの口の上端を支点に斜めに浮き上がらせて描画）
+        const lidW = right - left + 8;
+        const lidH = 18;
+        const lidBaseY = top - 34 + this.lidY;
+        if (lidBaseY > -45) {
+            const lidCx = (left + right) / 2;
+            const rockLift = Math.abs(Math.sin(this.lidAngle)) * (lidW * 0.42);
+            const lidCy = lidBaseY + lidH / 2 - rockLift;
+
+            ctx.save();
+            ctx.translate(lidCx, lidCy);
+            ctx.rotate(this.lidAngle);
             ctx.fillStyle = '#e8a87c';
-            roundRect(ctx, left - 4, top - 34 + this.lidY, right - left + 8, 18, 6);
+            roundRect(ctx, -lidW / 2, -lidH / 2, lidW, lidH, 6);
             ctx.fill();
+            ctx.restore();
         }
 
         // びんのガラスのツヤ
