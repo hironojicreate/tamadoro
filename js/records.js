@@ -679,9 +679,24 @@ function roundRect(ctx, x, y, w, h, radius) {
     ctx.closePath();
 }
 
-// PCのクリックでもスマホ・タブレットの高速連打でも気持ちよく反応するように pointerdown に変更
-document.getElementById('dropJar').addEventListener('pointerdown', (e) => {
-    e.preventDefault(); // スマホで高速連打したときに画面がダブルタップ拡大されるのを防ぐ
+// PCのクリックでもiPad・スマホの高速連打でも拡大されずに気持ちよく反応させる設定
+const dropJarEl = document.getElementById('dropJar');
+
+// ① CSSでiPadのダブルタップ拡大・長押し選択を無効化
+dropJarEl.style.touchAction = 'none';
+dropJarEl.style.webkitUserSelect = 'none';
+dropJarEl.style.userSelect = 'none';
+
+// ② タッチ端末（iPad / iPhone / Android）は touchstart で即座に拡大を阻止して揺らす
+dropJarEl.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // iPadのダブルタップ拡大を完全に防ぐ
+    DropJar.shake();
+}, { passive: false });
+
+// ③ PCのマウスクリック用（タッチのときは ② が動くので二重に揺れないようにする）
+dropJarEl.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return;
+    e.preventDefault();
     DropJar.shake();
 });
 document.getElementById('calPrev').addEventListener('click', () => Records.moveMonth(-1));
