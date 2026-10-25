@@ -80,7 +80,7 @@ function toggleWeakMode(forceState) {
     if (toggleBtn) {
         toggleBtn.style.display = (currentMode && currentMode.engine === 'drill') ? 'block' : 'none';
         toggleBtn.classList.toggle('active', isWeakMode);
-        toggleBtn.textContent = isWeakMode ? '🔥 にがてモードを終わる' : '🔥 にがてちょうせん！';
+        toggleBtn.textContent = isWeakMode ? '🔥 とっくんを終わる' : '🔥 にがてちょうせん！';
     }
 
     updateWeakBadges();
