@@ -83,35 +83,27 @@ const History = {
     },
 
     // にがてちょうせんモードの「2段階卒業」判定：
-    //   1回の挑戦で3回ともノーミス＆平均3.5秒以内ならHPを1段階（最大10）削る
-    //   大苦手（HP11以上）なら1回では0にならず「あとすこし（HP6）」になり、次回の挑戦で0（完全克服）になる！
+    //   1回の挑戦で3回ともノーミス＆平均3.5秒以内ならHPを1段階削る
+    //   戻り値：'graduated'（完全卒業！） / 'step1'（あとすこし！） / null（対象外）
     graduateWeakProblem(modeId, key) {
         const stats = TamaStore.readJSON(this.STATS_KEY, {});
         const stat = stats[modeId] && stats[modeId][key];
-        if (!stat) return;
+        if (!stat) return null;
 
-        if (stat.hp > 10) {
-            stat.hp = 6; // 第1段階クリア！（次回もう1回クリアで卒業）
+        // 4問解く間に recordProblem で最大 -8 されているため、
+        // クリア時点で hp > 4（挑戦前のHPが12超＝大苦手）なら第1段階（hp = 8）で止め、
+        // 次回の挑戦（hp = 8 からスタート）で完全卒業（hp = 0）にする
+        if (stat.hp > 4) {
+            stat.hp = 8; // 第1段階クリア！（あと1かい！）
+            TamaStore.writeJSON(this.STATS_KEY, stats);
+            return 'step1';
         } else {
             stat.hp = 0; // 完全卒業！
+            TamaStore.writeJSON(this.STATS_KEY, stats);
+            return 'graduated';
         }
-        TamaStore.writeJSON(this.STATS_KEY, stats);
     },
 
-    recordProblem(modeId, key, ok, ms) {
-        if (ms > this.INVALID_MS) {
-            return; // 無効（にがてには入れない）
-        }
-        const stats = TamaStore.readJSON(this.STATS_KEY, {});
-        const modeStats = stats[modeId] || (stats[modeId] = {});
-        const stat = modeStats[key] || (modeStats[key] = { n: 0, miss: 0, ms: 0 });
-        stat.n += 1;
-        if (!ok) {
-            stat.miss += 1;
-        }
-        stat.ms += ms;
-        TamaStore.writeJSON(this.STATS_KEY, stats);
-    },
 
     // /delete：そのモードの記録を消す
     removeMode(modeId) {

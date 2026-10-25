@@ -18,8 +18,72 @@ function currentLevelDef() {
     return currentMode.levels[problemState.level - 1] || currentMode.levels[0];
 }
 
-// 忘却ブレンド方式：苦手上位3問×3回（9問）＋ カモフラージュ6問 ＝ 計15問をつくる
+// 苦手モードの出題方式の切り替えフラグ
+//   'intensive' : 苦手3問×4セット＝計12問（徹底暗記モード）
+//   'blend'     : 苦手3問×3回＋カモフラージュ6問＝計15問（従来の忘却ブレンド方式）
+const WEAK_DECK_STYLE = 'intensive';
+
 function buildWeakDrillDeck(level) {
+    if (WEAK_DECK_STYLE === 'blend') {
+        return buildWeakDrillDeckBlend(level);
+    }
+    return buildWeakDrillDeckIntensive(level);
+}
+
+// 【新】徹底暗記方式：苦手上位3問 × 4セット ＝ 計12問（カモフラージュなし）
+function buildWeakDrillDeckIntensive(level) {
+    const isSpecial = (level === 0); // 0 は「特訓コース」
+    const weakCandidates = isSpecial ? getAllUnlockedWeakPatterns() : getWeakPatternsForLevel(level);
+
+    // ベースとなる全問題プールを用意（苦手が3問に満たないときの補充用）
+    let basePool = [];
+    if (isSpecial) {
+        for (let lv = 1; lv <= currentMode.levels.length; lv++) {
+            const def = currentMode.levels[lv - 1];
+            if ((lv === 1 || currentMode.isUnlocked(lv)) && def.style !== 'decompose') {
+                basePool.push(...def.patterns());
+            }
+        }
+    } else {
+        basePool = currentLevelDef().patterns();
+    }
+
+    // 1. 本命の苦手トップ3を選ぶ（足りなければ通常問題からランダムに補充）
+    const pickedWeak = weakCandidates.slice(0, 3);
+    const targets = pickedWeak.map(w => [w.a, w.b]);
+    const shuffledPool = [...basePool].sort(() => Math.random() - 0.5);
+    for (const [a, b] of shuffledPool) {
+        if (targets.length >= 3) break;
+        if (!targets.some(([ta, tb]) => ta === a && tb === b)) {
+            targets.push([a, b]);
+        }
+    }
+
+    // 本当に苦手（HP > 0）だった問題のキーだけを記録（補充された通常問題は卒業メッセージに出さないため）
+    problemState.weakTargetKeys = pickedWeak.map(w => w.key);
+    problemState.weakAttemptLog = {}; // { '7+8': [{ ok, ms }, ...] }
+    problemState.weakRequiredCount = 4; // 4セットすべて正解で卒業判定
+
+    // 2. 苦手3問を4セット（3問×4周＝12問）並べる
+    //   セットの境目で同じ問題が2問連続しないようにシャッフルを調整
+    const deck = [];
+    for (let round = 0; round < 4; round++) {
+        const block = [...targets].sort(() => Math.random() - 0.5);
+        if (deck.length > 0 && block.length > 1) {
+            const [prevA, prevB] = deck[deck.length - 1];
+            if (block[0][0] === prevA && block[0][1] === prevB) {
+                const swapIdx = 1 + Math.floor(Math.random() * (block.length - 1));
+                [block[0], block[swapIdx]] = [block[swapIdx], block[0]];
+            }
+        }
+        deck.push(...block);
+    }
+
+    return deck;
+}
+
+// 【旧・保存用】忘却ブレンド方式：苦手上位3問×3回（9問）＋ カモフラージュ6問 ＝ 計15問をつくる
+function buildWeakDrillDeckBlend(level) {
     const isSpecial = (level === 0); // 0 は「特訓コース」
     const weakCandidates = isSpecial ? getAllUnlockedWeakPatterns() : getWeakPatternsForLevel(level);
 
@@ -37,7 +101,8 @@ function buildWeakDrillDeck(level) {
     }
 
     // 1. 本命の苦手トップ3を選ぶ（足りなければ通常問題からランダムに補充）
-    const targets = weakCandidates.slice(0, 3).map(w => [w.a, w.b]);
+    const pickedWeak = weakCandidates.slice(0, 3);
+    const targets = pickedWeak.map(w => [w.a, w.b]);
     const shuffledPool = [...basePool].sort(() => Math.random() - 0.5);
     for (const [a, b] of shuffledPool) {
         if (targets.length >= 3) break;
@@ -46,11 +111,10 @@ function buildWeakDrillDeck(level) {
         }
     }
 
-    // 本命として選ばれた苦手キーを記録（3回とも即答できたか最後に判定するため）
-    problemState.weakTargetKeys = targets.map(([a, b]) =>
-        makeProblemKey(currentLevelDef(), a, b)
-    );
+    // 本当に苦手（HP > 0）だった問題のキーだけを記録
+    problemState.weakTargetKeys = pickedWeak.map(w => w.key);
     problemState.weakAttemptLog = {}; // { '7+8': [{ ok, ms }, ...] }
+    problemState.weakRequiredCount = 3;
 
     // 2. カモフラージュ問題（6問）を選ぶ
     //   ペア・ブリッジ方式：本命の「逆の式（b, a）」や「隣の数（a, b±1）」があれば優先して混ぜる！
@@ -550,15 +614,27 @@ function enlargeAndFadeImage(coverId) {
 function drillShowModal(level) {
     const clearTime = stopTimer();
 
-    // にがてモードの2段階卒業チェック：3回ともノーミス＆平均3.5秒以内ならHPを1段階大きく削る！
-    let graduatedCount = 0;
+    // にがてモードの2段階卒業チェック：全セット（4回）ノーミス＆平均3.5秒以内ならHPを1段階大きく削る！
+    const graduatedList = []; // 完全卒業（HP → 0）
+    const step1List = [];     // パワーダウン（あと1かい！）
+    const requiredCount = problemState.weakRequiredCount || 4;
+
     if (problemState.isWeakChallenge && problemState.weakAttemptLog) {
         Object.entries(problemState.weakAttemptLog).forEach(([key, logs]) => {
-            if (logs.length >= 3 && logs.every(l => l.ok)) {
+            // 補充された通常問題は除外し、本当に苦手だった問題のみ判定する
+            if (problemState.weakTargetKeys && !problemState.weakTargetKeys.includes(key)) {
+                return;
+            }
+            if (logs.length >= requiredCount && logs.every(l => l.ok)) {
                 const avgMs = logs.reduce((sum, l) => sum + l.ms, 0) / logs.length;
                 if (avgMs <= History.FAST_MS) {
-                    History.graduateWeakProblem(currentMode.id, key);
-                    graduatedCount++;
+                    const status = History.graduateWeakProblem(currentMode.id, key);
+                    const label = key.replace('-', '−');
+                    if (status === 'graduated') {
+                        graduatedList.push(label);
+                    } else if (status === 'step1') {
+                        step1List.push(label);
+                    }
                 }
             }
         });
@@ -571,10 +647,33 @@ function drillShowModal(level) {
         ? `🔥 ${baseTitle}`
         : baseTitle;
 
-    document.getElementById('clearTime').textContent = `クリアタイム ${clearTime}`
-        + (graduatedCount > 0 ? `（🔥にがて ${graduatedCount}もん パワーダウン！）` : '');
+    const clearTimeEl = document.getElementById('clearTime');
+    clearTimeEl.textContent = `クリアタイム ${clearTime}`;
 
-    // 通常モードのときだけベストタイムを更新（にがてモードは15問固定で問題数が違うため）
+    // にがて克服の結果表示エリアをつくる（すでにあれば再利用）
+    let weakResultEl = document.getElementById('weakClearResult');
+    if (!weakResultEl) {
+        weakResultEl = document.createElement('div');
+        weakResultEl.id = 'weakClearResult';
+        weakResultEl.style.cssText = 'margin: 10px 0; padding: 10px 14px; border-radius: 10px; background: #fff8e7; border: 2px solid #ffb347; text-align: left; font-size: 0.95em; line-height: 1.6;';
+        clearTimeEl.insertAdjacentElement('afterend', weakResultEl);
+    }
+
+    if (problemState.isWeakChallenge && (graduatedList.length > 0 || step1List.length > 0)) {
+        const lines = [];
+        graduatedList.forEach(label => {
+            lines.push(`<div>✨ <b>${label}</b> にがてクリア！（卒業！）</div>`);
+        });
+        step1List.forEach(label => {
+            lines.push(`<div>🔥 <b>${label}</b> パワーダウン！（あと1かい！）</div>`);
+        });
+        weakResultEl.innerHTML = lines.join('');
+        weakResultEl.style.display = 'block';
+    } else {
+        weakResultEl.style.display = 'none';
+    }
+
+    // 通常モードのときだけベストタイムを更新（にがてモードは問題数が違うため）
     if (!problemState.isWeakChallenge) {
         saveBestTime(level, new Date() - startTime);
     }

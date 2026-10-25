@@ -1,6 +1,7 @@
 // レベル選択画面のボタンと、rescue モーダルの中身を、モードの定義（js/modes/）からつくる
 
 let isWeakMode = false; // 「にがてちょうせん！」モードかどうか
+let lastWeakModeId = null; // 直前に開いていたモードIDを記憶
 
 // 問題（[a, b]）から記録用のキー（「7+6」「5は2と」など）をつくる
 function makeProblemKey(def, a, b) {
@@ -35,12 +36,17 @@ function getWeakPatternsForLevel(level) {
 function getAllUnlockedWeakPatterns() {
     if (!currentMode || currentMode.engine !== 'drill') return [];
     const allWeak = [];
+    const seen = new Set();
     for (let lv = 1; lv <= currentMode.levels.length; lv++) {
         if (lv === 1 || currentMode.isUnlocked(lv)) {
-            // 「5は2と」のような分解スタイルと通常計算が混ざると記号が変わるため、通常計算のみ対象にする
             const def = currentMode.levels[lv - 1];
             if (def.style !== 'decompose') {
-                allWeak.push(...getWeakPatternsForLevel(lv));
+                getWeakPatternsForLevel(lv).forEach(item => {
+                    if (!seen.has(item.key)) {
+                        seen.add(item.key);
+                        allWeak.push(item);
+                    }
+                });
             }
         }
     }
@@ -164,13 +170,16 @@ function renderLevelButtons() {
         specialBtn.textContent = '👑 特訓コース';
         specialBtn.addEventListener('click', () => {
             resetTamaTalk();
-            switchLevel(0, '👑 特訓コース【全レベルから15もん】');
+            const countText = (typeof WEAK_DECK_STYLE !== 'undefined' && WEAK_DECK_STYLE === 'blend') ? '15もん' : '12もん';
+            switchLevel(0, `👑 特訓コース【全レベルから${countText}】`);
         });
         specialPair.appendChild(specialBtn);
         container.appendChild(specialPair);
     }
 
-    toggleWeakMode(false); // モードを開いたときは通常モードからスタート
+    const keepWeak = (lastWeakModeId === currentMode.id) ? isWeakMode : false;
+    lastWeakModeId = currentMode.id;
+    toggleWeakMode(keepWeak);
 }
 
 
