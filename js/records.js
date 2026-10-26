@@ -362,11 +362,7 @@ const DropJar = {
     LID_MAX_HITS: 3,        // ふちに当たって跳ねかえるのは、この回数まで（そのあとは すべりこむ）
     baseR: 10.8,            // 個数に応じて自動調整された現在の基準半径
     mergeQueue: [],         // タッチで1つずつ発動する合体予約リスト
-    unpackTimer: 0,         // さいごの合体のあと、間引いていた粒を「ほどく」までのステップ数
-    unpackQueue: [],        // これから ほどく粒
-    unpackDelay: 0,         // つぎの粒を ほどくまでのステップ数
-    UNPACK_INTERVAL: 8,     // 粒を1つずつ ほどく間かく（ステップ。1コマ＝2ステップ）
-    UNPACK_GROW: 0.09,      // ほどけて生まれた粒が ふくらむ速さ（1ステップで のこりの何わり）
+    UNPACK_GROW: 0.06,      // ほどけて生まれた粒が ふくらむ速さ（1ステップで のこりの何わり）
     pendingMerges: 0,       // ユーザーのクリックによって発動待機中の合体数
     mergeCooldown: 0,       // 合体直後の余韻フレーム
     settleBoost: 0,         // 合体直後に素早くピタッと落ち着かせるフレーム数
@@ -394,9 +390,6 @@ const DropJar = {
         this.lidRocking = false;
         this.mergeQueue = [];
         this.pendingMerges = 0;
-        this.unpackTimer = 0;
-        this.unpackQueue = [];
-        this.unpackDelay = 0;
         this.mergeCooldown = 0;
         this.settleBoost = 0;
         this.activeMerges = [];
@@ -457,7 +450,7 @@ const DropJar = {
         }
 
         // 100個未満の端数の通常ドロップ（100個グループと全く同じ大きさ）
-        //   間引いているときは、1つぶが何こ分かを packed に覚えておき、さいごの合体のあとで「ほどく」（unpackBall）
+        //   間引いているときは、1つぶが何こ分かを packed に覚えておき、合体のたびに少しずつ「ほどく」（unpackSome）
         const remStart = count100 * 100;
         for (let m = 0; m < remainderBalls; m++) {
             const from = remStart + Math.floor((m * remainder) / remainderBalls);
@@ -718,8 +711,9 @@ const DropJar = {
             // 跳ね返りがあるときは、どこにも触れていない玉も「空中」（いちばん高い所で速さが0になっても、そこで止めない）
             const anyInAir = this.balls.some(b => !b.settled && !b.merging
                 && (b.y < top || (b.y - b.py) < -1.5 || (this.BOUNCE_ENABLED && !b.wasHit)));
+            // ほどけて生まれた粒が ふくらんでいるあいだも、止めない（止めると 小さいまま残る）
             const isMerging = (this.pendingMerges > 0 && this.mergeQueue.length > 0) || this.activeMerges.length > 0
-                || this.unpackTimer > 0 || this.unpackQueue.length > 0;
+                || this.balls.some(b => b.grow > 0);
             const hasEffects = this.popEffects.length > 0 || this.sparkles.length > 0 || this.balls.some(b => b.glow > 0.01 || b.popTimer > 0);
             const lidMoving = Math.abs(this.lidY) > 0.5 || Math.abs(this.lidVy) > 0.1 || this.lidRocking || Math.abs(this.lidAngle) > 0.006;
 
@@ -972,90 +966,46 @@ const DropJar = {
                 this.activeMerges.splice(i, 1);
                 this.mergeCooldown = 8;
 
-                // さいごの合体が終わったら、少しまってから 間引いていた粒をほどく
-                if (this.mergeQueue.length === 0 && this.balls.some(b => b.packed)) {
-                    this.unpackTimer = 45;
-                }
+                // 合体のたびに、間引いていた粒を少しずつ ほどく（さいごの合体で ちょうど ほんとうの数になる）
+                this.unpackSome();
             }
         }
-
-        if (this.unpackTimer > 0 && --this.unpackTimer === 0) {
-            this.unpackQueue = this.balls.filter(b => b.packed && !b.merging);
-            this.unpackDelay = 0;
-        }
-        // 1つぶずつ、少しずつ間をあけて ほどく
-        if (this.unpackQueue.length > 0 && --this.unpackDelay <= 0) {
-            this.unpackBall(this.unpackQueue.shift());
-            this.unpackDelay = this.UNPACK_INTERVAL;
-        }
     },
 
-    // 間引いていた粒（1つぶで何こ分かを packed に持っている）を、ほんとうの数の粒に ほどく
-    //   粒がキラッと光って、そのまわり（上がわの半円）に、残りの分の粒が小さく生まれて ゆっくり ふくらむ
-    unpackBall(b) {
-        const born = [];
-        {
-            const r = this.BASE_RADIUS;
-            b.packed.forEach((drop, k) => {
-                // 上がわの半円に、玉1つぶんずつ はなして並べる（1周目に3こ、2周目に6こ、3周目に9こ …）
-                let ring = 1, slot = k;
-                while (slot >= ring * 3) {
-                    slot -= ring * 3;
-                    ring++;
-                }
-                const slots = ring * 3;
-                const angle = Math.PI + (Math.PI * (slot + 0.5)) / slots + (Math.random() - 0.5) * 0.2;
-                const dist = r * 2.1 * ring;
-                const nb = this.newBall(drop, 1.0, 1);
-                nb.x = b.x + Math.cos(angle) * dist;
-                nb.y = b.y + Math.sin(angle) * dist;
-                if (nb.y < this.jar.shoulderBottom + r || !this.insideJar(nb.x, nb.y)) {
-                    nb.x = b.x;
-                    nb.y = b.y - r * 2;
-                }
-                nb.r = 3; // 小さく生まれて、ゆっくり ふくらむ
-                nb.grow = this.UNPACK_GROW;
-                const speed = 0.6 + Math.random() * 0.8;
-                nb.px = nb.x - Math.cos(angle) * speed;
-                nb.py = nb.y - Math.sin(angle) * speed;
-                nb.bounces = 0;
-                born.push(nb);
-            });
-            b.packed = null;
-            this.spawnUnpackEffect(b.x, b.y, b.r);
+    // 間引いていた粒（1つぶで何こ分かを packed に持っている）を、少しだけ ほんとうの数に もどす
+    //   のこりの数 ÷ のこりの合体の回数 だけ、粒のすぐ上に 小さく生まれて ゆっくり ふくらむ（キラキラは出さず、さりげなく）
+    unpackSome() {
+        const packed = this.balls.filter(b => b.packed && b.packed.length > 0 && !b.merging);
+        const remaining = packed.reduce((sum, b) => sum + b.packed.length, 0);
+        if (remaining === 0) return;
+        const count = Math.ceil(remaining / (this.mergeQueue.length + 1));
+        const r = this.baseR;
+        for (let n = 0; n < count; n++) {
+            // いちばん多く かかえている粒から ほどく
+            const b = packed.reduce((best, x) => ((x.packed ? x.packed.length : 0) > (best.packed ? best.packed.length : 0) ? x : best));
+            if (!b.packed) break;
+            const nb = this.newBall(b.packed.pop(), 1.0, 1);
+            if (b.packed.length === 0) b.packed = null; // ほどき終わった
+            nb.r = 3; // 小さく生まれて、ゆっくり ふくらむ
+            nb.grow = this.UNPACK_GROW;
+            nb.bounces = 0;
+            // 粒の上がわで、ほかの玉に いちばん重ならない向きに 生まれる
+            let best = null;
+            for (let k = 0; k < 7; k++) {
+                const angle = Math.PI + (Math.PI * (k + 0.5)) / 7;
+                const x = b.x + Math.cos(angle) * (b.r + 4);
+                const y = b.y + Math.sin(angle) * (b.r + 4);
+                if (y < this.jar.shoulderBottom + r || !this.insideJar(x, y)) continue;
+                const crowd = this.balls.reduce((sum, o) => sum + Math.max(0, o.r + 3 - Math.hypot(o.x - x, o.y - y)), 0);
+                if (!best || crowd < best.crowd) best = { x, y, crowd };
+            }
+            nb.x = best ? best.x : b.x;
+            nb.y = best ? best.y : b.y - b.r - 4;
+            nb.px = nb.x;
+            nb.py = nb.y;
+            this.balls.push(nb);
         }
-        if (born.length === 0) return;
-        this.balls.push(...born);
         this.updateRadii(false);
-        this.wakeAllBalls();
-        const now = performance.now();
-        this.settleDeadline = now + this.SETTLE_MS;
-        this.stopAt = Math.max(this.stopAt || 0, now + 3000);
-    },
-
-    // ほどけるときの、小さなキラキラ
-    spawnUnpackEffect(x, y, baseRadius) {
-        const palette = ['#ffffff', '#fff9b0', '#b8f2ff', '#ffd6f5'];
-        for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 * i) / 8 + (Math.random() - 0.5) * 0.4;
-            const speed = 1.2 + Math.random() * 1.6;
-            this.sparkles.push({
-                x: x + Math.cos(angle) * baseRadius * 0.4,
-                y: y + Math.sin(angle) * baseRadius * 0.4,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 0.3,
-                size: 3.5 + Math.random() * 3,
-                color: palette[i % palette.length],
-                rot: Math.random() * Math.PI,
-                vRot: (Math.random() - 0.5) * 0.12,
-                age: 0,
-                delay: 0,
-                maxAge: 50 + Math.floor(Math.random() * 30),
-                twinkleSpeed: 0.22 + Math.random() * 0.18,
-                phase: Math.random() * Math.PI * 2,
-                isStar: i % 2 === 0,
-            });
-        }
     },
 
     // 1こま進める：重力で動かしてから、重なりとびんの外を直す
