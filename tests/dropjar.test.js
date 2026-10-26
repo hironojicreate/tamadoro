@@ -3,6 +3,7 @@
 //   ・落ちてきたドロップが跳ねる（BOUNCE_ENABLED のとき）
 //   ・ずっと動きつづけない（最後の操作のあと、5秒の上限より前に止まる）
 //   ・ありえない位置で止まらない（びんの外・宙に浮いたまま・大きな重なり）
+//   ・止まったとき、コルクのふたが まっすぐ閉まっている
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://localhost:8765/';
 let failures = 0;
@@ -66,7 +67,7 @@ async function run(browser, sc, seed, bounce) {
         });
         if (!supported) floating++;
       });
-      resolve({ settleFrames: frame - lastShake, running: J.running, bounces, maxOverlap, outside, floating });
+      resolve({ settleFrames: frame - lastShake, running: J.running, bounces, maxOverlap, outside, floating, lidClosed: J.lidY === 0 && J.lidAngle === 0 && !J.lidRocking });
     }, 50));
   }, { shakes: sc.shakes, bounce });
   await page.close();
@@ -83,6 +84,7 @@ async function run(browser, sc, seed, bounce) {
       ok(!r.running && r.settleFrames < 240, `${label}：止まる（${r.settleFrames}コマ）`);
       ok(r.outside === 0 && r.floating === 0, `${label}：びんの外・宙に浮いた玉がない（外${r.outside}・浮く${r.floating}）`);
       ok(r.maxOverlap < 0.5, `${label}：大きな重なりがない（${r.maxOverlap.toFixed(2)}）`);
+      ok(r.lidClosed, `${label}：ふたが まっすぐ閉まっている`);
       if (sc.n > 0) ok(r.bounces > 0, `${label}：跳ねる（${r.bounces}かい）`);
       ok(r.errors.length === 0, `${label}：エラーなし ${r.errors.join(' / ')}`);
     }

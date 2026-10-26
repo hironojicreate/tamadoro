@@ -354,7 +354,12 @@ const DropJar = {
     lidVy: 0,               // コルクのふたの速度
     lidAngle: 0,            // コルクのふたの傾き角度（ラジアン）
     lidVa: 0,               // コルクのふたの角速度
-    lidRocking: false,      // ふたが閉まる瞬間のなじみ中か
+    lidRocking: false,      // ふたが落ちてきて、まだ おさまっていないか
+    lidHits: 0,             // ふたの角が、口のふちに当たった回数（開くたびに数えなおす）
+    lidBounced: false,      // ふたが口にはまって、小さく跳ねたか
+    LID_PLUG: 14,           // コルクの、口に差しこむ部分の長さ（px）
+    LID_ALIGN: 0.07,        // これより傾いていると、口のふちに当たって跳ねかえる（ラジアン）
+    LID_MAX_HITS: 3,        // ふちに当たって跳ねかえるのは、この回数まで（そのあとは すべりこむ）
     baseR: 10.8,            // 個数に応じて自動調整された現在の基準半径
     mergeQueue: [],         // タッチで1つずつ発動する合体予約リスト
     pendingMerges: 0,       // ユーザーのクリックによって発動待機中の合体数
@@ -459,6 +464,8 @@ const DropJar = {
         this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.20;
         this.lidVa = 0;
         this.lidRocking = false;
+        this.lidHits = 0;
+        this.lidBounced = false;
 
         const packedBalls = this.balls.slice(0, this.balls.length - falling);
         const fallingBalls = this.balls.slice(this.balls.length - falling);
@@ -654,9 +661,9 @@ const DropJar = {
 
         this.jarKick = (Math.random() < 0.5 ? -1 : 1) * Math.min(0.08, 0.02 + this.heat * 0.006);
         this.lidVy = -Math.min(24, 8 + this.heat * 2.2);
-        this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.22;
-        this.lidVa = 0;
         this.lidRocking = false;
+        this.lidHits = 0;
+        this.lidBounced = false;
 
         const { bottom } = this.inner;
 
@@ -985,7 +992,7 @@ const DropJar = {
             }
         });
 
-        // コルクのふたの動き（落下中に傾きを整え、着地したら往復振動せずコトンと一発で閉まる）
+        // コルクのふたの動き（stepLid）
         //   跳ね返りがあるときは、上向きに動いている玉は、いまの速さで ふたの高さまで届くとき
         //   （いちばん高い所が びんの口より上になるとき）だけ数える（びんの中で跳ねているだけの玉では、ふたは浮かない）
         const anyOut = balls.some(b => {
@@ -995,43 +1002,7 @@ const DropJar = {
             if (!this.BOUNCE_ENABLED) return vy < -2.5;
             return vy < -2.5 && b.y - b.r - (vy * vy) / (2 * 0.52) < top - 4;
         });
-        if (anyOut || this.heat > 1.0) {
-            this.lidRocking = false;
-            this.lidVy -= 1.6;
-            this.lidY += this.lidVy;
-            if (this.lidY <= -60) {
-                this.lidY = -60;
-                this.lidVy = 0;
-            }
-            // 閉まりかけていたふたが、びんの口より下に入りこまないようにする
-            if (this.BOUNCE_ENABLED && this.lidY > 0) {
-                this.lidY = 0;
-                this.lidVy = 0;
-            }
-            const targetTilt = (this.lidAngle >= 0 ? 1 : -1) * 0.20;
-            this.lidAngle += (targetTilt - this.lidAngle) * 0.12;
-        } else if (this.lidY < 0 || this.lidVy < 0) {
-            this.lidRocking = false;
-            this.lidVy += 0.65;
-            this.lidY += this.lidVy;
-            if (this.lidY > -28) {
-                this.lidAngle *= 0.82;
-            }
-            if (this.lidY >= 0) {
-                this.lidY = 0;
-                this.lidVy = 0;
-                this.lidVa = 0;
-                this.lidAngle = (this.lidAngle >= 0 ? 1 : -1) * Math.min(0.06, Math.abs(this.lidAngle));
-                this.lidRocking = true;
-            }
-        } else if (this.lidRocking) {
-            this.lidAngle *= 0.52;
-            if (Math.abs(this.lidAngle) < 0.006) {
-                this.lidAngle = 0;
-                this.lidVa = 0;
-                this.lidRocking = false;
-            }
-        }
+        this.stepLid(anyOut || this.heat > 1.0);
 
         // 停止時刻（settleDeadline）が近づくにつれて減衰を強め、ぷるぷるを残さず滑らかに完全停止へ導く
         const timeRemaining = Math.max(0, (this.settleDeadline || (performance.now() + 1000)) - performance.now());
@@ -1355,6 +1326,76 @@ const DropJar = {
             const q = closestOnSegment(b.x, b.y, s);
             return Math.hypot(b.x - q.x, b.y - q.y) < b.r + 1;
         });
+    },
+
+    // コルクのふた（1ステップぶん）
+    //   口に差しこむ部分（LID_PLUG）が口から抜けるまでは、まっすぐ上下にしか動かない。抜けたら 回りながら飛ぶ
+    //   落ちてきて口のふちに当たったとき、傾きが大きいと 角がふちに当たって跳ねかえり、傾きがなおる（LID_MAX_HITS 回まで）
+    //   傾きが小さければ 口にすべりこみ、コトンと小さく1回跳ねて おさまる
+    stepLid(pushed) {
+        const PLUG = this.LID_PLUG;
+        const wasOut = this.lidY < -PLUG;
+        if (pushed) {
+            // とび出す玉に押されて、ふたが開いていく
+            this.lidRocking = false;
+            this.lidVy -= 1.6;
+            this.lidY += this.lidVy;
+            if (this.lidY <= -60) {
+                this.lidY = -60;
+                this.lidVy = 0;
+            }
+            if (this.lidY > 0) {
+                this.lidY = 0;
+                this.lidVy = 0;
+            }
+        } else if (this.lidY < 0 || this.lidVy < 0) {
+            // 落ちてくる
+            this.lidRocking = true;
+            this.lidVy += 0.65;
+            const nextY = this.lidY + this.lidVy;
+            if (this.lidY < -PLUG && nextY >= -PLUG) {
+                // 差しこむ部分の先が、口のふちに とどいた
+                if (Math.abs(this.lidAngle) > this.LID_ALIGN && this.lidHits < this.LID_MAX_HITS) {
+                    // 傾いているので、角がふちに当たって 跳ねかえる（傾きは 水平にもどる向きに回る）
+                    this.lidHits++;
+                    this.lidY = -PLUG;
+                    this.lidVy = -Math.min(6, this.lidVy * 0.35);
+                    this.lidVa = -this.lidAngle * 0.12;
+                    this.lidAngle *= 0.55;
+                } else {
+                    // まっすぐなので、口にすべりこむ（こすれて少しおそくなる）
+                    this.lidY = nextY;
+                    this.lidVy *= 0.7;
+                }
+            } else {
+                this.lidY = nextY;
+            }
+            if (this.lidY >= 0) {
+                // 口にはまった。速ければ小さく1回跳ねる
+                if (this.lidVy > 2.5 && !this.lidBounced) {
+                    this.lidBounced = true;
+                    this.lidY = 0;
+                    this.lidVy = -this.lidVy * 0.25;
+                } else {
+                    this.lidY = 0;
+                    this.lidVy = 0;
+                    this.lidRocking = false;
+                }
+            }
+        }
+        // 傾き：口に差しこまれているあいだは まっすぐ。抜けているあいだは 回る
+        if (this.lidY < -PLUG) {
+            if (!wasOut && pushed && this.lidVa === 0) {
+                this.lidVa = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.006);
+            }
+            // 空気にじゃまされて、回る勢いは だんだん弱まる（傾きは 0.2〜0.4 くらいまで）
+            this.lidAngle = Math.max(-0.4, Math.min(0.4, this.lidAngle + this.lidVa));
+            this.lidVa *= 0.97;
+        } else {
+            this.lidAngle *= 0.5;
+            this.lidVa = 0;
+            if (Math.abs(this.lidAngle) < 0.004) this.lidAngle = 0;
+        }
     },
 
     // 止まっている玉のうち、ビンの底にも、下にある玉にも触れていないものを、また動かす
