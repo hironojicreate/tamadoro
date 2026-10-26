@@ -707,7 +707,7 @@ button.no-weak .weak-badge {
     background-color: #43a047;
 }
 
-/* まだ一度もあそんでいないレベルは、にがてちょうせんでは押せない */
+/* にがてな問題がないレベルは、にがてちょうせんでは押せない */
 #openingScreen.weak-mode-active .select-level-buttons button:disabled {
     filter: grayscale(0.8);
     opacity: 0.5;

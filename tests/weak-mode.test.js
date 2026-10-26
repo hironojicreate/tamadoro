@@ -44,7 +44,7 @@ async function openPage(browser, path, storage = {}) {
     const { page, errors } = await openPage(browser, 'index.html#/sub', seed);
     await page.click('#toggleWeakMode'); await page.waitForTimeout(200);
     ok(!(await page.$eval('#levelSpecial', e => e.disabled)), 'にがてがあると特訓コースを押せる');
-    ok(!(await page.$eval('#level1', e => e.disabled)), 'あそんだことがある Lv1 は押せる');
+    ok(!(await page.$eval('#level1', e => e.disabled)), 'にがてがある Lv1 は押せる');
     await page.click('#levelSpecial'); await page.waitForTimeout(900);
     ok(await page.evaluate(() => problemState.patterns.length) === 12, '特訓コースは12問');
     for (let i = 0; i < 12; i++) {
@@ -56,6 +56,22 @@ async function openPage(browser, path, storage = {}) {
     ok(last.drop && last.weakChallenge && last.ms === null, `ドロップはもらえて、タイムは記録しない ${JSON.stringify(last)}`);
     ok(await page.evaluate(() => JSON.parse(localStorage.getItem('sub_coins_1')).length) === 2, 'レベル選択画面のドロップもふえる');
     ok(await page.evaluate(() => localStorage.getItem('subtraction_level_1_best_time')) === null, 'ベストタイムは記録しない');
+    ok(errors.length === 0, 'エラーなし ' + errors.join(' / '));
+    await page.close();
+  }
+
+  // あそんだことはあるけれど、にがてがないレベルも押せない
+  {
+    const seed = {
+      sub_coins_1: JSON.stringify([{ image: '/img/Lmaru.png', date: '1/2' }]),
+      'tamadoro.stats.v1': JSON.stringify({ sub: { '5-2': { n: 3, miss: 0, ms: 6000, hp: 0 } } }),
+    };
+    const { page, errors } = await openPage(browser, 'index.html#/sub', seed);
+    await page.click('#toggleWeakMode'); await page.waitForTimeout(200);
+    ok(await page.$eval('#level1', e => e.disabled), 'にがてがない Lv1 は押せない');
+    const before = await page.evaluate(() => History.getLog().length);
+    await page.click('#level1', { force: true }); await page.waitForTimeout(900);
+    ok(await page.isVisible('#openingScreen') && await page.evaluate(() => History.getLog().length) === before, '押しても問題がはじまらない');
     ok(errors.length === 0, 'エラーなし ' + errors.join(' / '));
     await page.close();
   }
