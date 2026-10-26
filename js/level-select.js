@@ -102,6 +102,8 @@ function updateWeakBadges() {
         const weakCount = getWeakPatternsForLevel(level).length;
         btn.classList.toggle('has-weak', isWeakMode && weakCount > 0);
         btn.classList.toggle('no-weak', isWeakMode && weakCount === 0);
+        // にがてちょうせん中は、まだ一度もあそんでいないレベルは押せない
+        btn.disabled = isWeakMode && !hasPlayedLevel(level);
 
         if (isWeakMode) {
             const badge = document.createElement('span');
@@ -148,6 +150,7 @@ function renderLevelButtons() {
         button.id = `level${level}`;
         button.textContent = def.label;
         button.addEventListener('click', () => {
+            if (isWeakMode && !hasPlayedLevel(level)) return;
             resetTamaTalk();
             const title = (def.title || def.label) + (isWeakMode ? '【🔥にがて】' : '');
             switchLevel(level, title);

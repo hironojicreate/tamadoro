@@ -26,6 +26,11 @@ async function openPage(browser, path, storage = {}) {
     await page.click('#levelSpecial', { force: true }); await page.waitForTimeout(1200);
     ok(await page.isVisible('#openingScreen') && await page.$eval('#completionModal', e => e.style.display) !== 'flex', `${mode}：押しても問題がはじまらない`);
     ok(await page.evaluate(() => History.getLog().length) === 0, `${mode}：ドロップも記録もふえない`);
+    ok(await page.$eval('#level1', e => e.disabled), `${mode}：まだあそんでいない Lv1 は押せない`);
+    await page.click('#level1', { force: true }); await page.waitForTimeout(900);
+    ok(await page.isVisible('#openingScreen') && await page.evaluate(() => History.getLog().length) === 0, `${mode}：押しても問題がはじまらない（Lv1）`);
+    await page.click('#toggleWeakMode'); await page.waitForTimeout(200);
+    ok(!(await page.$eval('#level1', e => e.disabled)), `${mode}：にがてちょうせんを終わると Lv1 を押せる`);
     ok(errors.length === 0, 'エラーなし ' + errors.join(' / '));
     await page.close();
   }
@@ -39,6 +44,7 @@ async function openPage(browser, path, storage = {}) {
     const { page, errors } = await openPage(browser, 'index.html#/sub', seed);
     await page.click('#toggleWeakMode'); await page.waitForTimeout(200);
     ok(!(await page.$eval('#levelSpecial', e => e.disabled)), 'にがてがあると特訓コースを押せる');
+    ok(!(await page.$eval('#level1', e => e.disabled)), 'あそんだことがある Lv1 は押せる');
     await page.click('#levelSpecial'); await page.waitForTimeout(900);
     ok(await page.evaluate(() => problemState.patterns.length) === 12, '特訓コースは12問');
     for (let i = 0; i < 12; i++) {

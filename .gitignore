@@ -1,0 +1,5 @@
+# Mac が自動でつくるファイル
+.DS_Store
+
+# テストで入れるもの
+node_modules/
