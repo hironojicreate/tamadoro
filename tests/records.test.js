@@ -65,7 +65,13 @@ const ok = (cond, msg) => { console.log((cond ? 'PASS ' : 'FAIL ') + msg); if (!
   await page.click('#goToRecords'); await page.waitForTimeout(1200);
   ok(page.url().endsWith('#/records/add') && await page.$eval('#recordsScreen', e => e.style.display) === 'block', 'きろく画面へ');
   ok(await page.$eval('#dropTotal', e => e.textContent) === 'ぜんぶで 4 こ', `ドロップびん: ${await page.$eval('#dropTotal', e => e.textContent)}`);
-  ok(await page.$eval('.calendar-day.today', e => e.querySelectorAll('img').length) === 2, 'カレンダー：きょうのドロップ2こ');
+  ok(await page.$eval('.calendar-day.today', e => e.querySelectorAll('.calendar-drops img').length) === 2, 'カレンダー：きょうのドロップ2こ');
+  ok(!(await page.isVisible('.calendar-day.today .calendar-count')), 'カレンダー：広い画面では ドロップを並べる');
+  const vp = page.viewportSize();
+  await page.setViewportSize({ width: 768, height: 1024 }); await page.waitForTimeout(300);
+  ok(await page.isVisible('.calendar-day.today .calendar-count') && !(await page.isVisible('.calendar-day.today .calendar-drops'))
+    && (await page.$eval('.calendar-day.today .calendar-count', e => e.textContent)) === '×2', 'カレンダー：せまい画面では「×2」');
+  await page.setViewportSize(vp); await page.waitForTimeout(300);
   ok(await page.$eval('#levelRecords tr:first-child', e => e.textContent.includes('4かい')), 'Lv1 のクリア4かい（取りこみ2＋クリア2）');
   ok((await page.$$('#levelRecords tr:first-child .spark-dot')).length === 2, 'タイムのグラフに2てん');
   ok((await page.$$('.weak-grid')).length === 1 && (await page.$$('#weakList li')).length === 1, 'にがてマップと、にがてな問題');

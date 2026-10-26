@@ -74,6 +74,11 @@ const Records = {
                 box.insertAdjacentHTML('beforeend', `<span class="calendar-more">+${drops.length - shown.length}</span>`);
             }
             cell.appendChild(box);
+            // マスがせまいときは、ドロップを並べるかわりに「さいごのドロップ ×こ数」を出す（css/records.css）
+            if (drops.length > 0) {
+                cell.insertAdjacentHTML('beforeend',
+                    `<div class="calendar-count"><img src="${dropSrc(drops[drops.length - 1])}" alt="">×${drops.length}</div>`);
+            }
             if (drops.length > 0) {
                 cell.title = `${month + 1}/${day}：ドロップ ${drops.length}こ`;
             }
