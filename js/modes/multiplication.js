@@ -17,8 +17,8 @@
         );
     }
     levels.push(
-        { label: '子オニ（青）', patterns: () => P.pairs(1, 5, 1, 9) },
-        { label: '子オニ（赤）', patterns: () => P.pairs(6, 9, 1, 9) },
+        { label: '子オニ（青）', comment: '1～5のだん バラバラ', patterns: () => P.pairs(1, 5, 1, 9) },
+        { label: '子オニ（赤）', comment: '6～9のだん バラバラ', patterns: () => P.pairs(6, 9, 1, 9) },
         { label: 'オニ（黒）', patterns: () => P.pairs(1, 9, 1, 9) }
     );
     levels.forEach((level, i) => { level.drop = DROP_ORDER[i % DROP_ORDER.length]; });

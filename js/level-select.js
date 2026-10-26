@@ -118,6 +118,8 @@ function updateWeakBadges() {
         specialPair.style.display = isWeakMode ? 'flex' : 'none';
         const specialBtn = document.getElementById('levelSpecial');
         if (specialBtn) {
+            // にがてな問題が1つもない（まだ あそんでいない など）ときは押せない
+            specialBtn.disabled = allWeak.length === 0;
             specialBtn.innerHTML = allWeak.length > 0
                 ? `👑 特訓コース <span class="weak-badge">🔥${allWeak.length}</span>`
                 : `👑 特訓コース <span class="weak-badge">✨</span>`;
@@ -180,6 +182,7 @@ function renderLevelButtons() {
         specialBtn.className = 'special-course-btn';
         specialBtn.textContent = '👑 特訓コース';
         specialBtn.addEventListener('click', () => {
+            if (getAllUnlockedWeakPatterns().length === 0) return;
             resetTamaTalk();
             const countText = (typeof WEAK_DECK_STYLE !== 'undefined' && WEAK_DECK_STYLE === 'blend') ? '15もん' : '12もん';
             switchLevel(0, `👑 特訓コース【全レベルから${countText}】`);

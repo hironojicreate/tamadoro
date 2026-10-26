@@ -153,54 +153,6 @@ html[data-mode="hundredgrid"] #openingScreen .title-hundredgrid {
 }
 
 
-/* ---------- 画面移動ボタン ---------- */
-/*
-#goToIndex {
-    position: fixed;
-    right: 5px;
-    bottom: 35px; 
-    background-color: rgba(34, 193, 195, 0.7);
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    font-size: 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.3s, transform 0.3s;
-}
-
-#goToIndex:hover {
-    background-color: rgba(34, 153, 155, 0.8);
-    transform: scale(1.05);
-}
-
-#goToIndex:active {
-    background-color: rgba(26, 122, 123, 0.8);
-    transform: scale(0.95);
-}
-#goToAdd,
-#goToSub {
-    position: fixed;
-    right: 5px;
-    bottom: 35px;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    font-size: 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.3s, transform 0.3s;
-}
-#goToAdd { background-color: rgba(255, 99, 71, 0.7); }
-#goToAdd:hover { background-color: rgba(255, 69, 58, 0.8); transform: scale(1.05); }
-#goToAdd:active { background-color: rgba(204, 55, 46, 0.8); transform: scale(0.95); }
-#goToSub { background-color: rgba(0, 123, 255, 0.7); }
-#goToSub:hover { background-color: rgba(0, 86, 179, 0.8); transform: scale(1.05); }
-#goToSub:active { background-color: rgba(0, 68, 148, 0.8); transform: scale(0.95); }
-*/
-
 footer {
     position: fixed;
     bottom: 0;
@@ -626,18 +578,6 @@ html[data-mode="hundredgrid"] .drill-only {
     display: none;
 }
 
-/* 移動ボタン：たしざん ⇔ ひきざん だけ、となりのモードへのボタンがある */
-/*
-#goToAdd,
-#goToSub {
-    display: none;
-}
-html[data-mode="add"] #goToSub,
-html[data-mode="sub"] #goToAdd {
-    display: inline-block;
-}
-    */
-
 #dataModal { z-index: 3; }
 #deleteModal { z-index: 1000; }
 
@@ -778,6 +718,15 @@ button.no-weak .weak-badge {
     color: #4e342e !important;
     font-weight: bold;
     box-shadow: 0 4px 12px rgba(255, 111, 0, 0.4);
+}
+
+/* にがてな問題がないときは押せない */
+#openingScreen.weak-mode-active button.special-course-btn:disabled {
+    filter: grayscale(0.8);
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 /* ================= 左上の歯車ボタン（セーブ・設定） ================= */
