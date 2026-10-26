@@ -11,7 +11,7 @@ const ok = (cond, msg) => { console.log((cond ? 'PASS ' : 'FAIL ') + msg); if (!
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED/.test(m.text())) errors.push(m.text()); });
-  await page.route(/gstatic|googleapis|jsdelivr/, r => r.abort());
+  await page.route(/gstatic|googleapis|googletagmanager|jsdelivr/, r => r.abort());
   await page.addInitScript(() => {
     if (sessionStorage.seeded) return; sessionStorage.seeded = 1;
     localStorage.setItem('add_coins_1', JSON.stringify([{ image: '/img/Lmaru.png', date: '1/2' }, { image: '/img/Gmaru.png' }]));

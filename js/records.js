@@ -1461,13 +1461,13 @@ dropJarEl.style.touchAction = 'none';
 dropJarEl.style.webkitUserSelect = 'none';
 dropJarEl.style.userSelect = 'none';
 
-// ② タッチ端末（iPad / iPhone / Android）は touchstart で即座に拡大を阻止して揺らす
+// ② タッチ端末（iPad / iPhone / Android）は touchstart で即座に拡大を阻止して反応させる（合体 → ぜんぶ合体したら ふたが開く）
 dropJarEl.addEventListener('touchstart', (e) => {
     e.preventDefault(); // iPadのダブルタップ拡大を完全に防ぐ
     DropJar.shake();
 }, { passive: false });
 
-// ③ PCのマウスクリック用（タッチのときは ② が動くので二重に揺れないようにする）
+// ③ PCのマウスクリック用（タッチのときは ② が動くので二重に反応しないようにする）
 dropJarEl.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch') return;
     e.preventDefault();

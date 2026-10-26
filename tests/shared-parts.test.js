@@ -9,7 +9,7 @@ async function openPage(ctx, path, storage = {}) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED/.test(m.text())) errors.push(m.text()); });
-  await page.route(/gstatic|googleapis|jsdelivr/, r => r.abort());
+  await page.route(/gstatic|googleapis|googletagmanager|jsdelivr/, r => r.abort());
   await page.addInitScript(s => { if (!sessionStorage.seeded) { for (const k in s) localStorage.setItem(k, s[k]); sessionStorage.seeded = 1; } }, storage);
   await page.goto(BASE + path); await page.waitForTimeout(500);
   return { page, errors };
@@ -23,7 +23,7 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
   // セーブ（各ページ・index）→ index でロード
   {
     const ctx = await newCtx();
-    const { page, errors } = await openPage(ctx, 'tamasubdrops.html', { sub_coins_1: JSON.stringify([{ image: '/img/Lmaru.png', date: '1/2' }]) });
+    const { page, errors } = await openPage(ctx, 'index.html#/sub', { sub_coins_1: JSON.stringify([{ image: '/img/Lmaru.png', date: '1/2' }]) });
     await page.click('#openDataModal');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportData')]);
     ok(/^tamadoro_\d{8}\.txt$/.test(dl.suggestedFilename()), `セーブのファイル名 ${dl.suggestedFilename()}`);
@@ -41,8 +41,8 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     ok(await idx.$eval('#notification', e => e.textContent) === 'データをよみこみました。', 'ロードの通知');
     ok(await idx.$eval('#dataModal', e => e.style.display) === 'none', 'ロード後にモーダルが閉じる');
     // 読み込んだデータでひきざんページの Lv2 はまだロック、ドロップ表示はある
-    const p2 = await ctx2.newPage(); await p2.route(/gstatic|googleapis|jsdelivr/, r => r.abort());
-    await p2.goto(BASE + 'tamasubdrops.html'); await p2.waitForTimeout(400);
+    const p2 = await ctx2.newPage(); await p2.route(/gstatic|googleapis|googletagmanager|jsdelivr/, r => r.abort());
+    await p2.goto(BASE + 'index.html#/sub'); await p2.waitForTimeout(400);
     ok(await p2.$$eval('#coins1 .main-reward-coin', l => l.length) === 1, 'ロードしたドロップがメニューに出る');
     ok(e2.length === 0, 'index エラーなし ' + e2.join(' / '));
     await ctx.close(); await ctx2.close();
@@ -51,7 +51,7 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
   // たしざん：/rescue で Lv11 まで → Lv10 に5個
   {
     const ctx = await newCtx();
-    const { page, errors } = await openPage(ctx, 'tamaadddrops.html');
+    const { page, errors } = await openPage(ctx, 'index.html#/add');
     await page.click('#openDataModal'); await command(page, '/rescue');
     ok(await page.$eval('#rescueModal', e => e.style.display) === 'block', '/rescue でモーダル');
     await page.$eval('#levelSlider', e => { e.value = 11; e.dispatchEvent(new Event('input')); });
@@ -85,7 +85,7 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
   {
     const ctx = await newCtx();
     const seed = {}; for (let l = 1; l <= 9; l++) seed[`add_coins_${l}`] = JSON.stringify([{ image: '/img/Lmaru.png' }, { image: '/img/Lmaru.png' }, { image: '/img/Lmaru.png' }]);
-    const { page, errors } = await openPage(ctx, 'tamaadddrops.html', seed);
+    const { page, errors } = await openPage(ctx, 'index.html#/add', seed);
     await page.click('#level10'); await page.waitForTimeout(900);
     const total = await page.evaluate(() => MODES.add.levels[9].patterns().length);
     for (let i = 0; i < total; i++) {
@@ -106,13 +106,13 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
   // タマをこするとしゃべる
   {
     const ctx = await newCtx();
-    const { page } = await openPage(ctx, 'tamamultidrops.html');
+    const { page } = await openPage(ctx, 'index.html#/multi');
     const box = await page.$eval('#touchArea', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
     // ねこの上で押して、左右に こする（はじめて開いた画面でも、すぐに反応する）
     await page.mouse.move(box.x - 40, box.y); await page.mouse.down();
-    for (let i = 0; i < 3; i++) { await page.mouse.move(box.x + 40, box.y, { steps: 4 }); await page.mouse.move(box.x - 40, box.y, { steps: 4 }); }
+    for (let i = 0; i < 5; i++) { await page.mouse.move(box.x + 40, box.y, { steps: 4 }); await page.mouse.move(box.x - 40, box.y, { steps: 4 }); }
     await page.mouse.up(); await page.waitForTimeout(300);
-    ok((await page.$$('.speech-bubble')).length === 1, 'こするとタマがしゃべる（3往復で）');
+    ok((await page.$$('.speech-bubble')).length === 1, 'こするとタマがしゃべる（5往復で）');
     await ctx.close();
   }
 
@@ -120,7 +120,7 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
   {
     const ctx = await newCtx();
     const seed = { hundredgrid_coins_3: JSON.stringify(Array(3).fill({ image: '/img/Bmaru.png' })), hundredgrid_level_1_best_time: '30', hundredgrid_level_1_correct_count: '320', hundredgrid_level_1_records: '[]', customize_level6_sliders: '{"custom-rows":"4"}' };
-    const { page, errors } = await openPage(ctx, 'tamahundredgrid.html', seed);
+    const { page, errors } = await openPage(ctx, 'index.html#/hundredgrid', seed);
     ok(await page.isVisible('button#level5'), '百マス Lv5：正答数300以上で解放');
     ok(await page.isVisible('button#level6'), '百マス Lv6：Lv3 のドロップ3個で解放');
     await page.click('button#level6'); await page.waitForTimeout(800);

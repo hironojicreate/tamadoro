@@ -10,7 +10,7 @@ const ok = (cond, msg) => { console.log((cond ? 'PASS ' : 'FAIL ') + msg); if (!
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/ERR_FAILED/.test(m.text())) errors.push(m.text()); });
-  await page.route(/gstatic|googleapis|jsdelivr/, r => r.abort());
+  await page.route(/gstatic|googleapis|googletagmanager|jsdelivr/, r => r.abort());
   await page.addInitScript(() => {
     if (sessionStorage.seeded) return; sessionStorage.seeded = 1;
     for (let l = 1; l <= 10; l++) localStorage.setItem(`sub_coins_${l}`, JSON.stringify(Array(5).fill({ image: '/img/Lmaru.png' })));
@@ -20,7 +20,7 @@ const ok = (cond, msg) => { console.log((cond ? 'PASS ' : 'FAIL ') + msg); if (!
   const type = async n => { if (n >= 10) { await page.keyboard.press(String(Math.floor(n / 10))); await page.keyboard.press(String(n % 10)); } else await page.keyboard.press(String(n)); };
 
   await page.goto(BASE); await page.waitForTimeout(300);
-  ok(await page.$eval('#homeScreen footer', e => e.textContent.replace(/\s+/g, ' ').trim()) === '© 2026 Rela All rights reserved. Ver.6.0.0', 'フッターの表記');
+  ok(await page.$eval('#homeScreen footer', e => e.textContent.replace(/\s+/g, ' ').trim()) === '© 2024＞2026- Rela All rights reserved. Ver.6.3.3', 'フッターの表記');
 
   // たしざん Lv1 をクリア → ご褒美のあとはキーを受けつけない → もういちどで受けつける
   await page.evaluate(() => { location.hash = '#/add'; }); await page.waitForTimeout(300);

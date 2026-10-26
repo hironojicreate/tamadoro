@@ -1,6 +1,6 @@
 // プレイの記録
 //   tamadoro.log.v1    1回あそぶごとの記録（いつ・どのレベル・かかった時間・まちがい・もらったドロップ）
-//   tamadoro.stats.v1  1問ごとのできぐあい（モードごと・問題ごとに、回数・まちがい・かかった時間の合計）
+//   tamadoro.stats.v1  1問ごとのできぐあい（モードごと・問題ごとに、回数・まちがい・かかった時間の合計・苦手HP）
 // ドロップの保存（add_coins_3 など）は今までどおり。こちらは「きろく」画面のための記録
 
 const History = {
@@ -14,9 +14,10 @@ const History = {
 
     // ---------- 1回ごとの記録 ----------
 
-    // [{ t, mode, level, ms, total, miss, cleared, drop, paused }, ...]（古い順）
+    // [{ t, mode, level, ms, total, miss, cleared, drop, paused, weakChallenge }, ...]（古い順）
     //   t: 終わった時刻（ミリ秒）、drop: もらったドロップの画像名（もらえなかったら null）
-    //   paused: true は、とちゅうで手をとめた（INVALID_MS より長くかかった問題があった）回
+    //   paused: true は、とちゅうで手をとめた（INVALID_MS より長くかかった問題があった）回。にがてちょうせんの回も true
+//   weakChallenge: true は、にがてちょうせん（特訓コースをふくむ）の回（ms: null・cleared: false で記録し、タイムには入れない）
     //   imported: true は、記録をはじめる前のドロップ（日付はだいたい・時間なし）
     getLog() {
         return TamaStore.readJSON(this.LOG_KEY, []);
@@ -83,14 +84,14 @@ const History = {
     },
 
     // にがてちょうせんモードの「2段階卒業」判定：
-    //   1回の挑戦で3回ともノーミス＆平均3.5秒以内ならHPを1段階削る
+    //   1回の挑戦で4回ともノーミス＆平均3.5秒以内ならHPを1段階削る
     //   戻り値：'graduated'（完全卒業！） / 'step1'（あとすこし！） / null（対象外）
     graduateWeakProblem(modeId, key) {
         const stats = TamaStore.readJSON(this.STATS_KEY, {});
         const stat = stats[modeId] && stats[modeId][key];
         if (!stat) return null;
 
-        // 4問解く間に recordProblem で最大 -8 されているため、
+        // 4回解く間に recordProblem で最大 -8 されているため、
         // クリア時点で hp > 4（挑戦前のHPが12超＝大苦手）なら第1段階（hp = 8）で止め、
         // 次回の挑戦（hp = 8 からスタート）で完全卒業（hp = 0）にする
         if (stat.hp > 4) {
