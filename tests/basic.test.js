@@ -8,11 +8,11 @@ async function openPage(browser, path, storage = {}) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.route(/gstatic|googleapis|jsdelivr/, r => r.abort());
+  await page.route(/gstatic|googleapis|googletagmanager|jsdelivr/, r => r.abort());
   await page.addInitScript(s => { if (!sessionStorage.seeded) { for (const k in s) localStorage.setItem(k, s[k]); sessionStorage.seeded = 1; } }, storage);
   await page.goto(BASE + path);
   await page.waitForTimeout(500);
-  return { page, errors: () => errors.filter(e => !/gstatic|googleapis|jsdelivr|ERR_FAILED/.test(e)) };
+  return { page, errors: () => errors.filter(e => !/gstatic|googleapis|googletagmanager|jsdelivr|ERR_FAILED/.test(e)) };
 }
 const press = (page, k) => page.keyboard.press(String(k));
 const answer = async page => page.evaluate(() => problemState.answer);
@@ -27,7 +27,7 @@ async function answerCorrect(page) {
   const browser = await chromium.launch();
 
   // 1. 全ページがエラーなく開く
-  for (const p of ['index.html', 'tamaadddrops.html', 'tamasubdrops.html', 'tamamultidrops.html', 'tamahundredgrid.html']) {
+  for (const p of ['index.html', 'index.html#/add', 'index.html#/sub', 'index.html#/multi', 'index.html#/hundredgrid']) {
     const { page, errors } = await openPage(browser, p);
     ok(errors().length === 0, `${p} はエラーなく開く ${errors().join(' / ')}`);
     await page.close();
@@ -35,7 +35,7 @@ async function answerCorrect(page) {
 
   // 2. メニュー画面で数字キーを押しても何も起きない
   {
-    const { page, errors } = await openPage(browser, 'tamaadddrops.html');
+    const { page, errors } = await openPage(browser, 'index.html#/add');
     for (let i = 0; i < 8; i++) { await press(page, i % 10); await page.waitForTimeout(30); }
     await page.waitForTimeout(900);
     ok(await page.$eval('#mistakeModal', e => e.style.display) !== 'flex', 'メニューでキーを押してもミスモーダルが出ない');
@@ -47,7 +47,7 @@ async function answerCorrect(page) {
   // 3. たしざん Lv9（2けた）：十の位のミスが数えられる
   {
     const seed = {}; for (let l = 1; l <= 8; l++) seed[`add_coins_${l}`] = JSON.stringify([{ image: '/img/Lmaru.png' }, { image: '/img/Lmaru.png' }, { image: '/img/Lmaru.png' }]);
-    const { page, errors } = await openPage(browser, 'tamaadddrops.html', seed);
+    const { page, errors } = await openPage(browser, 'index.html#/add', seed);
     ok(await page.isVisible('#level9'), 'Lv9 が解放されている（既存データ互換）');
     await page.click('#level9'); await page.waitForTimeout(900);
     const a = await answer(page);
@@ -74,7 +74,7 @@ async function answerCorrect(page) {
 
   // 4. たしざん Lv1 を全問正解 → クリア、ドロップ保存
   {
-    const { page, errors } = await openPage(browser, 'tamaadddrops.html');
+    const { page, errors } = await openPage(browser, 'index.html#/add');
     await page.click('#level1'); await page.waitForTimeout(900);
     for (let i = 0; i < 6; i++) await answerCorrect(page);
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv1 クリアモーダル');
@@ -86,7 +86,7 @@ async function answerCorrect(page) {
 
   // 5. ひきざん：間違いの表示が「は と」にならない
   {
-    const { page, errors } = await openPage(browser, 'tamasubdrops.html');
+    const { page, errors } = await openPage(browser, 'index.html#/sub');
     await page.click('#level1'); await page.waitForTimeout(900);
     const a = await answer(page);
     await press(page, (a + 1) % 10); await page.waitForTimeout(100);
@@ -98,7 +98,7 @@ async function answerCorrect(page) {
 
   // 6. かけざん：3回でミスモーダル、ノーミスでクリア、rescue
   {
-    const { page, errors } = await openPage(browser, 'tamamultidrops.html');
+    const { page, errors } = await openPage(browser, 'index.html#/multi');
     await page.click('button#level1'); await page.waitForTimeout(900);
     for (let i = 0; i < 9; i++) await answerCorrect(page);
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'かけざん 1のだん クリア');
@@ -111,8 +111,9 @@ async function answerCorrect(page) {
     // rescue
     await page.evaluate(() => { document.getElementById('rescueModal').style.display = 'block'; });
     await page.check('#rescueDan3');
-    await page.click('#rescueModal button >> nth=0'); await page.waitForTimeout(500);
+    await page.click('#rescueModal button:has-text("このレベルを復元")'); await page.waitForTimeout(500);
     ok(await page.evaluate(() => JSON.parse(localStorage.getItem('multi_coins_7')).length) === 5, 'rescue: 3のだん にドロップ5個');
+    ok(await page.evaluate(() => JSON.parse(localStorage.getItem('multi_coins_9')).length) === 1, 'rescue: 3:バラバラ にドロップ1個');
     ok(await page.isVisible('#lock9'), 'rescue: 3:バラバラ が解放');
     ok(errors().length === 0, 'エラーなし ' + errors().join(' / '));
     await page.close();
@@ -120,7 +121,7 @@ async function answerCorrect(page) {
 
   // 7. 百マス：Lv1 を解く → ベストタイム表示が今回を反映。2けた途中のリセット
   {
-    const { page, errors } = await openPage(browser, 'tamahundredgrid.html', { hundredgrid_level_1_best_time: '999' });
+    const { page, errors } = await openPage(browser, 'index.html#/hundredgrid', { hundredgrid_level_1_best_time: '999' });
     await page.click('button#level1'); await page.waitForTimeout(900);
     const n = await page.evaluate(() => currentTotalRows * currentTotalCols);
     for (let i = 0; i < n; i++) {
@@ -145,15 +146,15 @@ async function answerCorrect(page) {
   // 8. 百マス Lv5：イラスト読み込み／読み込み失敗でも表が出る
   {
     const seed = { hundredgrid_coins_4: JSON.stringify(Array(3).fill({ image: '/img/Amaru.png' })) };
-    const { page, errors } = await openPage(browser, 'tamahundredgrid.html', seed);
+    const { page, errors } = await openPage(browser, 'index.html#/hundredgrid', seed);
     await page.click('button#level5'); await page.waitForTimeout(900);
     ok(await page.evaluate(() => Array.isArray(window.patternArray) && document.querySelectorAll('#calculation-grid td').length === 121), '百マス Lv5 イラストあり');
     await page.close();
     const p2 = await browser.newPage();
     await p2.route(/illustration_patterns/, r => r.abort());
-    await p2.route(/gstatic|googleapis|jsdelivr/, r => r.abort());
+    await p2.route(/gstatic|googleapis|googletagmanager|jsdelivr/, r => r.abort());
     await p2.addInitScript(s => { for (const k in s) localStorage.setItem(k, s[k]); }, seed);
-    await p2.goto(BASE + 'tamahundredgrid.html'); await p2.waitForTimeout(500);
+    await p2.goto(BASE + 'index.html#/hundredgrid'); await p2.waitForTimeout(500);
     await p2.click('button#level5'); await p2.waitForTimeout(900);
     ok(await p2.evaluate(() => document.querySelectorAll('#calculation-grid td').length === 121), '百マス Lv5 イラスト読込失敗でも表が出る');
     await p2.close();
@@ -162,7 +163,7 @@ async function answerCorrect(page) {
   // 9. index の隠しボタン：1回目のタップで切り替わる
   {
     const { page } = await openPage(browser, 'index.html');
-    ok(await page.$eval('#version', e => e.textContent) === 'Ver.6.0.0', 'バージョン表記');
+    ok(await page.$eval('#version', e => e.textContent) === 'Ver.6.3.6', 'バージョン表記');
     await page.click('#version');
     ok(await page.isVisible('#homeHundredgrid'), 'Ver をタップしても百マスは消えない');
     await page.close();

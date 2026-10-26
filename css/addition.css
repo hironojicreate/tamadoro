@@ -4,8 +4,3 @@
 html[data-mode="add"] #openingScreen {
     background-image: url('../img/tasidoro.jpg');
 }
-
-/* 「ひきざんへ！」ボタンの上に置く */
-html[data-mode="add"] #goToIndex {
-    bottom: 83px;
-}

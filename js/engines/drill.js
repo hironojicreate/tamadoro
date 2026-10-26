@@ -216,7 +216,7 @@ function drillRetryLevel() {
 
 // まだ出していない問題から1つ出す。全部出したらクリア（問題を出したら true、クリアなら false）
 function generateLvProblem(level) {
-    // にがてモードのときは、組み立てた15問のデッキを順番どおりに出す
+    // にがてモードのときは、組み立てたデッキ（いまは12問）を順番どおりに出す
     if (problemState.isWeakChallenge) {
         if (problemState.solvedCount >= problemState.patterns.length) {
             if (problemState.reviewQueue.length > 0) {
@@ -514,7 +514,7 @@ function handleAnswer(isCorrect) {
             problemState.paused = true;
         }
         History.recordProblem(currentMode.id, problemKey(), !problemState.mistakeMade, problemMs);
-        // にがてモードのとき、各問題の正誤とタイムを記録しておく（クリア時に3回とも即答できたか判定）
+        // にがてモードのとき、各問題の正誤とタイムを記録しておく（クリア時に4回とも即答できたか判定）
         if (problemState.isWeakChallenge && !problemState.isReview) {
             const key = problemKey();
             const list = problemState.weakAttemptLog[key] || (problemState.weakAttemptLog[key] = []);
