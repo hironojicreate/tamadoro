@@ -369,6 +369,19 @@ const DropJar = {
     settleDeadline: 0,      // 落下後にぷるぷる計算を強制終了する時刻
     activeMerges: [],       // 現在進行中の合体アニメーション
     popEffects: [],         // 「ピカッ！」のフラッシュ＆光の輪エフェクト
+    shards: [],             // 「パキーン！」と飛びちる、ガラスのかけら
+    fxTexts: [],            // 「100!」「1000!」の文字
+    hitStop: 0,             // 合体の瞬間に、ほんの少し 時間を止めるコマ数（ヒットストップ）
+    flash: 0,               // びん全体が白く（1000玉は金色に）光る強さ
+    flashGold: false,
+    quake: 0,               // びん全体がゆれる強さ（px）
+    fxFrame: 0,             // ゆれの計算に使うコマ番号
+    // 合体の演出の強さ（100玉 / 1000玉）
+    //   gather：集まる時間（ステップ）、hitStop：止めるコマ数、push：まわりの玉を押しのける強さ、maxR：衝撃波の大きさ（玉の半径の何倍か）
+    FX: {
+        to100: { gather: 34, hitStop: 3, flash: 0.7, quake: 6, push: 2.6, rays: 8, maxR: 4.6, shards: 14, sparkles: 22, text: '100!' },
+        to1000: { gather: 46, hitStop: 6, flash: 0.95, quake: 11, push: 4.2, rays: 16, maxR: 6.8, shards: 26, sparkles: 36, text: '1000!' },
+    },
     sparkles: [],           // 「キラキラ✨」の星パーティクル
 
     show(log) {
@@ -395,6 +408,11 @@ const DropJar = {
         this.activeMerges = [];
         this.popEffects = [];
         this.sparkles = [];
+        this.shards = [];
+        this.fxTexts = [];
+        this.hitStop = 0;
+        this.flash = 0;
+        this.quake = 0;
 
         // ページを開くたびに毎回「均一サイズで詰める ＞ 1クリックごとに100玉・1000玉」を準備する
         this.setupBallsAndMerges(drops);
@@ -702,8 +720,16 @@ const DropJar = {
         this.running = true;
         const loop = () => {
             if (!this.running) return;
-            this.step();
-            this.step();
+            // ヒットストップのあいだは、動きを止めて 光だけ見せる
+            if (this.hitStop > 0) {
+                this.hitStop--;
+            } else {
+                this.step();
+                this.step();
+            }
+            this.fxFrame++;
+            this.flash = this.flash > 0.02 ? this.flash * (this.hitStop > 0 ? 0.97 : 0.84) : 0;
+            this.quake = this.quake > 0.3 ? this.quake * 0.86 : 0;
             this.draw();
 
             const nowTime = performance.now();
@@ -714,7 +740,8 @@ const DropJar = {
             // ほどけて生まれた粒が ふくらんでいるあいだも、止めない（止めると 小さいまま残る）
             const isMerging = (this.pendingMerges > 0 && this.mergeQueue.length > 0) || this.activeMerges.length > 0
                 || this.balls.some(b => b.grow > 0);
-            const hasEffects = this.popEffects.length > 0 || this.sparkles.length > 0 || this.balls.some(b => b.glow > 0.01 || b.popTimer > 0);
+            const hasEffects = this.popEffects.length > 0 || this.sparkles.length > 0 || this.shards.length > 0 || this.fxTexts.length > 0
+                || this.hitStop > 0 || this.flash > 0 || this.quake > 0 || this.balls.some(b => b.glow > 0.01 || b.popTimer > 0);
             const lidMoving = Math.abs(this.lidY) > 0.5 || Math.abs(this.lidVy) > 0.1 || this.lidRocking || Math.abs(this.lidAngle) > 0.006;
 
             // 空中に玉がある・合体吸引中・ふたが開いている間は物理計算のタイマーを延長する
@@ -755,6 +782,10 @@ const DropJar = {
                 this.lidRocking = false;
                 this.popEffects = [];
                 this.sparkles = [];
+                this.shards = [];
+                this.fxTexts = [];
+                this.flash = 0;
+                this.quake = 0;
                 this.balls.forEach(b => {
                     b.px = b.x;
                     b.py = b.y;
@@ -778,9 +809,9 @@ const DropJar = {
             x,
             y,
             r: baseRadius * 0.5,
-            maxR: baseRadius * (is1000 ? 4.8 : 3.4),
+            maxR: baseRadius * this.FX[is1000 ? 'to1000' : 'to100'].maxR,
             age: 0,
-            maxAge: is1000 ? 76 : 56,
+            maxAge: is1000 ? 80 : 60,
             is1000,
         });
 
@@ -789,10 +820,11 @@ const DropJar = {
             ? ['#ffffff', '#fff799', '#ffd700', '#ffae00', '#a8f0ff', '#ffb8e6']
             : ['#ffffff', '#fff9b0', '#ffe066', '#b8f2ff'];
 
-        const burstCount = is1000 ? 26 : 16;
+        const fx = this.FX[is1000 ? 'to1000' : 'to100'];
+        const burstCount = fx.sparkles;
         for (let i = 0; i < burstCount; i++) {
             const angle = (Math.PI * 2 * i) / burstCount + (Math.random() - 0.5) * 0.35;
-            const speed = (1.6 + Math.random() * (is1000 ? 3.8 : 2.6));
+            const speed = (2.4 + Math.random() * (is1000 ? 5.2 : 3.6));
             const dist = baseRadius * (0.2 + Math.random() * 0.4);
             this.sparkles.push({
                 x: x + Math.cos(angle) * dist,
@@ -839,6 +871,46 @@ const DropJar = {
         }
     },
 
+    // 「パキーン！」と飛びちる ガラスのかけらと、「100!」「1000!」の文字
+    spawnShards(x, y, baseRadius, is1000) {
+        const fx = this.FX[is1000 ? 'to1000' : 'to100'];
+        const colors = is1000 ? ['#ffffff', '#fff3a0', '#ffd700', '#ffe9b0'] : ['#ffffff', '#e6fbff', '#b8f2ff', '#fffbe0'];
+        for (let i = 0; i < fx.shards; i++) {
+            const angle = (Math.PI * 2 * i) / fx.shards + (Math.random() - 0.5) * 0.5;
+            const speed = (is1000 ? 5 : 4) + Math.random() * (is1000 ? 6 : 4);
+            this.shards.push({
+                x: x + Math.cos(angle) * baseRadius * 0.6,
+                y: y + Math.sin(angle) * baseRadius * 0.6,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1.2,
+                rot: angle,
+                vr: (Math.random() - 0.5) * 0.5,
+                len: (is1000 ? 9 : 7) + Math.random() * (is1000 ? 10 : 7),
+                color: colors[i % colors.length],
+                age: 0,
+                maxAge: 40 + Math.floor(Math.random() * 25),
+            });
+        }
+        this.fxTexts.push({ x, y: y - baseRadius - 10, text: fx.text, gold: is1000, age: 0, maxAge: is1000 ? 110 : 85 });
+    },
+
+    // 衝撃波：合体した玉のまわりの玉を、外へ はじきとばす（近いほど強く）
+    pushAway(x, y, center, power) {
+        const reach = center.targetR * 4;
+        this.balls.forEach(b => {
+            if (b === center || b.merging) return;
+            const dx = b.x - x, dy = b.y - y;
+            const d = Math.hypot(dx, dy);
+            if (d === 0 || d > reach) return;
+            const k = power * (1 - d / reach);
+            b.settled = false;
+            b.calmFrames = 0;
+            b.bounces = 0;
+            b.px = b.x - (dx / d) * k;
+            b.py = b.y - (dy / d) * k - k * 0.3; // 少し上向きに
+        });
+    },
+
     // ユーザーのクリックで許可された分（pendingMerges）だけ1つずつ合体を進める
     updateMerge() {
         // フラッシュ＆光の輪の更新
@@ -848,6 +920,24 @@ const DropJar = {
             ef.r = ef.maxR * (1 - Math.pow(1 - p, 2.6));
         });
         this.popEffects = this.popEffects.filter(ef => ef.age < ef.maxAge);
+
+        // ガラスのかけら（回りながら飛んで、少し落ちて消える）
+        this.shards.forEach(sh => {
+            sh.age++;
+            sh.x += sh.vx;
+            sh.y += sh.vy;
+            sh.vx *= 0.95;
+            sh.vy = sh.vy * 0.95 + 0.06;
+            sh.rot += sh.vr;
+        });
+        this.shards = this.shards.filter(sh => sh.age < sh.maxAge);
+
+        // 「100!」「1000!」の文字（ぽんと出て、ふわっと上がって消える）
+        this.fxTexts.forEach(t => {
+            t.age++;
+            t.y -= 0.35;
+        });
+        this.fxTexts = this.fxTexts.filter(t => t.age < t.maxAge);
 
         // キラキラ✨パーティクルの更新
         this.sparkles.forEach(sp => {
@@ -914,7 +1004,12 @@ const DropJar = {
                     cy,
                     targetScale: newScale,
                     timer: 0,
-                    duration: 32, // ギュッと集まる時間
+                    duration: this.FX[next.type].gather, // グワッと集まる時間
+                    spin: Math.random() < 0.5 ? -1 : 1,  // うずを巻く向き
+                    lines: Array.from({ length: is1000 ? 16 : 10 }, (_, k) => ({
+                        angle: (Math.PI * 2 * k) / (is1000 ? 16 : 10) + (Math.random() - 0.5) * 0.3,
+                        phase: Math.random(),
+                    })),
                 });
             }
         }
@@ -925,15 +1020,20 @@ const DropJar = {
             m.timer++;
 
             if (m.timer <= m.duration) {
+                // グワッ：うずを巻きながら、だんだん速く 中心へ吸いこまれる。びんも だんだん強く ふるえる
                 const progress = m.timer / m.duration;
-                const pull = 0.11 + progress * progress * 0.28;
+                const pull = 0.08 + progress * progress * 0.3;
+                const swirl = m.spin * (0.04 + progress * 0.14);
+                const cos = Math.cos(swirl), sin = Math.sin(swirl);
                 m.targets.forEach(b => {
-                    b.x += (m.cx - b.x) * pull;
-                    b.y += (m.cy - b.y) * pull;
+                    const dx = b.x - m.cx, dy = b.y - m.cy;
+                    b.x = m.cx + (dx * cos - dy * sin) * (1 - pull);
+                    b.y = m.cy + (dx * sin + dy * cos) * (1 - pull);
                     b.px = b.x;
                     b.py = b.y;
-                    b.r = Math.max(2.5, b.r * 0.978);
+                    b.r = Math.max(2.5, b.r * 0.976);
                 });
+                this.quake = Math.max(this.quake, progress * progress * (m.type === 'to1000' ? 3.2 : 2.0));
             } else {
                 // ピカッ！と合体して1個の大きなドロップに変わる
                 const targetSet = new Set(m.targets);
@@ -960,8 +1060,16 @@ const DropJar = {
                 this.settleDeadline = performance.now() + 900; // 物理は0.9秒以内にピタッと静止させる
                 this.jarKick = (Math.random() < 0.5 ? -1 : 1) * (is1000 ? 0.045 : 0.028);
 
-                // フラッシュ＆キラキラ✨を生成
+                // パキーン：フラッシュ・衝撃波・光線・ガラスのかけら・キラキラ・文字
                 this.spawnMergeEffects(m.cx, m.cy, newBall.targetR, is1000, newBall);
+                this.spawnShards(m.cx, m.cy, newBall.targetR, is1000);
+                const fx = this.FX[m.type];
+                this.hitStop = fx.hitStop;
+                this.flash = fx.flash;
+                this.flashGold = is1000;
+                this.quake = fx.quake;
+                this.jarKick = (Math.random() < 0.5 ? -1 : 1) * (is1000 ? 0.07 : 0.045);
+                this.pushAway(m.cx, m.cy, newBall, fx.push);
 
                 this.activeMerges.splice(i, 1);
                 this.mergeCooldown = 8;
@@ -1558,6 +1666,10 @@ const DropJar = {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         ctx.save();
+        // びん全体のゆれ（グワッ・パキーン）
+        if (this.quake > 0) {
+            ctx.translate(Math.sin(this.fxFrame * 2.7) * this.quake, Math.cos(this.fxFrame * 3.3) * this.quake * 0.6);
+        }
         if (this.jarKick !== 0) {
             const cx = canvas.width / 2;
             const cy = (top + bottom) / 2;
@@ -1583,6 +1695,31 @@ const DropJar = {
             ctx.beginPath();
             ctx.arc(m.cx, m.cy, glowR, 0, Math.PI * 2);
             ctx.fill();
+
+            // 外から縮んでくる光の輪
+            const is1000 = m.type === 'to1000';
+            const ringR = this.baseR * m.targetScale * (1 + (1 - p) * (is1000 ? 7 : 5));
+            ctx.globalAlpha = 0.25 + p * 0.65;
+            ctx.strokeStyle = is1000 ? '#ffd700' : '#ffffff';
+            ctx.lineWidth = 1.5 + p * (is1000 ? 4 : 3);
+            ctx.beginPath();
+            ctx.arc(m.cx, m.cy, ringR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 中心へ流れこむ集中線
+            ctx.lineCap = 'round';
+            m.lines.forEach(l => {
+                const t = (p * 2.2 + l.phase) % 1;
+                const outer = this.baseR * m.targetScale * (2 + (1 - t) * (is1000 ? 6 : 4.5));
+                const inner = outer * 0.55;
+                ctx.globalAlpha = p * (1 - t) * 0.9;
+                ctx.strokeStyle = is1000 ? '#fff3a0' : '#ffffff';
+                ctx.lineWidth = is1000 ? 2.6 : 2;
+                ctx.beginPath();
+                ctx.moveTo(m.cx + Math.cos(l.angle) * outer, m.cy + Math.sin(l.angle) * outer);
+                ctx.lineTo(m.cx + Math.cos(l.angle) * inner, m.cy + Math.sin(l.angle) * inner);
+                ctx.stroke();
+            });
             ctx.restore();
         });
 
@@ -1597,7 +1734,7 @@ const DropJar = {
             let drawR = r;
             if (b.popTimer > 0) {
                 const t = 1 - b.popTimer / 36;
-                drawR = r * (1 + Math.sin(t * Math.PI * 2.5) * 0.25 * (1 - t));
+                drawR = r * (1 + Math.sin(t * Math.PI * 2.5) * 0.42 * (1 - t));
             }
 
             ctx.save();
@@ -1653,7 +1790,7 @@ const DropJar = {
                 const rayAlpha = (1 - p / 0.6) * 0.95;
                 const rayLen = ef.maxR * (0.75 + p * 0.75);
                 const rayWidth = ef.is1000 ? 4.5 : 3.2;
-                const rays = ef.is1000 ? 8 : 4;
+                const rays = this.FX[ef.is1000 ? 'to1000' : 'to100'].rays;
                 ctx.save();
                 ctx.translate(ef.x, ef.y);
                 ctx.rotate(p * 0.35);
@@ -1690,6 +1827,18 @@ const DropJar = {
             ctx.globalAlpha = ringAlpha * 0.75;
             ctx.lineWidth = 2.2 * (1 - p * 0.5);
             ctx.stroke();
+
+            // ④ いちばん速く、太く広がる衝撃波（パキーン！）
+            if (p < 0.5) {
+                const q = p / 0.5;
+                const waveR = ef.maxR * 1.5 * (1 - Math.pow(1 - q, 3));
+                ctx.beginPath();
+                ctx.arc(ef.x, ef.y, waveR, 0, Math.PI * 2);
+                ctx.strokeStyle = ef.is1000 ? '#fff0a0' : '#e8fbff';
+                ctx.globalAlpha = Math.pow(1 - q, 1.2);
+                ctx.lineWidth = (ef.is1000 ? 12 : 9) * (1 - q) + 1;
+                ctx.stroke();
+            }
 
             ctx.restore();
         });
@@ -1786,7 +1935,54 @@ const DropJar = {
         roundRect(ctx, right - 16, jar.shoulderBottom + 30, 4, (bottom - top) * 0.3, 3);
         ctx.fill();
 
+        // 「パキーン！」のガラスのかけら（細長いひし形が、回りながら飛ぶ）
+        this.shards.forEach(sh => {
+            const p = sh.age / sh.maxAge;
+            ctx.save();
+            ctx.translate(sh.x, sh.y);
+            ctx.rotate(sh.rot);
+            ctx.globalAlpha = Math.pow(1 - p, 1.2);
+            ctx.fillStyle = sh.color;
+            ctx.strokeStyle = 'rgba(120, 170, 210, 0.8)';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(sh.len, 0);
+            ctx.lineTo(0, sh.len * 0.22);
+            ctx.lineTo(-sh.len * 0.6, 0);
+            ctx.lineTo(0, -sh.len * 0.22);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        });
+
+        // 「100!」「1000!」の文字（ぽんと大きく出て、少し縮んで、ふわっと消える）
+        this.fxTexts.forEach(t => {
+            const p = t.age / t.maxAge;
+            const pop = p < 0.12 ? 0.4 + (p / 0.12) * 1.0 : 1.4 - Math.min(0.4, (p - 0.12) * 2.5);
+            ctx.save();
+            ctx.translate(t.x, t.y);
+            ctx.scale(pop, pop);
+            ctx.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1;
+            ctx.font = `900 ${t.gold ? 34 : 26}px 'M PLUS Rounded 1c', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = t.gold ? '#c45a00' : '#1f7fbf';
+            ctx.strokeText(t.text, 0, 0);
+            ctx.fillStyle = t.gold ? '#ffe14d' : '#ffffff';
+            ctx.fillText(t.text, 0, 0);
+            ctx.restore();
+        });
+
         ctx.restore();
+
+        // びん全体が光る（パキーン！）
+        if (this.flash > 0) {
+            ctx.fillStyle = this.flashGold ? `rgba(255, 244, 190, ${this.flash})` : `rgba(255, 255, 255, ${this.flash})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
     },
 };
 
