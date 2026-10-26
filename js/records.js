@@ -331,6 +331,14 @@ const DropJar = {
     MAX_VISUAL_BALLS: 350,  // 画面が重くならないための最大表示粒数（これを超えると自動間引き）
     MOVE_MS: 5000,          // アニメーション全体の最大安全タイマー（ミリ秒）
     SETTLE_MS: 1200,        // 玉がびん内に戻ってから物理計算を完全停止するまでの時間（ミリ秒）
+
+    // 跳ね返り：強くぶつかったときだけ、ぶつかった面の向きに跳ね返す（false にすると、跳ね返りのない以前の動きに戻る）
+    BOUNCE_ENABLED: true,
+    BOUNCE_RESTITUTION: 0.4, // 反発係数（ぶつかる速さの何倍で跳ね返るか）
+    BOUNCE_MIN_SPEED: 1.2,   // 跳ね返る速さがこれより小さいときは跳ねない（px／ステップ）
+    BOUNCE_MAX_HEIGHT: 2,    // 跳ねる高さの上限（玉の半径の何倍か。2 で玉1つぶん）
+    BOUNCE_MAX: 2,           // 1つの玉が跳ねる回数の上限（落ちるたび・飛び出すたびに数えなおす）
+    BOUNCE_FRICTION: 0.7,    // 跳ねるとき、面にそった速さをどれだけ残すか
     balls: [],
     images: {},
     running: false,
@@ -470,6 +478,7 @@ const DropJar = {
             ball.px = ball.x;
             ball.py = ball.y;
             ball.settled = false;
+            ball.bounces = 0;
         });
 
         this.balls = packedBalls.concat(fallingBalls);
@@ -665,6 +674,7 @@ const DropJar = {
             ball.py = ball.y - newVy;
             ball.va = (Math.random() - 0.5) * (0.25 + this.heat * 0.05);
             ball.wasHit = false;
+            ball.bounces = 0;
         });
 
         this.start();
@@ -685,7 +695,9 @@ const DropJar = {
 
             const nowTime = performance.now();
             const { top } = this.inner;
-            const anyInAir = this.balls.some(b => !b.settled && !b.merging && (b.y < top || (b.y - b.py) < -1.5));
+            // 跳ね返りがあるときは、どこにも触れていない玉も「空中」（いちばん高い所で速さが0になっても、そこで止めない）
+            const anyInAir = this.balls.some(b => !b.settled && !b.merging
+                && (b.y < top || (b.y - b.py) < -1.5 || (this.BOUNCE_ENABLED && !b.wasHit)));
             const isMerging = (this.pendingMerges > 0 && this.mergeQueue.length > 0) || this.activeMerges.length > 0;
             const hasEffects = this.popEffects.length > 0 || this.sparkles.length > 0 || this.balls.some(b => b.glow > 0.01 || b.popTimer > 0);
             const lidMoving = Math.abs(this.lidY) > 0.5 || Math.abs(this.lidVy) > 0.1 || this.lidRocking || Math.abs(this.lidAngle) > 0.006;
@@ -973,13 +985,26 @@ const DropJar = {
         });
 
         // コルクのふたの動き（落下中に傾きを整え、着地したら往復振動せずコトンと一発で閉まる）
-        const anyOut = balls.some(b => !b.settled && !b.merging && (b.y - b.r < top - 4 || (b.y - b.py) < -2.5));
+        //   跳ね返りがあるときは、上向きに動いている玉は、いまの速さで ふたの高さまで届くとき
+        //   （いちばん高い所が びんの口より上になるとき）だけ数える（びんの中で跳ねているだけの玉では、ふたは浮かない）
+        const anyOut = balls.some(b => {
+            if (b.settled || b.merging) return false;
+            if (b.y - b.r < top - 4) return true;
+            const vy = b.y - b.py;
+            if (!this.BOUNCE_ENABLED) return vy < -2.5;
+            return vy < -2.5 && b.y - b.r - (vy * vy) / (2 * 0.52) < top - 4;
+        });
         if (anyOut || this.heat > 1.0) {
             this.lidRocking = false;
             this.lidVy -= 1.6;
             this.lidY += this.lidVy;
             if (this.lidY <= -60) {
                 this.lidY = -60;
+                this.lidVy = 0;
+            }
+            // 閉まりかけていたふたが、びんの口より下に入りこまないようにする
+            if (this.BOUNCE_ENABLED && this.lidY > 0) {
+                this.lidY = 0;
                 this.lidVy = 0;
             }
             const targetTilt = (this.lidAngle >= 0 ? 1 : -1) * 0.20;
@@ -1019,6 +1044,11 @@ const DropJar = {
         balls.forEach(b => {
             if (b.merging) return;
             activeBalls.push(b);
+            b.vinX = 0;        // ぶつかる前の速さ（跳ね返りの計算に使う）
+            b.vinY = 0;
+            b.impactSpeed = 0; // このステップでいちばん強くぶつかったときの、近づく速さ
+            b.impactNx = 0;    // そのときの、玉を押し返す向き
+            b.impactNy = 0;
             if (b.settled) {
                 b.sx = b.x;
                 b.sy = b.y;
@@ -1038,6 +1068,8 @@ const DropJar = {
             b.sx = b.x;
             b.sy = b.y;
             b.hit = false;
+            b.vinX = vx;
+            b.vinY = vy;
             b.x += vx;
             b.y += vy;
         });
@@ -1107,6 +1139,10 @@ const DropJar = {
 
                             a.hit = true;
                             b.hit = true;
+                            // 2つの玉が近づく速さ（いっしょに動いている玉どうしは、近づく速さが小さいので跳ねない）
+                            const approach = (a.vinX - b.vinX) * nx + (a.vinY - b.vinY) * ny;
+                            this.recordImpact(a, -nx, -ny, approach);
+                            this.recordImpact(b, nx, ny, approach);
 
                             if (a.settled) {
                                 b.x += nx * overlap;
@@ -1132,29 +1168,14 @@ const DropJar = {
 
             // びんの壁と底との当たり判定
             activeBalls.forEach(b => {
-                if (b.settled) return;
-                const r = b.r;
-                if (b.y >= top - r) {
-                    if (b.x < left + r) {
-                        b.x = left + r;
-                        b.hit = true;
-                    }
-                    if (b.x > right - r) {
-                        b.x = right - r;
-                        b.hit = true;
-                    }
-                    if (b.y > bottom - r) {
-                        b.y = bottom - r;
-                        b.hit = true;
-                    }
-                } else {
-                    const funnelMargin = Math.min(28, Math.max(0, (top - b.y) * 0.12));
-                    const minX = left + r - funnelMargin;
-                    const maxX = right - r + funnelMargin;
-                    if (b.x < minX) b.x = minX;
-                    if (b.x > maxX) b.x = maxX;
-                }
+                if (!b.settled) this.collideWithJar(b);
             });
+        }
+
+        // 止まっている玉でも、下から支えられていなければ、また落とす
+        //   （支えていた玉が跳ねて離れたとき、空中で止まったままにしない）
+        if (this.BOUNCE_ENABLED && this.activeMerges.length === 0) {
+            this.wakeUnsupported(activeBalls, cell);
         }
 
         // 衝突解決後の実移動量から次ステップの速度を更新し、動きが小さい粒は即座に固定してぷるぷるを防ぐ
@@ -1165,7 +1186,14 @@ const DropJar = {
             let newVx = b.x - b.sx;
             let newVy = b.y - b.sy;
 
-            if (!isShaking && b.hit) {
+            // 強くぶつかったときは、ぶつかった面の向きに跳ね返す
+            const bounced = this.applyBounce(b, gravity);
+            if (bounced) {
+                newVx = bounced.vx;
+                newVy = bounced.vy;
+            }
+
+            if (!isShaking && b.hit && !bounced) {
                 if (newVy < 0) newVy *= 0.35;
                 if (b.y >= bottom - b.r - 0.5) {
                     newVx *= 0.72;
@@ -1208,6 +1236,92 @@ const DropJar = {
                 b.py = b.y + (b.py - b.y) * 0.5;
             }
         });
+    },
+
+    // びんの壁と底に当たったら、びんの中に押し戻す（ぶつかった面の向きも覚えておく）
+    collideWithJar(b) {
+        const { left, right, top, bottom } = this.inner;
+        const r = b.r;
+        if (b.y >= top - r) {
+            if (b.x < left + r) {
+                this.recordImpact(b, 1, 0, -b.vinX);
+                b.x = left + r;
+                b.hit = true;
+            }
+            if (b.x > right - r) {
+                this.recordImpact(b, -1, 0, b.vinX);
+                b.x = right - r;
+                b.hit = true;
+            }
+            if (b.y > bottom - r) {
+                this.recordImpact(b, 0, -1, b.vinY);
+                b.y = bottom - r;
+                b.hit = true;
+            }
+        } else {
+            const funnelMargin = Math.min(28, Math.max(0, (top - b.y) * 0.12));
+            const minX = left + r - funnelMargin;
+            const maxX = right - r + funnelMargin;
+            if (b.x < minX) b.x = minX;
+            if (b.x > maxX) b.x = maxX;
+        }
+    },
+
+    // 止まっている玉のうち、底にも、下にある玉にも触れていないものを、また動かす
+    wakeUnsupported(balls, cell) {
+        const { bottom } = this.inner;
+        const grid = new Map();
+        balls.forEach((b, i) => {
+            const key = `${Math.floor(b.x / cell)},${Math.floor(b.y / cell)}`;
+            if (!grid.has(key)) grid.set(key, []);
+            grid.get(key).push(i);
+        });
+        balls.forEach(a => {
+            if (!a.settled || a.y + a.r >= bottom - 1) return;
+            const cx = Math.floor(a.x / cell), cy = Math.floor(a.y / cell);
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (const j of grid.get(`${cx + dx},${cy + dy}`) || []) {
+                        const b = balls[j];
+                        if (b === a || b.y <= a.y + 0.5) continue;
+                        if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r + 1) return; // 下の玉に支えられている
+                    }
+                }
+            }
+            a.settled = false;
+            a.calmFrames = 0;
+        });
+    },
+
+    // ぶつかったことを覚えておく（nx, ny：玉を押し返す向き、speed：近づく速さ）。いちばん強いものだけ残す
+    recordImpact(b, nx, ny, speed) {
+        if (speed > b.impactSpeed) {
+            b.impactSpeed = speed;
+            b.impactNx = nx;
+            b.impactNy = ny;
+        }
+    },
+
+    // 跳ね返り：落ちてきて強くぶつかったときだけ、ぶつかった面の向きに跳ね返す速さを返す（跳ねないときは null）
+    //   跳ねる高さは玉1つぶんまで。跳ねるたびに弱くなり、BOUNCE_MIN_SPEED より小さくなったら、いつもの「止める」処理にまかせる
+    applyBounce(b, gravity) {
+        if (!this.BOUNCE_ENABLED || !b.hit || (b.bounces || 0) >= this.BOUNCE_MAX) return null;
+        if (b.vinY <= 0 || b.impactSpeed <= 0) return null; // 上に向かって動いている玉は跳ねない（落ちてきたときだけ）
+        const nx = b.impactNx, ny = b.impactNy;
+        if (ny > 0) return null;                             // 下向きに押し返される（上にある玉に当たった）ときは跳ねない
+        const inSpeed = b.impactSpeed;
+        const maxOut = Math.sqrt(2 * gravity * this.BOUNCE_MAX_HEIGHT * b.r);
+        const outSpeed = Math.min(inSpeed * this.BOUNCE_RESTITUTION, maxOut);
+        if (outSpeed < this.BOUNCE_MIN_SPEED) return null;
+        b.bounces = (b.bounces || 0) + 1;
+        // 面にそった速さは、ぶつかる前の速さから少し弱めて残し、面の向きには outSpeed で跳ね返す
+        //   （めりこみを押し戻したときの動きは使わない。使うと、横に飛びすぎる）
+        const tx = (b.vinX + inSpeed * nx) * this.BOUNCE_FRICTION;
+        const ty = (b.vinY + inSpeed * ny) * this.BOUNCE_FRICTION;
+        // 面にそった速さも、跳ねる速さの上限より大きくしない（斜めにぶつかった玉が、横に飛びすぎないように）
+        const tLen = Math.hypot(tx, ty);
+        const tScale = tLen > maxOut ? maxOut / tLen : 1;
+        return { vx: tx * tScale + outSpeed * nx, vy: ty * tScale + outSpeed * ny };
     },
 
     // キラキラの4つ角スター（✨）を描画するヘルパー
