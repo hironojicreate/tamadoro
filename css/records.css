@@ -9,47 +9,110 @@ html[data-mode="records"] body {
     min-height: 100%;
 }
 
+/* ほかの画面と同じ色・文字・ボタンにそろえる
+   （宇宙の背景・水色の枠と水面ボード・ぷっくりツヤ文字・カプセル型のボタン・まるい文字） */
 html[data-mode="records"] body {
-    background: #eaf6fb;
-    color: #333;
-    font-family: 'Segoe UI', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: #5b4a7d;
+    color: #3d3553;
+    font-family: 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+    font-weight: 500;
+}
+
+/* 宇宙の背景（スクロールしても うごかない） */
+#recordsScreen::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: url('../img/bg_space.svg') center / cover no-repeat;
 }
 
 #recordsScreen {
-    max-width: 960px;
+    --title-width: min(100vw - 32px, 960px);
+    max-width: 1040px;
     margin: 0 auto;
-    padding: 12px 16px 40px;
+    padding: 8px 16px 32px;
     box-sizing: border-box;
 }
 
+/* タイトル（タマとツヤ文字）：タマの手が、水色の枠の上辺に のる */
 .records-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 12px;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
 }
 
-/* base.css の h1（問題画面のタイトル）をこの画面では使わない */
-#recordsScreen h1 {
+#recordsScreen h1.records-title {
     position: static;
-    font-size: 26px;
-    color: #2c3e50;
+    display: block;
+    width: var(--title-width);
+    margin: 0 auto;
 }
 
+#recordsScreen h1.records-title svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* 水色の枠と水面ボード（中身の長さに合わせて のびる） */
+.records-board {
+    position: relative;
+    z-index: 1;
+    /* タイトルの絵の下 37% ぶんを、枠の上にかさねる */
+    margin-top: calc(var(--title-width) * -185 / 1120 * 0.37);
+    border: 14px solid #57c1e8;
+    /* 水面：ほかの画面の board_water.svg と同じ色あい（絵をのばすと 絵の中の枠が太くなるので、グラデーションでえがく） */
+    background:
+        radial-gradient(ellipse 70% 22% at 18% 12%, rgba(255, 253, 231, 0.95), transparent 70%),
+        radial-gradient(ellipse 55% 18% at 82% 38%, rgba(255, 228, 214, 0.6), transparent 70%),
+        radial-gradient(ellipse 65% 20% at 30% 66%, rgba(255, 253, 231, 0.85), transparent 70%),
+        radial-gradient(ellipse 50% 18% at 75% 88%, rgba(214, 244, 255, 0.9), transparent 70%),
+        linear-gradient(135deg, #e3f4f6 0%, #eef7f2 35%, #dff1f5 70%, #eaf6f0 100%);
+    padding: clamp(16px, 2.6vw, 26px) clamp(10px, 2.5vw, 24px) clamp(4px, 1.5vw, 12px);
+    box-sizing: border-box;
+}
+
+/* 「もどる」：ほかの画面の「もどる」と同じ アクアのカプセル（右上） */
 .records-back {
-    padding: 6px 16px;
-    border-radius: 20px;
-    border: none;
-    background-color: rgba(34, 193, 195, 0.85);
-    color: white;
-    font-size: 16px;
+    position: fixed;
+    top: 12px;
+    right: 14px;
+    z-index: 10;
+    padding: 5px 18px;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    background: linear-gradient(135deg, #26c6da, #0097a7);
+    color: #fff;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 15px;
+    font-weight: 900;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
     cursor: pointer;
+    pointer-events: auto;
+    transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.records-back:hover {
+    transform: scale(1.06);
+    filter: brightness(1.08);
+}
+
+.records-back:active {
+    transform: scale(0.95);
 }
 
 .records-top {
     display: grid;
-    grid-template-columns: 362px 1fr; /* ドロップびん（330px）＋ カードの余白 */
+    /* ドロップびん（330px）＋ カードの余白とふち。せまい画面では、カレンダーのために少し縮む（絵も いっしょに縮む） */
+    grid-template-columns: clamp(300px, 40vw, 372px) 1fr;
     gap: 16px;
+}
+
+@media (max-width: 900px) {
+    .records-card {
+        padding: 10px 10px 14px;
+    }
 }
 
 @media (max-width: 720px) {
@@ -58,35 +121,73 @@ html[data-mode="records"] body {
     }
 }
 
+/* スマホ：右上の「もどる」とタイトルが かさならないよう、タイトルを少し下げる。表は つめる */
+@media (max-width: 520px) {
+    #recordsScreen {
+        padding-top: 50px;
+    }
+
+    .level-records th,
+    .level-records td {
+        padding: 4px 3px;
+    }
+
+    .level-records {
+        display: block;     /* 表がカードより広いときは、表だけ 横にスクロール */
+        overflow-x: auto;
+        font-size: 13px;
+    }
+
+    .level-records thead th {
+        white-space: nowrap;
+        font-size: 11px;
+    }
+
+    .level-records thead th:last-child {
+        white-space: normal;
+    }
+
+    .level-records .spark-cell {
+        min-width: 110px;
+    }
+}
+
+/* カード：さいしょの画面の お知らせと同じ、白くすけた 水色ふちの角丸 */
 .records-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 12px 16px 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.88);
+    border: 3px solid #b2ebf2;
+    border-radius: 22px;
+    padding: 12px 18px 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 0 rgba(0, 151, 167, 0.18), 0 6px 14px rgba(0, 0, 0, 0.08);
 }
 
 .records-card h2 {
     margin: 0 0 8px;
-    font-size: 18px;
-    color: #2c3e50;
+    font-size: 20px;
+    font-weight: 900;
+    color: #00838f;
+    letter-spacing: 1px;
 }
 
 .records-card h2 small {
     font-size: 12px;
-    font-weight: normal;
-    color: #777;
+    font-weight: 700;
+    color: #8a7fa0;
+    letter-spacing: 0;
 }
 
 .records-card h3 {
     margin: 16px 0 6px;
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 900;
+    color: #6a4c93;
 }
 
 .records-note {
     margin: 4px 0 8px;
     font-size: 12px;
-    color: #777;
+    color: #6b6380;
 }
 
 
@@ -107,32 +208,46 @@ html[data-mode="records"] body {
 
 .drop-total {
     margin: 8px 0 0;
-    font-size: 20px;
-    font-weight: bold;
-    color: #2c3e50;
+    font-size: 22px;
+    font-weight: 900;
+    color: #6a4c93;
 }
 
 
 /* ---------- ドロップカレンダー ---------- */
 
 .calendar-nav {
+    white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 16px;
     margin-bottom: 8px;
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 18px;
+    font-weight: 900;
+    color: #6a4c93;
 }
 
+/* 月をかえるボタン：アクアのまるいボタン */
 .calendar-nav button {
-    border: none;
-    background: #eaf6fb;
+    border: 2px solid #fff;
+    background: linear-gradient(135deg, #4dd0e1, #0097a7);
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     cursor: pointer;
-    color: #2c3e50;
+    color: #fff;
+    font-size: 13px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.15s ease;
+}
+
+.calendar-nav button:hover {
+    transform: scale(1.1);
+}
+
+.calendar-nav button:active {
+    transform: scale(0.92);
 }
 
 .calendar {
@@ -144,25 +259,29 @@ html[data-mode="records"] body {
 .calendar-head {
     text-align: center;
     font-size: 12px;
-    color: #777;
+    font-weight: 700;
+    color: #8a7fa0;
 }
 
 .calendar-day {
     container-type: inline-size; /* マスの幅で、ドロップの出し方を切りかえる */
     min-height: 58px;
-    border-radius: 8px;
-    background: #f7fafc;
+    border-radius: 10px;
+    background: rgba(234, 248, 253, 0.95);
+    border: 1px solid #d6f1f8;
     padding: 2px 4px;
     box-sizing: border-box;
 }
 
 .calendar-day.today {
-    outline: 2px solid #22c1c3;
+    outline: 3px solid #ff9f43;
+    outline-offset: -1px;
 }
 
 .calendar-date {
     font-size: 11px;
-    color: #555;
+    font-weight: 700;
+    color: #6b6380;
 }
 
 .calendar-drops {
@@ -187,15 +306,16 @@ html[data-mode="records"] body {
     align-items: center;
     gap: 1px;
     margin-top: 2px;
-    font-size: 12px;
-    font-weight: bold;
-    color: #2c3e50;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: #6a4c93;
     white-space: nowrap;
 }
 
 .calendar-count img {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 
 @container (max-width: 57px) {
@@ -218,20 +338,61 @@ html[data-mode="records"] body {
     margin-bottom: 12px;
 }
 
+/* モードのタブ：さいしょの画面の、モードごとの文字の色 */
 .records-tabs button {
-    padding: 8px 18px;
-    border-radius: 20px;
-    border: 2px solid #22c1c3;
-    background: #fff;
-    color: #1a7a7b;
-    font-size: 15px;
-    font-weight: bold;
+    --tab-light: #4dd0e1;
+    --tab-color: #0097a7;
+    --tab-dark: #00606b;
+    padding: 7px 20px;
+    border-radius: 999px;
+    border: 3px solid var(--tab-color);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--tab-dark);
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.18);
     cursor: pointer;
+    transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.records-tabs button:hover {
+    transform: scale(1.06);
+}
+
+.records-tabs button:active {
+    transform: scale(0.95);
 }
 
 .records-tabs button.active {
-    background: #22c1c3;
+    background: linear-gradient(135deg, var(--tab-light), var(--tab-color));
+    border-color: #fff;
     color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.records-tabs button[data-mode="add"] {
+    --tab-light: #ffb347;
+    --tab-color: #ff7e5f;
+    --tab-dark: #c0392b;
+}
+
+.records-tabs button[data-mode="sub"] {
+    --tab-light: #4facfe;
+    --tab-color: #2b58de;
+    --tab-dark: #192a56;
+}
+
+.records-tabs button[data-mode="multi"] {
+    --tab-light: #7ee08a;
+    --tab-color: #27ae60;
+    --tab-dark: #117864;
+}
+
+.records-tabs button[data-mode="hundredgrid"] {
+    --tab-light: #5dade2;
+    --tab-color: #ff8c42;
+    --tab-dark: #1f618d;
 }
 
 
@@ -246,15 +407,15 @@ html[data-mode="records"] body {
 .level-records th,
 .level-records td {
     padding: 4px 8px;
-    border-bottom: 1px solid #eef1f3;
+    border-bottom: 1px solid #dff3f8;
     text-align: left;
     vertical-align: middle;
 }
 
 .level-records thead th {
     font-size: 12px;
-    color: #777;
-    font-weight: normal;
+    color: #8a7fa0;
+    font-weight: 700;
 }
 
 .level-records td.num {
@@ -265,24 +426,31 @@ html[data-mode="records"] body {
 .sparkline {
     display: block;
     overflow: visible;
+    max-width: 100%; /* せまい画面では、グラフも縮む */
+    height: auto;
+}
+
+.level-records tbody th {
+    white-space: nowrap; /* レベルの名前は とちゅうで おりかえさない */
+    font-weight: 700;
 }
 
 .spark-line {
     fill: none;
-    stroke: #2a78d6;
-    stroke-width: 2;
+    stroke: #26a5c9;
+    stroke-width: 2.5;
     stroke-linejoin: round;
     stroke-linecap: round;
 }
 
 .spark-dot {
-    fill: #2a78d6;
+    fill: #26a5c9;
     stroke: #fff;
     stroke-width: 2;
 }
 
 .spark-dot.best {
-    fill: #1c5cab;
+    fill: #ff7e5f; /* いちばん はやかったとき */
 }
 
 .spark-hit {
@@ -364,40 +532,12 @@ html[data-mode="records"] body {
     position: absolute;
     z-index: 20;
     padding: 4px 10px;
-    border-radius: 6px;
-    background: #2c3e50;
+    border-radius: 10px;
+    border: 2px solid #fff;
+    background: #6a4c93;
     color: #fff;
     font-size: 13px;
+    font-weight: 700;
     white-space: nowrap;
     pointer-events: none;
-}
-
-
-/* ---------- ほかの画面の「きろく」ボタン ---------- */
-
-/* さいしょの画面：モードの絵のボタンと同じ大きさ */
-#homeRecords {
-    width: calc(500px * 2 / 5);
-    height: calc(160px * 2 / 5);
-    margin: 0 20px;
-    border-radius: 20px;
-    border: 2px solid #22c1c3;
-    background: rgba(255, 255, 255, 0.85);
-    color: #1a7a7b;
-    font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.3s;
-}
-
-#homeRecords:hover {
-    transform: scale(1.1);
-}
-
-/* 「タマのきろく」画面の「もどる」ボタンを右上に移動 */
-#recordsScreen .records-back {
-    position: fixed;
-    top: 12px;
-    right: 14px;
-    z-index: 10;
 }
