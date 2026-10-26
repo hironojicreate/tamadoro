@@ -14,6 +14,8 @@ const SCENARIOS = [
   { name: '50こ：ふたが3回ひらく', n: 50, shakes: [200, 420, 640] },
   { name: '90こ：れんだ', n: 90, shakes: [200, 210, 220, 230, 240, 250, 260, 270, 280, 290] },
   { name: '420こ：合体してから ふたがひらく', n: 420, shakes: [200, 330, 460, 590, 720, 900] },
+  // 3589こ：100玉35こ → 1000玉3こ の合体（38回）のあと、間引いていた 89こ が ほどける
+  { name: '3589こ：ぜんぶ合体して ほどける', n: 3589, shakes: Array.from({ length: 38 }, (_, i) => 200 + i * 45), expect: { t1000: 3, t100: 5, t1: 89 } },
 ];
 
 async function run(browser, sc, seed, bounce) {
@@ -67,7 +69,8 @@ async function run(browser, sc, seed, bounce) {
         });
         if (!supported) floating++;
       });
-      resolve({ settleFrames: frame - lastShake, running: J.running, bounces, maxOverlap, outside, floating, lidClosed: J.lidY === 0 && J.lidAngle === 0 && !J.lidRocking });
+      const tiers = { t1000: balls.filter(b => b.tier === 1000).length, t100: balls.filter(b => b.tier === 100).length, t1: balls.filter(b => b.tier === 1).length, packed: balls.filter(b => b.packed).length };
+      resolve({ settleFrames: frame - lastShake, running: J.running, bounces, maxOverlap, outside, floating, tiers, lidClosed: J.lidY === 0 && J.lidAngle === 0 && !J.lidRocking });
     }, 50));
   }, { shakes: sc.shakes, bounce });
   await page.close();
@@ -85,6 +88,11 @@ async function run(browser, sc, seed, bounce) {
       ok(r.outside === 0 && r.floating === 0, `${label}：びんの外・宙に浮いた玉がない（外${r.outside}・浮く${r.floating}）`);
       ok(r.maxOverlap < 0.5, `${label}：大きな重なりがない（${r.maxOverlap.toFixed(2)}）`);
       ok(r.lidClosed, `${label}：ふたが まっすぐ閉まっている`);
+      if (sc.expect) {
+        const t = r.tiers;
+        ok(t.t1000 === sc.expect.t1000 && t.t100 === sc.expect.t100 && t.t1 === sc.expect.t1 && t.packed === 0,
+          `${label}：1000玉${t.t1000}・100玉${t.t100}・小さい粒${t.t1}（ほんとうの数）`);
+      }
       if (sc.n > 0) ok(r.bounces > 0, `${label}：跳ねる（${r.bounces}かい）`);
       ok(r.errors.length === 0, `${label}：エラーなし ${r.errors.join(' / ')}`);
     }
