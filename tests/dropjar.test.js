@@ -52,8 +52,12 @@ async function run(browser, sc, seed, bounce) {
       const balls = J.balls.filter(b => !b.merging);
       let maxOverlap = 0, outside = 0, floating = 0;
       balls.forEach((a, i) => {
-        if (a.x - a.r < left - 0.5 || a.x + a.r > right + 0.5 || a.y + a.r > bottom + 0.5 || a.y - a.r < top - 60) outside++;
-        let supported = a.y + a.r >= bottom - 1;
+        // びんの中にいて、どの壁からも玉の半径ぶん はなれているか（口より上で止まっていたら、外）
+        const jar = J.jar;
+        const inJar = a.y >= jar.rimTop && J.insideJar(a.x, a.y)
+          && jar.segments.every(s => { const q = closestOnSegment(a.x, a.y, s); return Math.hypot(a.x - q.x, a.y - q.y) >= a.r - 1; });
+        if (!inJar) outside++;
+        let supported = J.restsOnJar(a);
         balls.forEach((b, j) => {
           if (i === j) return;
           const d = Math.hypot(a.x - b.x, a.y - b.y);
