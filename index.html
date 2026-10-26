@@ -23,7 +23,7 @@
 
     <!-- 共通 → さいしょの画面 → モードごとの違い -->
     <!-- 直下の1行はフォントを可愛くする。 -->
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;900&display=swap" rel="stylesheet">
     <link href="css/base.css" rel="stylesheet" type="text/css" />
     <link href="css/home.css" rel="stylesheet" type="text/css" />
     <link href="css/addition.css" rel="stylesheet" type="text/css" />
@@ -371,7 +371,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.13</span>
+                <span id="version">Ver.6.3.14</span>
             </p>
         </footer>
     </div>
@@ -381,8 +381,79 @@
     <div id="recordsScreen" style="display: none;">
         <header class="records-header">
             <button class="records-back" onclick="location.hash = Records.returnTo">もどる</button>
-            <h1>タマのきろく</h1>
+            <h1 class="records-title" aria-label="タマのきろく">
+                <!-- ほかの画面と同じ、ぷっくりツヤ文字とタマ（タマの手が 水色の枠の上辺にのる） -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 185" width="100%" height="100%" aria-hidden="true">
+                    <defs>
+                        <filter id="rec-candy-shadow" x="-15%" y="-15%" width="140%" height="140%">
+                            <feDropShadow dx="2" dy="4" stdDeviation="2.5" flood-color="#333333" flood-opacity="0.45"/>
+                        </filter>
+                        <linearGradient id="rec-candy-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.92"/>
+                            <stop offset="32%" stop-color="#ffffff" stop-opacity="0.35"/>
+                            <stop offset="48%" stop-color="#ffffff" stop-opacity="0.0"/>
+                        </linearGradient>
+                        <!-- ラベンダー（タマの） -->
+                        <linearGradient id="rec-grad-tama" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#c39bd3"/>
+                            <stop offset="55%" stop-color="#9b82f3"/>
+                            <stop offset="100%" stop-color="#5dade2"/>
+                        </linearGradient>
+                        <!-- アクア（きろく：さいしょの画面の「タマのきろく」ボタンと同じ色あい） -->
+                        <linearGradient id="rec-grad-kiroku" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#a5f3ff"/>
+                            <stop offset="50%" stop-color="#26c6da"/>
+                            <stop offset="100%" stop-color="#00838f"/>
+                        </linearGradient>
+                    </defs>
+                    <g font-family="'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', sans-serif" font-weight="900" filter="url(#rec-candy-shadow)">
+                        <g transform="translate(255, 108) rotate(-12)">
+                            <text x="0" y="0" font-size="56" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">タ</text>
+                            <text x="0" y="0" font-size="56" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#rec-grad-tama)">タ</text>
+                            <text x="0" y="-2" font-size="56" fill="url(#rec-candy-gloss)">タ</text>
+                        </g>
+                        <g transform="translate(299, 85) rotate(-8)">
+                            <text x="0" y="0" font-size="52" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">マ</text>
+                            <text x="0" y="0" font-size="52" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#rec-grad-tama)">マ</text>
+                            <text x="0" y="-2" font-size="52" fill="url(#rec-candy-gloss)">マ</text>
+                        </g>
+                        <g transform="translate(341, 65)">
+                            <text x="0" y="0" font-size="48" stroke="#5b2c6f" stroke-width="9" stroke-linejoin="round" fill="none">の</text>
+                            <text x="0" y="0" font-size="48" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#rec-grad-tama)">の</text>
+                            <text x="0" y="-2" font-size="48" fill="url(#rec-candy-gloss)">の</text>
+                        </g>
+                        <g transform="translate(715, 106)">
+                            <text x="0" y="0" font-size="66" letter-spacing="2" stroke="#0b4f5c" stroke-width="11" stroke-linejoin="round" fill="none">きろく</text>
+                            <text x="0" y="0" font-size="66" letter-spacing="2" stroke="#f0fdff" stroke-width="3.5" stroke-linejoin="round" fill="url(#rec-grad-kiroku)">きろく</text>
+                            <text x="0" y="-2" font-size="66" letter-spacing="2" fill="url(#rec-candy-gloss)">きろく</text>
+                            <ellipse cx="20" cy="-42" rx="6" ry="3" transform="rotate(-25 20 -42)" fill="#ffffff" opacity="0.95"/>
+                            <ellipse cx="92" cy="-42" rx="6" ry="3" transform="rotate(-25 92 -42)" fill="#ffffff" opacity="0.95"/>
+                            <ellipse cx="162" cy="-42" rx="6" ry="3" transform="rotate(-25 162 -42)" fill="#ffffff" opacity="0.95"/>
+                        </g>
+                    </g>
+                    <!-- タマ（レベル選択の画面と同じ絵） -->
+                    <g transform="translate(152, 0)">
+                        <g stroke="#111111" stroke-width="1.8" stroke-linecap="round" fill="none">
+                            <path d="M 332,76 Q 310,73 292,79"/><path d="M 334,86 Q 312,86 295,95"/>
+                            <path d="M 484,76 Q 506,73 524,79"/><path d="M 482,86 Q 504,86 521,95"/>
+                        </g>
+                        <path d="M 505,115 C 514,102 522,88 520,76 C 518,67 510,67 508,74 C 506,80 513,83 508,87 C 501,92 490,82 493,66 C 496,49 514,43 528,51 C 543,60 544,86 526,115 Z" fill="#050505"/>
+                        <path d="M 346,105 C 322,94 322,64 338,44 C 341,25 344,7 355,3 C 365,-1 378,12 387,25 C 400,23 416,23 429,25 C 438,12 451,-1 461,3 C 472,7 475,25 478,44 C 494,64 494,94 470,105 Z" fill="#050505"/>
+                        <ellipse cx="364" cy="108" rx="14" ry="9" fill="#050505"/>
+                        <ellipse cx="452" cy="108" rx="14" ry="9" fill="#050505"/>
+                        <ellipse cx="375" cy="59" rx="15.5" ry="14.5" fill="#ffffff"/>
+                        <circle cx="379" cy="60" r="10.5" fill="#c58b18"/>
+                        <circle cx="372" cy="54" r="5" fill="#ffffff"/>
+                        <ellipse cx="441" cy="59" rx="15.5" ry="14.5" fill="#ffffff"/>
+                        <circle cx="445" cy="60" r="10.5" fill="#c58b18"/>
+                        <circle cx="438" cy="54" r="5" fill="#ffffff"/>
+                    </g>
+                </svg>
+            </h1>
         </header>
+
+        <!-- ほかの画面と同じ、水色の枠と水面ボード（中身の長さに合わせて のびる） -->
+        <div class="records-board">
 
         <div class="records-top">
             <section class="records-card jar-card">
@@ -427,6 +498,7 @@
             <h3>にがてな もんだい</h3>
             <ol id="weakList" class="weak-list"></ol>
         </section>
+        </div>
     </div>
     <div id="chartTooltip" class="chart-tooltip" hidden></div>
 

@@ -99,6 +99,7 @@ const Records = {
         Object.values(MODES).forEach(mode => {
             const button = document.createElement('button');
             button.textContent = mode.name;
+            button.dataset.mode = mode.id; // モードごとの色（css/records.css）
             button.className = mode.id === this.tab ? 'active' : '';
             button.addEventListener('click', () => {
                 location.hash = `#/records/${mode.id}`;
