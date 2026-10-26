@@ -74,6 +74,11 @@ const Records = {
                 box.insertAdjacentHTML('beforeend', `<span class="calendar-more">+${drops.length - shown.length}</span>`);
             }
             cell.appendChild(box);
+            // マスがせまいときは、ドロップを並べるかわりに「さいごのドロップ ×こ数」を出す（css/records.css）
+            if (drops.length > 0) {
+                cell.insertAdjacentHTML('beforeend',
+                    `<div class="calendar-count"><img src="${dropSrc(drops[drops.length - 1])}" alt="">×${drops.length}</div>`);
+            }
             if (drops.length > 0) {
                 cell.title = `${month + 1}/${day}：ドロップ ${drops.length}こ`;
             }
@@ -331,6 +336,14 @@ const DropJar = {
     MAX_VISUAL_BALLS: 350,  // 画面が重くならないための最大表示粒数（これを超えると自動間引き）
     MOVE_MS: 5000,          // アニメーション全体の最大安全タイマー（ミリ秒）
     SETTLE_MS: 1200,        // 玉がびん内に戻ってから物理計算を完全停止するまでの時間（ミリ秒）
+
+    // 跳ね返り：強くぶつかったときだけ、ぶつかった面の向きに跳ね返す（false にすると、跳ね返りのない以前の動きに戻る）
+    BOUNCE_ENABLED: true,
+    BOUNCE_RESTITUTION: 0.4, // 反発係数（ぶつかる速さの何倍で跳ね返るか）
+    BOUNCE_MIN_SPEED: 1.2,   // 跳ね返る速さがこれより小さいときは跳ねない（px／ステップ）
+    BOUNCE_MAX_HEIGHT: 2,    // 跳ねる高さの上限（玉の半径の何倍か。2 で玉1つぶん）
+    BOUNCE_MAX: 2,           // 1つの玉が跳ねる回数の上限（落ちるたび・飛び出すたびに数えなおす）
+    BOUNCE_FRICTION: 0.7,    // 跳ねるとき、面にそった速さをどれだけ残すか
     balls: [],
     images: {},
     running: false,
@@ -341,9 +354,15 @@ const DropJar = {
     lidVy: 0,               // コルクのふたの速度
     lidAngle: 0,            // コルクのふたの傾き角度（ラジアン）
     lidVa: 0,               // コルクのふたの角速度
-    lidRocking: false,      // ふたが閉まる瞬間のなじみ中か
+    lidRocking: false,      // ふたが落ちてきて、まだ おさまっていないか
+    lidHits: 0,             // ふたの角が、口のふちに当たった回数（開くたびに数えなおす）
+    lidBounced: false,      // ふたが口にはまって、小さく跳ねたか
+    LID_PLUG: 14,           // コルクの、口に差しこむ部分の長さ（px）
+    LID_ALIGN: 0.07,        // これより傾いていると、口のふちに当たって跳ねかえる（ラジアン）
+    LID_MAX_HITS: 3,        // ふちに当たって跳ねかえるのは、この回数まで（そのあとは すべりこむ）
     baseR: 10.8,            // 個数に応じて自動調整された現在の基準半径
     mergeQueue: [],         // タッチで1つずつ発動する合体予約リスト
+    UNPACK_GROW: 0.06,      // ほどけて生まれた粒が ふくらむ速さ（1ステップで のこりの何わり）
     pendingMerges: 0,       // ユーザーのクリックによって発動待機中の合体数
     mergeCooldown: 0,       // 合体直後の余韻フレーム
     settleBoost: 0,         // 合体直後に素早くピタッと落ち着かせるフレーム数
@@ -362,6 +381,7 @@ const DropJar = {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.inner = { left: 34, right: canvas.width - 34, top: 46, bottom: canvas.height - 18 };
+        this.buildJarShape();
         this.heat = 0;
         this.jarKick = 0;
         this.lidVy = 0;
@@ -430,10 +450,14 @@ const DropJar = {
         }
 
         // 100個未満の端数の通常ドロップ（100個グループと全く同じ大きさ）
+        //   間引いているときは、1つぶが何こ分かを packed に覚えておき、合体のたびに少しずつ「ほどく」（unpackSome）
         const remStart = count100 * 100;
         for (let m = 0; m < remainderBalls; m++) {
-            const k = remStart + Math.min(remainder - 1, Math.floor((m * remainder) / remainderBalls));
-            balls.push(this.newBall(drops[k], 1.0, 1));
+            const from = remStart + Math.floor((m * remainder) / remainderBalls);
+            const to = remStart + Math.floor(((m + 1) * remainder) / remainderBalls);
+            const ball = this.newBall(drops[from], 1.0, 1);
+            if (to - from > 1) ball.packed = drops.slice(from + 1, to);
+            balls.push(ball);
         }
 
         this.balls = balls;
@@ -445,6 +469,8 @@ const DropJar = {
         this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.20;
         this.lidVa = 0;
         this.lidRocking = false;
+        this.lidHits = 0;
+        this.lidBounced = false;
 
         const packedBalls = this.balls.slice(0, this.balls.length - falling);
         const fallingBalls = this.balls.slice(this.balls.length - falling);
@@ -465,11 +491,12 @@ const DropJar = {
 
         // 上から落ちてくるドロップを配置
         fallingBalls.forEach((ball, i) => {
-            ball.x = left + ball.r + Math.random() * (right - left - ball.r * 2);
+            ball.x = this.jar.cx - (this.jar.nw - ball.r) + Math.random() * (this.jar.nw - ball.r) * 2; // 口の上から落ちてくる
             ball.y = top - ball.r * 2 - i * ball.r * 2.8;
             ball.px = ball.x;
             ball.py = ball.y;
             ball.settled = false;
+            ball.bounces = 0;
         });
 
         this.balls = packedBalls.concat(fallingBalls);
@@ -555,7 +582,6 @@ const DropJar = {
 
     // 画面表示前に内部で実行する初期馴染ませ用の物理ステップ
     settleStep() {
-        const { left, right, bottom } = this.inner;
         const balls = this.balls;
         const cell = Math.max(14, this.baseR * 3.2);
 
@@ -597,11 +623,7 @@ const DropJar = {
                     }
                 }
             });
-            balls.forEach(b => {
-                if (b.x < left + b.r) b.x = left + b.r;
-                if (b.x > right - b.r) b.x = right - b.r;
-                if (b.y > bottom - b.r) b.y = bottom - b.r;
-            });
+            balls.forEach(b => this.collideWithJar(b, false));
         }
     },
 
@@ -644,9 +666,9 @@ const DropJar = {
 
         this.jarKick = (Math.random() < 0.5 ? -1 : 1) * Math.min(0.08, 0.02 + this.heat * 0.006);
         this.lidVy = -Math.min(24, 8 + this.heat * 2.2);
-        this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.22;
-        this.lidVa = 0;
         this.lidRocking = false;
+        this.lidHits = 0;
+        this.lidBounced = false;
 
         const { bottom } = this.inner;
 
@@ -665,6 +687,7 @@ const DropJar = {
             ball.py = ball.y - newVy;
             ball.va = (Math.random() - 0.5) * (0.25 + this.heat * 0.05);
             ball.wasHit = false;
+            ball.bounces = 0;
         });
 
         this.start();
@@ -685,8 +708,12 @@ const DropJar = {
 
             const nowTime = performance.now();
             const { top } = this.inner;
-            const anyInAir = this.balls.some(b => !b.settled && !b.merging && (b.y < top || (b.y - b.py) < -1.5));
-            const isMerging = (this.pendingMerges > 0 && this.mergeQueue.length > 0) || this.activeMerges.length > 0;
+            // 跳ね返りがあるときは、どこにも触れていない玉も「空中」（いちばん高い所で速さが0になっても、そこで止めない）
+            const anyInAir = this.balls.some(b => !b.settled && !b.merging
+                && (b.y < top || (b.y - b.py) < -1.5 || (this.BOUNCE_ENABLED && !b.wasHit)));
+            // ほどけて生まれた粒が ふくらんでいるあいだも、止めない（止めると 小さいまま残る）
+            const isMerging = (this.pendingMerges > 0 && this.mergeQueue.length > 0) || this.activeMerges.length > 0
+                || this.balls.some(b => b.grow > 0);
             const hasEffects = this.popEffects.length > 0 || this.sparkles.length > 0 || this.balls.some(b => b.glow > 0.01 || b.popTimer > 0);
             const lidMoving = Math.abs(this.lidY) > 0.5 || Math.abs(this.lidVy) > 0.1 || this.lidRocking || Math.abs(this.lidAngle) > 0.006;
 
@@ -938,8 +965,47 @@ const DropJar = {
 
                 this.activeMerges.splice(i, 1);
                 this.mergeCooldown = 8;
+
+                // 合体のたびに、間引いていた粒を少しずつ ほどく（さいごの合体で ちょうど ほんとうの数になる）
+                this.unpackSome();
             }
         }
+    },
+
+    // 間引いていた粒（1つぶで何こ分かを packed に持っている）を、少しだけ ほんとうの数に もどす
+    //   のこりの数 ÷ のこりの合体の回数 だけ、粒のすぐ上に 小さく生まれて ゆっくり ふくらむ（キラキラは出さず、さりげなく）
+    unpackSome() {
+        const packed = this.balls.filter(b => b.packed && b.packed.length > 0 && !b.merging);
+        const remaining = packed.reduce((sum, b) => sum + b.packed.length, 0);
+        if (remaining === 0) return;
+        const count = Math.ceil(remaining / (this.mergeQueue.length + 1));
+        const r = this.baseR;
+        for (let n = 0; n < count; n++) {
+            // いちばん多く かかえている粒から ほどく
+            const b = packed.reduce((best, x) => ((x.packed ? x.packed.length : 0) > (best.packed ? best.packed.length : 0) ? x : best));
+            if (!b.packed) break;
+            const nb = this.newBall(b.packed.pop(), 1.0, 1);
+            if (b.packed.length === 0) b.packed = null; // ほどき終わった
+            nb.r = 3; // 小さく生まれて、ゆっくり ふくらむ
+            nb.grow = this.UNPACK_GROW;
+            nb.bounces = 0;
+            // 粒の上がわで、ほかの玉に いちばん重ならない向きに 生まれる
+            let best = null;
+            for (let k = 0; k < 7; k++) {
+                const angle = Math.PI + (Math.PI * (k + 0.5)) / 7;
+                const x = b.x + Math.cos(angle) * (b.r + 4);
+                const y = b.y + Math.sin(angle) * (b.r + 4);
+                if (y < this.jar.shoulderBottom + r || !this.insideJar(x, y)) continue;
+                const crowd = this.balls.reduce((sum, o) => sum + Math.max(0, o.r + 3 - Math.hypot(o.x - x, o.y - y)), 0);
+                if (!best || crowd < best.crowd) best = { x, y, crowd };
+            }
+            nb.x = best ? best.x : b.x;
+            nb.y = best ? best.y : b.y - b.r - 4;
+            nb.px = nb.x;
+            nb.py = nb.y;
+            this.balls.push(nb);
+        }
+        this.updateRadii(false);
     },
 
     // 1こま進める：重力で動かしてから、重なりとびんの外を直す
@@ -965,47 +1031,25 @@ const DropJar = {
         balls.forEach(b => {
             if (b.merging) return;
             if (Math.abs(b.r - b.targetR) > 0.05) {
-                b.r += (b.targetR - b.r) * 0.45;
+                b.r += (b.targetR - b.r) * (b.grow || 0.45);
                 radiusChanging = true;
             } else {
                 b.r = b.targetR;
+                b.grow = 0;
             }
         });
 
-        // コルクのふたの動き（落下中に傾きを整え、着地したら往復振動せずコトンと一発で閉まる）
-        const anyOut = balls.some(b => !b.settled && !b.merging && (b.y - b.r < top - 4 || (b.y - b.py) < -2.5));
-        if (anyOut || this.heat > 1.0) {
-            this.lidRocking = false;
-            this.lidVy -= 1.6;
-            this.lidY += this.lidVy;
-            if (this.lidY <= -60) {
-                this.lidY = -60;
-                this.lidVy = 0;
-            }
-            const targetTilt = (this.lidAngle >= 0 ? 1 : -1) * 0.20;
-            this.lidAngle += (targetTilt - this.lidAngle) * 0.12;
-        } else if (this.lidY < 0 || this.lidVy < 0) {
-            this.lidRocking = false;
-            this.lidVy += 0.65;
-            this.lidY += this.lidVy;
-            if (this.lidY > -28) {
-                this.lidAngle *= 0.82;
-            }
-            if (this.lidY >= 0) {
-                this.lidY = 0;
-                this.lidVy = 0;
-                this.lidVa = 0;
-                this.lidAngle = (this.lidAngle >= 0 ? 1 : -1) * Math.min(0.06, Math.abs(this.lidAngle));
-                this.lidRocking = true;
-            }
-        } else if (this.lidRocking) {
-            this.lidAngle *= 0.52;
-            if (Math.abs(this.lidAngle) < 0.006) {
-                this.lidAngle = 0;
-                this.lidVa = 0;
-                this.lidRocking = false;
-            }
-        }
+        // コルクのふたの動き（stepLid）
+        //   跳ね返りがあるときは、上向きに動いている玉は、いまの速さで ふたの高さまで届くとき
+        //   （いちばん高い所が びんの口より上になるとき）だけ数える（びんの中で跳ねているだけの玉では、ふたは浮かない）
+        const anyOut = balls.some(b => {
+            if (b.settled || b.merging) return false;
+            if (b.y - b.r < top - 4) return true;
+            const vy = b.y - b.py;
+            if (!this.BOUNCE_ENABLED) return vy < -2.5;
+            return vy < -2.5 && b.y - b.r - (vy * vy) / (2 * 0.52) < top - 4;
+        });
+        this.stepLid(anyOut || this.heat > 1.0);
 
         // 停止時刻（settleDeadline）が近づくにつれて減衰を強め、ぷるぷるを残さず滑らかに完全停止へ導く
         const timeRemaining = Math.max(0, (this.settleDeadline || (performance.now() + 1000)) - performance.now());
@@ -1019,6 +1063,11 @@ const DropJar = {
         balls.forEach(b => {
             if (b.merging) return;
             activeBalls.push(b);
+            b.vinX = 0;        // ぶつかる前の速さ（跳ね返りの計算に使う）
+            b.vinY = 0;
+            b.impactSpeed = 0; // このステップでいちばん強くぶつかったときの、近づく速さ
+            b.impactNx = 0;    // そのときの、玉を押し返す向き
+            b.impactNy = 0;
             if (b.settled) {
                 b.sx = b.x;
                 b.sy = b.y;
@@ -1038,6 +1087,8 @@ const DropJar = {
             b.sx = b.x;
             b.sy = b.y;
             b.hit = false;
+            b.vinX = vx;
+            b.vinY = vy;
             b.x += vx;
             b.y += vy;
         });
@@ -1107,6 +1158,10 @@ const DropJar = {
 
                             a.hit = true;
                             b.hit = true;
+                            // 2つの玉が近づく速さ（いっしょに動いている玉どうしは、近づく速さが小さいので跳ねない）
+                            const approach = (a.vinX - b.vinX) * nx + (a.vinY - b.vinY) * ny;
+                            this.recordImpact(a, -nx, -ny, approach);
+                            this.recordImpact(b, nx, ny, approach);
 
                             if (a.settled) {
                                 b.x += nx * overlap;
@@ -1132,29 +1187,14 @@ const DropJar = {
 
             // びんの壁と底との当たり判定
             activeBalls.forEach(b => {
-                if (b.settled) return;
-                const r = b.r;
-                if (b.y >= top - r) {
-                    if (b.x < left + r) {
-                        b.x = left + r;
-                        b.hit = true;
-                    }
-                    if (b.x > right - r) {
-                        b.x = right - r;
-                        b.hit = true;
-                    }
-                    if (b.y > bottom - r) {
-                        b.y = bottom - r;
-                        b.hit = true;
-                    }
-                } else {
-                    const funnelMargin = Math.min(28, Math.max(0, (top - b.y) * 0.12));
-                    const minX = left + r - funnelMargin;
-                    const maxX = right - r + funnelMargin;
-                    if (b.x < minX) b.x = minX;
-                    if (b.x > maxX) b.x = maxX;
-                }
+                if (!b.settled) this.collideWithJar(b);
             });
+        }
+
+        // 止まっている玉でも、下から支えられていなければ、また落とす
+        //   （支えていた玉が跳ねて離れたとき、空中で止まったままにしない）
+        if (this.BOUNCE_ENABLED && this.activeMerges.length === 0) {
+            this.wakeUnsupported(activeBalls, cell);
         }
 
         // 衝突解決後の実移動量から次ステップの速度を更新し、動きが小さい粒は即座に固定してぷるぷるを防ぐ
@@ -1165,7 +1205,14 @@ const DropJar = {
             let newVx = b.x - b.sx;
             let newVy = b.y - b.sy;
 
-            if (!isShaking && b.hit) {
+            // 強くぶつかったときは、ぶつかった面の向きに跳ね返す
+            const bounced = this.applyBounce(b, gravity);
+            if (bounced) {
+                newVx = bounced.vx;
+                newVy = bounced.vy;
+            }
+
+            if (!isShaking && b.hit && !bounced) {
                 if (newVy < 0) newVy *= 0.35;
                 if (b.y >= bottom - b.r - 0.5) {
                     newVx *= 0.72;
@@ -1208,6 +1255,267 @@ const DropJar = {
                 b.py = b.y + (b.py - b.y) * 0.5;
             }
         });
+    },
+
+    // ビンの形（写真のガラスびん）：太い胴・短く丸い肩・口（胴の73%）・口のふち
+    //   内がわのふちを、左の口 → 左の壁 → 底 → 右の壁 → 右の口 の折れ線（points）で持つ。当たり判定も描画もこれを使う
+    buildJarShape() {
+        const { left: L, right: R, top: T, bottom: B } = this.inner;
+        const cx = (L + R) / 2, bw = (R - L) / 2, nw = bw * 0.73;
+        const jar = {
+            cx, bw, nw,
+            rimTop: T - 6,                 // 口のふちの上（ここより上は びんの外）
+            neckBottom: T + 16,            // 口（首）の下
+            shoulderBottom: T + 16 + 24,   // 肩の下（ここから下は まっすぐな胴）
+            bottom: B,
+            cornerR: 30,                   // 底の角の丸み
+            wall: 8,                       // ガラスの厚み（描画用）
+        };
+        const pts = [];
+        const quad = (p0, c, p1) => {
+            for (let i = 1; i <= 8; i++) {
+                const t = i / 8, u = 1 - t;
+                pts.push([u * u * p0[0] + 2 * u * t * c[0] + t * t * p1[0], u * u * p0[1] + 2 * u * t * c[1] + t * t * p1[1]]);
+            }
+        };
+        const { rimTop, neckBottom, shoulderBottom, cornerR: cr } = jar;
+        pts.push([cx - nw, rimTop], [cx - nw, neckBottom]);
+        quad([cx - nw, neckBottom], [cx - bw, neckBottom], [cx - bw, shoulderBottom]);
+        pts.push([cx - bw, B - cr]);
+        quad([cx - bw, B - cr], [cx - bw, B], [cx - bw + cr, B]);
+        pts.push([cx + bw - cr, B]);
+        quad([cx + bw - cr, B], [cx + bw, B], [cx + bw, B - cr]);
+        pts.push([cx + bw, shoulderBottom]);
+        quad([cx + bw, shoulderBottom], [cx + bw, neckBottom], [cx + nw, neckBottom]);
+        pts.push([cx + nw, rimTop]);
+        jar.points = pts;
+        // 折れ線の1本ずつに、びんの内がわを向く向き（法線）をつけておく
+        jar.segments = [];
+        for (let i = 0; i < pts.length - 1; i++) {
+            const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+            const len = Math.hypot(bx - ax, by - ay);
+            if (len === 0) continue;
+            let nx = -(by - ay) / len, ny = (bx - ax) / len;
+            if (!this.insideJar((ax + bx) / 2 + nx, (ay + by) / 2 + ny, pts)) {
+                nx = -nx;
+                ny = -ny;
+            }
+            jar.segments.push({ ax, ay, bx, by, nx, ny });
+        }
+        this.jar = jar;
+    },
+
+    // (x, y) が びんの中（口のふちより下）にあるか
+    insideJar(x, y, pts = this.jar.points) {
+        let inside = false;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+            const [xi, yi] = pts[i], [xj, yj] = pts[j];
+            if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+    },
+
+    // びんの壁・底・口のふちに当たったら、びんの中に押し戻す（record のときは、ぶつかった面の向きと速さも覚えておく）
+    collideWithJar(b, record = true) {
+        const jar = this.jar;
+        const r = b.r;
+        const dx = b.x - jar.cx;
+        // 口より上：口のほうへ寄せて、びんの中へもどってくるようにする（上にいくほど ゆるく）
+        if (b.y < jar.rimTop) {
+            const margin = b.y < jar.rimTop - r ? Math.min(28, (jar.rimTop - b.y) * 0.12) : 0;
+            const limit = jar.nw - r + margin;
+            if (b.y >= jar.rimTop - r) {
+                // ふちのすぐ上では、玉の中心が ふちより外に出ないようにする（ふちの角には、下の当たり判定で当たる）
+                b.x = jar.cx + Math.max(-jar.nw, Math.min(jar.nw, dx));
+            } else {
+                b.x = jar.cx + Math.max(-limit, Math.min(limit, dx));
+                return;
+            }
+        }
+        // まっすぐな胴のまんなかあたりにいる玉は、どの壁にもとどかない（計算を はぶく）
+        const y = b.y, adx = Math.abs(dx);
+        if (y >= jar.shoulderBottom + r
+            && ((adx <= jar.bw - r - 0.5 && y <= jar.bottom - jar.cornerR) || (adx <= jar.bw - jar.cornerR && y <= jar.bottom - r - 0.5))) {
+            return;
+        }
+        const push = (nx, ny, depth) => {
+            if (record) this.recordImpact(b, nx, ny, -(b.vinX * nx + b.vinY * ny));
+            b.x += nx * depth;
+            b.y += ny * depth;
+            b.hit = true;
+        };
+        // 速くて壁をすりぬけたときは、いちばん近い壁の内がわへ もどす
+        if (b.y >= jar.rimTop && !this.insideJar(b.x, b.y)) {
+            let best = null;
+            jar.segments.forEach(s => {
+                const q = closestOnSegment(b.x, b.y, s);
+                const d = Math.hypot(b.x - q.x, b.y - q.y);
+                if (!best || d < best.d) best = { d, q, s };
+            });
+            b.x = best.q.x;
+            b.y = best.q.y;
+            push(best.s.nx, best.s.ny, r);
+        }
+        // 壁から玉の半径ぶん はなす（ふちの角では、角から まっすぐ押しかえされるので、自然に跳ねかえる）
+        jar.segments.forEach(s => {
+            const q = closestOnSegment(b.x, b.y, s);
+            const ox = b.x - q.x, oy = b.y - q.y;
+            const d = Math.hypot(ox, oy);
+            if (d >= r || d === 0) return;
+            push(ox / d, oy / d, r - d);
+        });
+    },
+
+    // 玉が、上を向いたビンの面（底・底の丸い角）に のっているか
+    restsOnJar(b) {
+        return this.jar.segments.some(s => {
+            if (s.ny > -0.2) return false;
+            const q = closestOnSegment(b.x, b.y, s);
+            return Math.hypot(b.x - q.x, b.y - q.y) < b.r + 1;
+        });
+    },
+
+    // コルクのふた（1ステップぶん）
+    //   口に差しこむ部分（LID_PLUG）が口から抜けるまでは、まっすぐ上下にしか動かない。抜けたら 回りながら飛ぶ
+    //   落ちてきて口のふちに当たったとき、傾きが大きいと 角がふちに当たって跳ねかえり、傾きがなおる（LID_MAX_HITS 回まで）
+    //   傾きが小さければ 口にすべりこみ、コトンと小さく1回跳ねて おさまる
+    stepLid(pushed) {
+        const PLUG = this.LID_PLUG;
+        const wasOut = this.lidY < -PLUG;
+        if (pushed) {
+            // とび出す玉に押されて、ふたが開いていく
+            this.lidRocking = false;
+            this.lidVy -= 1.6;
+            this.lidY += this.lidVy;
+            if (this.lidY <= -60) {
+                this.lidY = -60;
+                this.lidVy = 0;
+            }
+            if (this.lidY > 0) {
+                this.lidY = 0;
+                this.lidVy = 0;
+            }
+        } else if (this.lidY < 0 || this.lidVy < 0) {
+            // 落ちてくる
+            this.lidRocking = true;
+            this.lidVy += 0.65;
+            const nextY = this.lidY + this.lidVy;
+            if (this.lidY < -PLUG && nextY >= -PLUG) {
+                // 差しこむ部分の先が、口のふちに とどいた
+                if (Math.abs(this.lidAngle) > this.LID_ALIGN && this.lidHits < this.LID_MAX_HITS) {
+                    // 傾いているので、角がふちに当たって 跳ねかえる（傾きは 水平にもどる向きに回る）
+                    this.lidHits++;
+                    this.lidY = -PLUG;
+                    this.lidVy = -Math.min(6, this.lidVy * 0.35);
+                    this.lidVa = -this.lidAngle * 0.12;
+                    this.lidAngle *= 0.55;
+                } else {
+                    // まっすぐなので、口にすべりこむ（こすれて少しおそくなる）
+                    this.lidY = nextY;
+                    this.lidVy *= 0.7;
+                }
+            } else {
+                this.lidY = nextY;
+            }
+            if (this.lidY >= 0) {
+                // 口にはまった。速ければ小さく1回跳ねる
+                if (this.lidVy > 2.5 && !this.lidBounced) {
+                    this.lidBounced = true;
+                    this.lidY = 0;
+                    this.lidVy = -this.lidVy * 0.25;
+                } else {
+                    this.lidY = 0;
+                    this.lidVy = 0;
+                    this.lidRocking = false;
+                }
+            }
+        }
+        // 傾き：口に差しこまれているあいだは まっすぐ。抜けているあいだは 回る
+        if (this.lidY < -PLUG) {
+            if (!wasOut && pushed && this.lidVa === 0) {
+                this.lidVa = (Math.random() < 0.5 ? -1 : 1) * (0.006 + Math.random() * 0.006);
+            }
+            // 空気にじゃまされて、回る勢いは だんだん弱まる（傾きは 0.2〜0.4 くらいまで）
+            this.lidAngle = Math.max(-0.4, Math.min(0.4, this.lidAngle + this.lidVa));
+            this.lidVa *= 0.97;
+        } else {
+            this.lidAngle *= 0.5;
+            this.lidVa = 0;
+            if (Math.abs(this.lidAngle) < 0.004) this.lidAngle = 0;
+        }
+    },
+
+    // 止まっている玉のうち、ビンの底にも、下にある玉にも触れていないものを、また動かす
+    wakeUnsupported(balls, cell) {
+        const grid = new Map();
+        balls.forEach((b, i) => {
+            const key = `${Math.floor(b.x / cell)},${Math.floor(b.y / cell)}`;
+            if (!grid.has(key)) grid.set(key, []);
+            grid.get(key).push(i);
+        });
+        balls.forEach(a => {
+            if (!a.settled || this.restsOnJar(a)) return;
+            const cx = Math.floor(a.x / cell), cy = Math.floor(a.y / cell);
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (const j of grid.get(`${cx + dx},${cy + dy}`) || []) {
+                        const b = balls[j];
+                        if (b === a || b.y <= a.y + 0.5) continue;
+                        if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r + 1) return; // 下の玉に支えられている
+                    }
+                }
+            }
+            a.settled = false;
+            a.calmFrames = 0;
+        });
+    },
+
+    // ぶつかったことを覚えておく（nx, ny：玉を押し返す向き、speed：近づく速さ）。いちばん強いものだけ残す
+    recordImpact(b, nx, ny, speed) {
+        if (speed > b.impactSpeed) {
+            b.impactSpeed = speed;
+            b.impactNx = nx;
+            b.impactNy = ny;
+        }
+    },
+
+    // 跳ね返り：落ちてきて強くぶつかったときだけ、ぶつかった面の向きに跳ね返す速さを返す（跳ねないときは null）
+    //   跳ねる高さは玉1つぶんまで。跳ねるたびに弱くなり、BOUNCE_MIN_SPEED より小さくなったら、いつもの「止める」処理にまかせる
+    applyBounce(b, gravity) {
+        if (!this.BOUNCE_ENABLED || !b.hit || (b.bounces || 0) >= this.BOUNCE_MAX) return null;
+        if (b.vinY <= 0 || b.impactSpeed <= 0) return null; // 上に向かって動いている玉は跳ねない（落ちてきたときだけ）
+        const nx = b.impactNx, ny = b.impactNy;
+        if (ny > 0) return null;                             // 下向きに押し返される（上にある玉に当たった）ときは跳ねない
+        const inSpeed = b.impactSpeed;
+        const maxOut = Math.sqrt(2 * gravity * this.BOUNCE_MAX_HEIGHT * b.r);
+        const outSpeed = Math.min(inSpeed * this.BOUNCE_RESTITUTION, maxOut);
+        if (outSpeed < this.BOUNCE_MIN_SPEED) return null;
+        b.bounces = (b.bounces || 0) + 1;
+        // 面にそった速さは、ぶつかる前の速さから少し弱めて残し、面の向きには outSpeed で跳ね返す
+        //   （めりこみを押し戻したときの動きは使わない。使うと、横に飛びすぎる）
+        const tx = (b.vinX + inSpeed * nx) * this.BOUNCE_FRICTION;
+        const ty = (b.vinY + inSpeed * ny) * this.BOUNCE_FRICTION;
+        // 面にそった速さも、跳ねる速さの上限より大きくしない（斜めにぶつかった玉が、横に飛びすぎないように）
+        const tLen = Math.hypot(tx, ty);
+        const tScale = tLen > maxOut ? maxOut / tLen : 1;
+        return { vx: tx * tScale + outSpeed * nx, vy: ty * tScale + outSpeed * ny };
+    },
+
+    // ビンのりんかく（o：内がわのふちから外へ どれだけ広げるか）
+    jarPath(o) {
+        const { cx, bw, nw, rimTop, neckBottom, shoulderBottom, bottom: B, cornerR: cr } = this.jar;
+        const p = new Path2D();
+        p.moveTo(cx - nw - o, rimTop + 2);
+        p.lineTo(cx - nw - o, neckBottom);
+        p.quadraticCurveTo(cx - bw - o, neckBottom, cx - bw - o, shoulderBottom);
+        p.lineTo(cx - bw - o, B - cr);
+        p.quadraticCurveTo(cx - bw - o, B + o, cx - bw + cr, B + o);
+        p.lineTo(cx + bw - cr, B + o);
+        p.quadraticCurveTo(cx + bw + o, B + o, cx + bw + o, B - cr);
+        p.lineTo(cx + bw + o, shoulderBottom);
+        p.quadraticCurveTo(cx + bw + o, neckBottom, cx + nw + o, neckBottom);
+        p.lineTo(cx + nw + o, rimTop + 2);
+        return p;
     },
 
     // キラキラの4つ角スター（✨）を描画するヘルパー
@@ -1260,8 +1568,7 @@ const DropJar = {
 
         // びん（うしろ側）
         ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-        roundRect(ctx, left - 10, top - 14, right - left + 20, bottom - top + 26, 26);
-        ctx.fill();
+        ctx.fill(this.jarPath(0));
 
         // 合体に向けてギュッと集まっている最中の中心の光の予兆
         this.activeMerges.forEach(m => {
@@ -1410,38 +1717,85 @@ const DropJar = {
             }
         });
 
-        // びん（ガラスのふち）
-        ctx.strokeStyle = 'rgba(120, 160, 190, 0.9)';
-        ctx.lineWidth = 4;
-        roundRect(ctx, left - 10, top - 14, right - left + 20, bottom - top + 26, 26);
+        const jar = this.jar;
+        const { cx, nw, rimTop, wall } = jar;
+        const rimW = nw + wall + 4;
+
+        // コルクのふた：口に差しこむ部分（ガラスごしに見える）と、上の太い部分
+        //   （傾きに応じて、口のふちを支点に斜めに浮き上がらせて描く）
+        const corkW = rimW + 2;
+        const corkH = 28;
+        const corkTop = rimTop - corkH + 2 + this.lidY;
+        const drawCork = part => {
+            if (corkTop < -45) return;
+            const rockLift = Math.abs(Math.sin(this.lidAngle)) * (corkW * 0.84);
+            ctx.save();
+            ctx.translate(cx, corkTop + corkH / 2 - rockLift);
+            ctx.rotate(this.lidAngle);
+            if (part === 'plug') {
+                ctx.fillStyle = 'rgba(200, 150, 100, 0.55)';
+                ctx.fillRect(-nw, corkH / 2 - 4, nw * 2, 20);
+            } else {
+                const g = ctx.createLinearGradient(0, -corkH / 2, 0, corkH / 2);
+                g.addColorStop(0, '#d9a36b');
+                g.addColorStop(1, '#b8834f');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.moveTo(-corkW, -corkH / 2 + 3);
+                ctx.quadraticCurveTo(-corkW, -corkH / 2, -corkW + 4, -corkH / 2);
+                ctx.lineTo(corkW - 4, -corkH / 2);
+                ctx.quadraticCurveTo(corkW, -corkH / 2, corkW, -corkH / 2 + 3);
+                ctx.lineTo(corkW - 3, corkH / 2);
+                ctx.lineTo(-corkW + 3, corkH / 2);
+                ctx.closePath();
+                ctx.fill();
+                // コルクのつぶつぶ
+                ctx.fillStyle = 'rgba(120, 80, 40, 0.35)';
+                for (let i = 0; i < 70; i++) {
+                    ctx.fillRect(-corkW + 4 + ((i * 37) % (corkW * 2 - 8)), -corkH / 2 + 3 + ((i * 13) % (corkH - 6)), 2, 1.5);
+                }
+            }
+            ctx.restore();
+        };
+        drawCork('plug');
+
+        // びん（ガラスの厚みと、内と外のふち）
+        ctx.lineWidth = wall;
+        ctx.strokeStyle = 'rgba(160, 195, 215, 0.75)';
+        ctx.stroke(this.jarPath(wall / 2));
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(110, 150, 180, 0.9)';
+        ctx.stroke(this.jarPath(wall));
+        ctx.stroke(this.jarPath(0));
+
+        // 口のふち（少し厚い輪）
+        ctx.fillStyle = 'rgba(175, 205, 225, 0.95)';
+        roundRect(ctx, cx - rimW, rimTop, rimW * 2, 10, 4);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(110, 150, 180, 0.9)';
+        ctx.lineWidth = 1.2;
         ctx.stroke();
 
-        // コルクのふた（傾きに応じてビンの口の上端を支点に斜めに浮き上がらせて描画）
-        const lidW = right - left + 8;
-        const lidH = 18;
-        const lidBaseY = top - 34 + this.lidY;
-        if (lidBaseY > -45) {
-            const lidCx = (left + right) / 2;
-            const rockLift = Math.abs(Math.sin(this.lidAngle)) * (lidW * 0.42);
-            const lidCy = lidBaseY + lidH / 2 - rockLift;
-
-            ctx.save();
-            ctx.translate(lidCx, lidCy);
-            ctx.rotate(this.lidAngle);
-            ctx.fillStyle = '#e8a87c';
-            roundRect(ctx, -lidW / 2, -lidH / 2, lidW, lidH, 6);
-            ctx.fill();
-            ctx.restore();
-        }
+        drawCork('top');
 
         // びんのガラスのツヤ
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        roundRect(ctx, left - 2, top + 10, 8, bottom - top - 40, 4);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+        roundRect(ctx, left + 6, jar.shoulderBottom + 10, 7, (bottom - top) * 0.55, 4);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        roundRect(ctx, right - 16, jar.shoulderBottom + 30, 4, (bottom - top) * 0.3, 3);
         ctx.fill();
 
         ctx.restore();
     },
 };
+
+// 線分 s（ax, ay → bx, by）の上で、(x, y) にいちばん近い点
+function closestOnSegment(x, y, s) {
+    const vx = s.bx - s.ax, vy = s.by - s.ay;
+    const t = Math.max(0, Math.min(1, ((x - s.ax) * vx + (y - s.ay) * vy) / (vx * vx + vy * vy)));
+    return { x: s.ax + vx * t, y: s.ay + vy * t };
+}
 
 function roundRect(ctx, x, y, w, h, radius) {
     ctx.beginPath();

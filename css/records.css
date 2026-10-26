@@ -48,7 +48,7 @@ html[data-mode="records"] body {
 
 .records-top {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 362px 1fr; /* ドロップびん（330px）＋ カードの余白 */
     gap: 16px;
 }
 
@@ -148,6 +148,7 @@ html[data-mode="records"] body {
 }
 
 .calendar-day {
+    container-type: inline-size; /* マスの幅で、ドロップの出し方を切りかえる */
     min-height: 58px;
     border-radius: 8px;
     background: #f7fafc;
@@ -178,6 +179,33 @@ html[data-mode="records"] body {
 .calendar-more {
     font-size: 10px;
     color: #555;
+}
+
+/* マスがせまい（ドロップが横に3こ並ばない）ときは、「さいごのドロップ ×こ数」 */
+.calendar-count {
+    display: none;
+    align-items: center;
+    gap: 1px;
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #2c3e50;
+    white-space: nowrap;
+}
+
+.calendar-count img {
+    width: 16px;
+    height: 16px;
+}
+
+@container (max-width: 57px) {
+    .calendar-drops {
+        display: none;
+    }
+
+    .calendar-count {
+        display: flex;
+    }
 }
 
 

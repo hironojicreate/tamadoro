@@ -1,0 +1,113 @@
+// ドロップびんの物理のテスト
+//   乱数と時計を固定して、びんを開く・タップする を動かし、次を確かめる
+//   ・落ちてきたドロップが跳ねる（BOUNCE_ENABLED のとき）
+//   ・ずっと動きつづけない（最後の操作のあと、5秒の上限より前に止まる）
+//   ・ありえない位置で止まらない（びんの外・宙に浮いたまま・大きな重なり）
+//   ・止まったとき、コルクのふたが まっすぐ閉まっている
+const { chromium } = require('playwright');
+const BASE = process.env.BASE_URL || 'http://localhost:8765/';
+let failures = 0;
+const ok = (cond, msg) => { console.log((cond ? 'PASS ' : 'FAIL ') + msg); if (!cond) failures++; };
+
+const SCENARIOS = [
+  { name: '8こ：ひらく', n: 8, shakes: [] },
+  { name: '50こ：ふたが3回ひらく', n: 50, shakes: [200, 420, 640] },
+  { name: '90こ：れんだ', n: 90, shakes: [200, 210, 220, 230, 240, 250, 260, 270, 280, 290] },
+  { name: '420こ：合体してから ふたがひらく', n: 420, shakes: [200, 330, 460, 590, 720, 900] },
+  // 3589こ：100玉35こ → 1000玉3こ の合体（38回）のたびに、間引いていた 89こ が少しずつ ほどける
+  { name: '3589こ：ぜんぶ合体して ほどける', n: 3589, shakes: Array.from({ length: 38 }, (_, i) => 200 + i * 45), expect: { t1000: 3, t100: 5, t1: 89 } },
+];
+
+async function run(browser, sc, seed, bounce) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.route(/gstatic|googleapis|googletagmanager|jsdelivr/, r => r.abort());
+  await page.addInitScript(({ n, seed }) => {
+    let s = seed >>> 0;
+    Math.random = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    let now = 0;
+    performance.now = () => now;
+    const q = [];
+    window.requestAnimationFrame = cb => { q.push(cb); return q.length; };
+    window.__pump = () => { now += 1000 / 60; const cbs = q.splice(0); cbs.forEach(cb => cb(now)); };
+    const colors = 'LMBARKPYCO';
+    localStorage.setItem('tamadoro.log.v1', JSON.stringify(Array.from({ length: n }, (_, i) => ({ t: 1700000000000 + i * 60000, mode: 'add', level: 1, drop: `/img/${colors[i % 10]}maru.png` }))));
+    localStorage.setItem('tamadoro.schema', '1');
+  }, { n: sc.n, seed });
+  await page.goto(BASE + '#/');
+  await page.waitForTimeout(300);
+  const r = await page.evaluate(({ shakes, bounce }) => {
+    const J = DropJar;
+    J.BOUNCE_ENABLED = bounce;
+    location.hash = '#/records';
+    return new Promise(resolve => setTimeout(() => {
+      const { left, right, top, bottom } = J.inner;
+      let bounces = 0;
+      const orig = J.applyBounce.bind(J);
+      J.applyBounce = (b, g) => { const v = orig(b, g); if (v) bounces++; return v; };
+      let frame = 0, lastShake = 0, maxSinglesJump = 0;
+      let singles = J.balls.filter(b => b.tier === 1).length;
+      for (; frame < 3000; frame++) {
+        if (shakes.includes(frame)) { J.shake(); lastShake = frame; }
+        window.__pump();
+        // 小さい粒が 一度にどれだけ増えたか（ほどけるのは さりげなく、少しずつ）
+        const now = J.balls.filter(b => b.tier === 1 && !b.merging).length;
+        maxSinglesJump = Math.max(maxSinglesJump, now - singles);
+        singles = J.balls.filter(b => b.tier === 1).length;
+        if (!J.running && !shakes.some(f => f > frame)) break;
+      }
+      const balls = J.balls.filter(b => !b.merging);
+      let maxOverlap = 0, outside = 0, floating = 0;
+      balls.forEach((a, i) => {
+        // びんの中にいて、どの壁からも玉の半径ぶん はなれているか（口より上で止まっていたら、外）
+        const jar = J.jar;
+        const inJar = a.y >= jar.rimTop && J.insideJar(a.x, a.y)
+          && jar.segments.every(s => { const q = closestOnSegment(a.x, a.y, s); return Math.hypot(a.x - q.x, a.y - q.y) >= a.r - 1; });
+        if (!inJar) outside++;
+        let supported = J.restsOnJar(a);
+        balls.forEach((b, j) => {
+          if (i === j) return;
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (j > i) maxOverlap = Math.max(maxOverlap, (a.r + b.r - d) / Math.min(a.r, b.r));
+          if (d < a.r + b.r + 1 && b.y > a.y + 0.5) supported = true;
+        });
+        if (!supported) floating++;
+      });
+      const tiers = { t1000: balls.filter(b => b.tier === 1000).length, t100: balls.filter(b => b.tier === 100).length, t1: balls.filter(b => b.tier === 1).length, packed: balls.filter(b => b.packed).length };
+      resolve({ maxSinglesJump, settleFrames: frame - lastShake, running: J.running, bounces, maxOverlap, outside, floating, tiers, lidClosed: J.lidY === 0 && J.lidAngle === 0 && !J.lidRocking });
+    }, 50));
+  }, { shakes: sc.shakes, bounce });
+  await page.close();
+  return { ...r, errors };
+}
+
+(async () => {
+  const browser = await chromium.launch();
+  for (const sc of SCENARIOS) {
+    for (const seed of [1, 2, 3]) {
+      const r = await run(browser, sc, seed, true);
+      const label = `${sc.name}（乱数${seed}）`;
+      // 5秒（300コマ）の上限で止められたのではなく、自分で止まった
+      ok(!r.running && r.settleFrames < 240, `${label}：止まる（${r.settleFrames}コマ）`);
+      ok(r.outside === 0 && r.floating === 0, `${label}：びんの外・宙に浮いた玉がない（外${r.outside}・浮く${r.floating}）`);
+      ok(r.maxOverlap < 0.5, `${label}：大きな重なりがない（${r.maxOverlap.toFixed(2)}）`);
+      ok(r.lidClosed, `${label}：ふたが まっすぐ閉まっている`);
+      if (sc.expect) {
+        const t = r.tiers;
+        ok(t.t1000 === sc.expect.t1000 && t.t100 === sc.expect.t100 && t.t1 === sc.expect.t1 && t.packed === 0,
+          `${label}：1000玉${t.t1000}・100玉${t.t100}・小さい粒${t.t1}（ほんとうの数）`);
+        ok(r.maxSinglesJump <= 3, `${label}：小さい粒は 合体のたびに少しずつ増える（一度に${r.maxSinglesJump}こまで）`);
+      }
+      if (sc.n > 0) ok(r.bounces > 0, `${label}：跳ねる（${r.bounces}かい）`);
+      ok(r.errors.length === 0, `${label}：エラーなし ${r.errors.join(' / ')}`);
+    }
+  }
+  // BOUNCE_ENABLED = false のときは、跳ねない（以前の動き）
+  const off = await run(browser, SCENARIOS[1], 1, false);
+  ok(off.bounces === 0 && !off.running, `跳ね返りを切ると跳ねない（${off.bounces}かい）`);
+
+  await browser.close();
+  console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
+  process.exit(failures ? 1 : 0);
+})();
