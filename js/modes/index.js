@@ -54,8 +54,10 @@ function dropImage(letter) {
     return `/img/${letter}maru.png`;
 }
 
-// 保存データの画像名 → 画面に出す、球のドロップ（img/drops/L.svg。tools/make_drops.py でつくる）
-function dropSrc(image) {
+// 保存データの画像名 → 画面に出す、球のドロップ（img/drops/L.svg）
+//   small: 小さくたくさん並べるところ（レベル選択・カレンダー）は、軽い PNG（img/drops/small/L.png。tools/make_drop_pngs.js でつくる）
+function dropSrc(image, small = false) {
     const match = /\/img\/([A-Z])maru\.png$/.exec(image || '');
-    return match ? `/img/drops/${match[1]}.svg` : image;
+    if (!match) return image;
+    return small ? `/img/drops/small/${match[1]}.png` : `/img/drops/${match[1]}.svg`;
 }

@@ -90,11 +90,13 @@ js/
   app.js                画面の切り替え
 js/glyphs.js            数字・記号・ひらがなの字形（tools/make_glyphs.py でつくる）
 img/drops/              ドロップ（ガラス玉にねこのもようの SVG）
+img/drops/small/        レベル選択・カレンダー用の小さいドロップ（PNG。SVG をたくさん並べると重いので）
 img/bg_space.svg        さいしょの画面のうしろ（宇宙）
 img/board_water.svg     さいしょ・レベル選択の画面の水色のわく
 img/tama_and_logo.svg   タマとタイトルロゴ
 tools/make_glyphs.py    数字・記号・ひらがなの字形をつくるスクリプト（形を直したいときに）
 tools/make_drops.py     前のドロップ（かんたんな球）の SVG をつくるスクリプト。実行すると、いまのドロップが上書きされるので注意
+tools/make_drop_pngs.js 小さいドロップの PNG（img/drops/small/）を img/drops/*.svg からつくるスクリプト
 ```
 
 ## よくある変更
@@ -106,6 +108,7 @@ tools/make_drops.py     前のドロップ（かんたんな球）の SVG をつ
   ```
 - **ドロップの色を変える**：`img/drops/*.svg` の色（グラデーションの `stop-color` など）を直接書きかえます。
   （`tools/make_drops.py` は前のかんたんな球をつくるスクリプトなので、実行するといまのドロップが上書きされます）
+  書きかえたら `node tools/make_drop_pngs.js` で、小さいドロップの PNG（`img/drops/small/`）もつくりなおします。
 - **数字・記号・ひらがなの形を直す**：`tools/make_glyphs.py` の `BASE`（線の通り道）を変えて `python3 tools/make_glyphs.py`。
   字形は、教科書体の書き方のきまりに合わせて、タマドロのために一から描いたものです（フォントをなぞったものではありません）。
   あとで最終調整する点は、スクリプトの先頭に覚え書きがあります。
