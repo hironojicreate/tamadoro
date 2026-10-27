@@ -151,13 +151,27 @@ html[data-mode="multi"] #level30 {
     background-color: var(--color-lv30);
     color: #FFD700;
     border: 2px solid #FFD700;
-    animation: shine 2s infinite; /* キラキラのエフェクト */
+    box-shadow: 0 0 5px gold;
+    position: relative;
+}
+
+/* キラキラのエフェクト：大きい光を重ねて、その濃さ（opacity）だけを変える。
+   box-shadow を直接アニメーションさせると、毎フレーム まわりのドロップごと描き直しになって重くなるため */
+html[data-mode="multi"] #level30::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    box-shadow: 0 0 20px gold;
+    opacity: 0;
+    pointer-events: none;
+    animation: shine 2s infinite;
 }
 
 @keyframes shine {
-    0% { box-shadow: 0 0 5px gold; }
-    50% { box-shadow: 0 0 20px gold; }
-    100% { box-shadow: 0 0 5px gold; }
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 html[data-mode="multi"] .returnButton {

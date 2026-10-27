@@ -48,6 +48,25 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     await ctx.close(); await ctx2.close();
   }
 
+  // レベル選択に たくさん並ぶドロップは軽い PNG、投げるときは SVG。オニ（黒）の光は描き直しのいらない opacity で動かす
+  {
+    const ctx = await newCtx();
+    const storage = {};
+    for (let lv = 1; lv <= 30; lv++) storage[`multi_coins_${lv}`] = JSON.stringify(Array.from({ length: 5 }, () => ({ image: '/img/Amaru.png', date: '1/2' })));
+    const { page, errors } = await openPage(ctx, 'index.html#/multi', storage);
+    const srcs = await page.$$eval('.main-reward-coin', l => l.map(e => new URL(e.src).pathname));
+    ok(srcs.length === 150 && srcs.every(s => s === '/img/drops/small/A.png'), `メニューのドロップは小さい PNG ${srcs.length}こ`);
+    const png = await page.evaluate(() => fetch('/img/drops/small/G.png').then(r => r.ok));
+    ok(png, '金のドロップの小さい PNG もある');
+    await page.evaluate(() => throwCoin(30, false, 50, 1, 30)); await page.waitForTimeout(300);
+    ok(await page.$eval('.coin', e => new URL(e.src).pathname) === '/img/drops/A.svg', '投げるドロップは SVG');
+    const anims = await page.evaluate(() => document.getElementById('level30').getAnimations({ subtree: true })
+      .map(a => a.effect.getKeyframes().flatMap(k => Object.keys(k)).filter(k => !['offset', 'easing', 'composite', 'computedOffset'].includes(k))));
+    ok(anims.length > 0 && anims.every(props => props.every(p => p === 'opacity')), `オニ（黒）の光は opacity だけで動く ${JSON.stringify(anims)}`);
+    ok(errors.length === 0, 'エラーなし ' + errors.join(' / '));
+    await ctx.close();
+  }
+
   // たしざん：/rescue で Lv11 まで → Lv10 に5個
   {
     const ctx = await newCtx();

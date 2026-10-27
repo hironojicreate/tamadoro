@@ -66,7 +66,7 @@ const Records = {
             box.className = 'calendar-drops';
             shown.forEach(drop => {
                 const img = document.createElement('img');
-                img.src = dropSrc(drop);
+                img.src = dropSrc(drop, true);
                 img.alt = '';
                 box.appendChild(img);
             });
@@ -77,7 +77,7 @@ const Records = {
             // マスがせまいときは、ドロップを並べるかわりに「さいごのドロップ ×こ数」を出す（css/records.css）
             if (drops.length > 0) {
                 cell.insertAdjacentHTML('beforeend',
-                    `<div class="calendar-count"><img src="${dropSrc(drops[drops.length - 1])}" alt="">×${drops.length}</div>`);
+                    `<div class="calendar-count"><img src="${dropSrc(drops[drops.length - 1], true)}" alt="">×${drops.length}</div>`);
             }
             if (drops.length > 0) {
                 cell.title = `${month + 1}/${day}：ドロップ ${drops.length}こ`;

@@ -29,7 +29,7 @@ function scatterCoins() {
 function throwCoin(level, special = false, coinSize = 50, howManyCoins = 1, useExistingCoins = 0, bounce = 0.7) {
     if (currentMode.existingCoinsLevels.includes(useExistingCoins)) {
         document.querySelectorAll('.main-reward-coin').forEach((coin, index) => {
-            setTimeout(() => launchCoin(coin.src, coinSize, bounce), index * 100); // 少し遅延を加えて投げる
+            setTimeout(() => launchCoin(coin.dataset.image, coinSize, bounce), index * 100); // 少し遅延を加えて投げる
         });
         problemState.useExistingCoins = 0; // useExistingCoins をリセット
         return;
@@ -267,8 +267,9 @@ function displayLatestCoins(level, containerId, limit = 5) {
         coinWrapper.style.display = 'inline-block';
 
         const img = document.createElement('img');
-        img.src = dropSrc(coin.image);
+        img.src = dropSrc(coin.image, true);
         img.className = 'main-reward-coin';
+        img.dataset.image = coin.image;  // 投げるときは大きい SVG で
         img.style.width = currentMode.menuCoinSize;
         img.style.height = currentMode.menuCoinSize;
         img.setAttribute('data-level', level);
