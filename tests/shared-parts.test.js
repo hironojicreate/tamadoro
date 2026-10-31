@@ -35,7 +35,9 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     const ctx2 = await newCtx();
     const { page: idx, errors: e2 } = await openPage(ctx2, 'index.html');
     await idx.click('#openDataModalHome');
-    const [chooser] = await Promise.all([idx.waitForEvent('filechooser'), idx.click('#importData')]);
+    await idx.click('#importData');
+    ok(await idx.isVisible('#importChoice'), 'ロードを押すと、よみこみかたをえらぶ');
+    const [chooser] = await Promise.all([idx.waitForEvent('filechooser'), idx.click('#importMerge')]);
     await chooser.setFiles(file); await idx.waitForTimeout(300);
     ok(await idx.evaluate(() => !!localStorage.getItem('sub_coins_1')), 'index でロードできる');
     ok(await idx.$eval('#notification', e => e.textContent) === 'データをよみこみました。', 'ロードの通知');
@@ -46,6 +48,61 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     ok(await p2.$$eval('#coins1 .main-reward-coin', l => l.length) === 1, 'ロードしたドロップがメニューに出る');
     ok(e2.length === 0, 'index エラーなし ' + e2.join(' / '));
     await ctx.close(); await ctx2.close();
+  }
+
+  // ロードの「たして」と「うわがき」
+  {
+    const before = {
+      add_coins_1: JSON.stringify([{ image: '/img/Amaru.png', date: '1/2' }]),
+      sub_coins_1: JSON.stringify([{ image: '/img/Bmaru.png', date: '1/3' }]),
+      'tamadoro.schema': '1',
+      'tamadoro.log.v1': JSON.stringify([{ t: 1, mode: 'add', level: 1, ms: 5000, total: 10, miss: 0, cleared: true, drop: null }]),
+    };
+    // むかしのアプリのセーブファイル（記録なし・ドロップだけ）
+    const oldFile = require('path').join(require('os').tmpdir(), 'tashizan_d_test.txt');
+    fs.writeFileSync(oldFile, JSON.stringify({ multi_coins_1: JSON.stringify([{ image: '/img/Cmaru.png', date: '1/4' }]), sub_coins_1: JSON.stringify([]) }));
+    const load = async (button) => {
+      const ctx = await newCtx();
+      const { page, errors } = await openPage(ctx, 'index.html', before);
+      await page.click('#openDataModalHome');
+      await page.click('#importData');
+      const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click(button)]);
+      await chooser.setFiles(oldFile); await page.waitForTimeout(300);
+      const result = await page.evaluate(() => ({ ...localStorage }));
+      const note = await page.$eval('#notification', e => e.textContent);
+      await ctx.close();
+      return { result, note, errors };
+    };
+
+    const merged = await load('#importMerge');
+    ok(merged.result.add_coins_1 === before.add_coins_1, 'たして：ファイルにないドロップはのこる');
+    ok(merged.result.sub_coins_1 === '[]', 'たして：ファイルにあるドロップは入れかわる');
+    ok(!!merged.result.multi_coins_1, 'たして：ファイルのドロップが入る');
+    ok(JSON.parse(merged.result['tamadoro.log.v1']).length === 1, 'たして：いまの記録はのこる');
+    ok(merged.note === 'データをよみこみました。', 'たして：通知');
+
+    const replaced = await load('#importReplace');
+    ok(!replaced.result.add_coins_1, 'うわがき：ファイルにないドロップは消える');
+    ok(!!replaced.result.multi_coins_1, 'うわがき：ファイルのドロップが入る');
+    const log = JSON.parse(replaced.result['tamadoro.log.v1']);
+    ok(log.length === 1 && log[0].mode === 'multi' && log[0].imported, 'うわがき：いまの記録は消え、ファイルのドロップが記録に取りこまれる');
+    ok(replaced.note === 'データをうわがきして よみこみました。', 'うわがき：通知');
+    ok(merged.errors.length === 0 && replaced.errors.length === 0, 'ロードでエラーなし ' + [...merged.errors, ...replaced.errors].join(' / '));
+
+    // こわれたファイルを「うわがき」でえらんでも、いまのデータは消えない
+    fs.writeFileSync(oldFile, 'こわれたファイル');
+    const broken = await load('#importReplace');
+    ok(broken.result.add_coins_1 === before.add_coins_1, 'うわがき：こわれたファイルなら、いまのデータは消えない');
+    ok(broken.note === 'データをよみこめませんでした。', 'うわがき：こわれたファイルの通知');
+
+    // やめる
+    const ctx = await newCtx();
+    const { page } = await openPage(ctx, 'index.html');
+    await page.click('#openDataModalHome');
+    await page.click('#importData');
+    await page.click('#importCancel');
+    ok(!(await page.isVisible('#importChoice')), 'やめるで、えらぶところが閉じる');
+    await ctx.close();
   }
 
   // レベル選択に たくさん並ぶドロップは軽い PNG、投げるときは SVG。オニ（黒）の光は描き直しのいらない opacity で動かす

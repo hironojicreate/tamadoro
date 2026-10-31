@@ -9,6 +9,10 @@ function openDataModal() {
 function closeDataModal() {
     document.getElementById('dataModal').style.display = 'none';
     document.getElementById('dataModalOverlay').style.display = 'none';
+    const importChoice = document.getElementById('importChoice');
+    if (importChoice) {
+        importChoice.style.display = 'none';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -45,10 +49,27 @@ document.getElementById('exportData').addEventListener('click', function () {
 
 
 // ロード（ロードボタンは index.html にだけある）
+//   「たして」  ：ファイルにあるデータだけ入れかえ、ファイルにないデータはのこす
+//   「うわがき」：いまのデータをぜんぶ消してから、ファイルのデータを入れる
+let importMode = 'merge';
+
+function chooseImportFile(mode) {
+    importMode = mode;
+    document.getElementById('importChoice').style.display = 'none';
+    const fileInput = document.getElementById('fileInput');
+    fileInput.value = ''; // 同じファイルをもう一度えらんでも読みこめるように
+    fileInput.click();
+}
+
 const importButton = document.getElementById('importData');
 if (importButton) {
     importButton.addEventListener('click', function () {
-        document.getElementById('fileInput').click();
+        document.getElementById('importChoice').style.display = 'block';
+    });
+    document.getElementById('importMerge').addEventListener('click', () => chooseImportFile('merge'));
+    document.getElementById('importReplace').addEventListener('click', () => chooseImportFile('replace'));
+    document.getElementById('importCancel').addEventListener('click', function () {
+        document.getElementById('importChoice').style.display = 'none';
     });
 }
 
@@ -64,10 +85,19 @@ document.getElementById('fileInput').addEventListener('change', function (event)
     reader.onload = function (e) {
         try {
             const data = JSON.parse(e.target.result);
+            // 中身をたしかめてから消す（こわれたファイルで、いまのデータだけ消えないように）
+            if (!data || typeof data !== 'object' || Array.isArray(data)) {
+                throw new Error('セーブファイルではありません');
+            }
+            if (importMode === 'replace') {
+                localStorage.clear();
+            }
             Object.keys(data).forEach(key => {
                 localStorage.setItem(key, data[key]);
             });
-            showNotification("データをよみこみました。");
+            // むかしのアプリのファイルを「うわがき」で読んだときは、ドロップを記録に取りこむ
+            History.migrate();
+            showNotification(importMode === 'replace' ? "データをうわがきして よみこみました。" : "データをよみこみました。");
         } catch (error) {
             showNotification("データをよみこめませんでした。");
         } finally {

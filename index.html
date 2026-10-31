@@ -371,7 +371,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.15</span>
+                <span id="version">Ver.6.3.16</span>
             </p>
         </footer>
     </div>
@@ -1007,6 +1007,16 @@
             <button id="toggleDateButton" class="mode-only">ひづけON</button>
             　<!--　←空白あり-->
             <button onclick="closeDataModal();">とじる</button>
+            <!-- ロードのしかた（「データをロード」を押すと出る） -->
+            <div id="importChoice" class="home-only"
+                style="display:none; max-width: 420px; margin: 14px auto 0; padding: 10px 14px; border: 1px dashed #999; border-radius: 10px; text-align: left;">
+                <p style="margin: 0 0 8px;"><b>よみこみかたを えらんでください。</b></p>
+                <button id="importMerge">いまのデータに たして よみこむ</button>
+                <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータは のこします。おなじ しゅるいのデータは、ファイルのほうに なります。</p>
+                <button id="importReplace">ぜんぶ うわがきして よみこむ</button>
+                <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータ（ドロップ・きろく・せってい）を ぜんぶ けしてから、ファイルのデータに おきかえます。</p>
+                <button id="importCancel">やめる</button>
+            </div>
             <textarea id="commandInput" class="mode-only"
                 style="width: 80%; height: 20px; margin-top: 10px; resize: none; overflow: hidden; padding: 5px;"
                 placeholder="【⚠緊急復元⚠】ここに「/rescue」と入力。その後Lvを選択。"></textarea>
