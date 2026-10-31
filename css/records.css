@@ -558,20 +558,18 @@ html[data-mode="records"] body {
     display: none;
 }
 
-/* 木のテーブル（板のつなぎめ と 木目） */
-.drop-table-wood {
+/* 水色のテーブル（びんのカードと同じ色。うしろの きろくの画面が すけて、少し ぼやけて見える） */
+.drop-table-bg {
     position: absolute;
     inset: 0;
-    background-color: #e8cda2;
-    background-image:
-        repeating-linear-gradient(0deg, rgba(120, 75, 30, 0.22) 0 2px, transparent 2px 120px),
-        repeating-linear-gradient(0deg, rgba(150, 100, 50, 0.07) 0 1px, transparent 1px 9px),
-        linear-gradient(160deg, #f2dcb6, #e2c08e);
+    background: rgba(214, 240, 251, 0.85);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
     opacity: 0;
     transition: opacity 0.5s;
 }
 
-.drop-table.is-shown .drop-table-wood {
+.drop-table.is-shown .drop-table-bg {
     opacity: 1;
 }
 
