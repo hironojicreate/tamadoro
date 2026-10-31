@@ -1,4 +1,4 @@
-# タマの【けいさん】ドロップス（タマドロ）
+# タマのけいさんドロップス（タマドロ）
 
 小学校低学年向けの計算練習 WEB アプリです。たしざん・ひきざん・かけざん・百マスたしざんを解いて、ドロップを集めます。
 
@@ -94,6 +94,8 @@ img/drops/small/        レベル選択・カレンダー用の小さいドロ�
 img/bg_space.svg        さいしょの画面のうしろ（宇宙）
 img/board_water.svg     さいしょ・レベル選択の画面の水色のわく
 img/tama_and_logo.svg   タマとタイトルロゴ
+img/ogp.jpg             リンクを貼ったときのカードの画像（1200×630。さいしょの画面から、歯車・おしらせ・フッターを消して撮ったもの）
+sitemap.xml・robots.txt 検索エンジン（Google Search Console など）むけ
 tools/make_glyphs.py    数字・記号・ひらがなの字形をつくるスクリプト（形を直したいときに）
 tools/make_drops.py     前のドロップ（かんたんな球）の SVG をつくるスクリプト。実行すると、いまのドロップが上書きされるので注意
 tools/make_drop_pngs.js 小さいドロップの PNG（img/drops/small/）を img/drops/*.svg からつくるスクリプト

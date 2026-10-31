@@ -15,7 +15,7 @@ const visible = (page, id) => page.$eval('#' + id, e => getComputedStyle(e).disp
 
   await page.goto(BASE); await page.waitForTimeout(400);
   ok(await visible(page, 'homeScreen') && !(await visible(page, 'openingScreen')), 'さいしょの画面');
-  ok(await page.title() === 'タマの【けいさん】ドロップス', 'さいしょのタイトル');
+  ok(await page.title() === 'タマのけいさんドロップス（タマドロ）｜小学生のたし算・ひき算・かけ算・百ます計算 無料ゲーム', 'さいしょのタイトル');
 
   await page.click('#homeAdd'); await page.waitForTimeout(300);
   ok(page.url().endsWith('#/add') && await visible(page, 'openingScreen') && !(await visible(page, 'homeScreen')), 'たしざんへ');
