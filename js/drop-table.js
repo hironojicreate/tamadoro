@@ -23,9 +23,11 @@ const DropTable = {
     POUR_FRAMES: 70,    // 見えていなかった粒が 口から出てくる時間
     POUR_MAX: 360,      // ぶちまけるのは ここまで（つまって出られない粒は、びんの中に のこる）
     RISE_FRAMES: 34,    // おかたづけで、びんが おきあがって 定位置に もどる時間
-    CLEAN_FRAMES: 60,   // 粒が つぎつぎ とんでくる時間のはば
+    FILL_FRAMES: 150,   // 粒が つぎつぎ 口に あつまってくる時間のはば（ながいほど、口から落ちる ながれが ほそい）
     FLY_FRAMES: 22,     // 1つぶが びんの口の上へ とんでいく時間
     LID_FRAMES: 30,     // さいごに コルクが とんできて ふたをする時間
+    HEAP_SLOPE: 1.0,    // つもっている とちゅうの 山の けわしさ（まんなかから 1px はなれると、どれだけ ひくいか）。はじめは けわしい山
+    MOUND_SLOPE: 0.3,   // さいごに つもった山の なだらかさ（すそが うまって、ここまで なだらかに なる）
 
     isOpen: false,
     running: false,
@@ -630,37 +632,41 @@ const DropTable = {
         if (k >= 1) this.startFill();
     },
 
-    // もどったあとの びん（いつもの びん）を 先に つくって、その粒の場所を「おく場所」にする
-    //   下の場所から じゅんばんに、びんの中に入っていた粒 → 口に近い粒 の順で うめる（うめた粒の色を、おく場所の粒にも うつす）
+    // もどったあとの びん（いつもの びん）を 先に つくり、その粒を なだらかな山の形に ならべなおして「おく場所」にする（moundSlots）
+    //   びんの中に入っていた粒 → 口に近い粒 の順で、おく場所を つもる じゅんばんに うめる（うめた粒の色を、おく場所の粒にも うつす）
+    //   粒は 口の上の まんなかあたりに あつまって、口から 落ち、いまの 山の てっぺんに 落ちてから、斜面を ころがって おく場所で 止まる
     //   おく場所より 多い粒は、口で すいこまれて 見えなくなる。たりない分は、さいごに 口から 入ってくる
     //   粒どうしで おしあう計算は しないので、つもった粒は ぴたっと 止まる。ふたが しまったら、いつもの びんと まったく同じ ならび
     startFill() {
         DropJar.show(History.getLog(), true);
         DropJar.running = false; // おく場所を うごかさない
-        const slots = DropJar.balls.slice().sort((a, b) => b.y - a.y);
+        const slots = this.moundSlots(DropJar.balls);
         const shape = DropJar.jar;
         const mouth = this.toWorld(this.pose, shape.cx, shape.rimTop);
         const dist = b => Math.hypot(b.x - mouth.x, b.y - mouth.y);
         const inside = this.balls.filter(b => b.inside);
         const outside = this.balls.filter(b => !b.inside).sort((a, b) => dist(a) - dist(b));
         inside.concat(outside).forEach((b, n) => {
-            Object.assign(b, { rigid: false, held: false, slot: slots[n] || null, t: 0, sx: b.x, sy: b.y, sr: b.r, sa: b.angle });
-            if (b.slot) b.slot.src = b.src;
+            Object.assign(b, { rigid: false, held: false, slot: slots[n] || null, t: 0, sx: b.x, sy: b.y, sr: b.r });
+            if (b.slot) b.slot.ball.src = b.src;
             if (b.inside) {
-                b.stage = 'fall'; // びんの中にいた粒は、すぐ 底へ
+                b.stage = b.slot ? 'roll' : 'gone'; // びんの中にいた粒は、そのまま 山の場所へ ころがる
                 b.delay = Math.floor(n * 0.3);
             } else {
                 b.stage = 'fly';
-                b.delay = Math.floor(((n - inside.length) / Math.max(1, outside.length)) * this.CLEAN_FRAMES);
+                b.delay = Math.floor(((n - inside.length) / Math.max(1, outside.length)) * this.FILL_FRAMES);
+                b.gather = this.gatherPoint();
             }
         });
+        this.balls = this.balls.filter(b => b.stage !== 'gone');
         for (let n = inside.length + outside.length; n < slots.length; n++) {
             const slot = slots[n];
-            const at = this.entryOf(slot);
-            const b = this.newBall(slot.src, 1, slot.r * this.pose.scale, slot.r);
+            const at = this.gatherPoint();
+            const r = slot.ball.r * this.pose.scale;
+            const b = this.newBall(slot.ball.src, 1, r, slot.ball.r);
             Object.assign(b, {
-                slot, stage: 'fall', hidden: true, t: 0, x: at.x, y: at.y, sx: at.x, sy: at.y, r: slot.r * this.pose.scale, sr: slot.r * this.pose.scale, sa: b.angle,
-                delay: this.CLEAN_FRAMES + this.FLY_FRAMES + Math.floor((n - inside.length - outside.length) * 0.5),
+                slot, stage: 'gather', hidden: true, t: 0, wait: 0, x: at.x, y: at.y, r, sx: at.x, sy: at.y, sr: r,
+                delay: this.FILL_FRAMES + this.FLY_FRAMES + Math.floor((n - inside.length - outside.length) * 0.5),
             });
             this.balls.push(b);
         }
@@ -668,18 +674,64 @@ const DropTable = {
         this.t = 0;
     },
 
-    // おく場所に入るときの、口の上の点（首の はばの中）
-    entryOf(slot) {
+    // びんの中に、なだらかな山の形に 粒を ならべる場所（びんの絵の大きさで）を、つもる じゅんばんに 返す
+    //   六角形に すきまなく ならぶ場所のうち「高さ ＋ まんなかからの きょり × MOUND_SLOPE」が ひくい場所を 粒の数だけ えらぶ（上の面が なだらかな山）
+    //   つもる じゅんばんは「高さ ＋ まんなかからの きょり × HEAP_SLOPE」が ひくい順（まんなかから けわしく つもり、すそが あとから うまる）
+    //   粒は いまの 山の てっぺんに 落ちてから ころがってくる（landY）。いつもの びんの粒（jarBalls）も、この場所に うごかしておく
+    moundSlots(jarBalls) {
+        const n = jarBalls.length;
+        if (n === 0) return [];
+        const jar = DropJar.jar, r = jarBalls[0].r, d = 2 * r + 0.4, rowH = (d * Math.sqrt(3)) / 2;
+        const y0 = jar.bottom - r - 0.5;
+        const cands = [];
+        for (let k = 0; y0 - k * rowH > jar.shoulderBottom + r; k++) {
+            const y = y0 - k * rowH;
+            const reach = Math.ceil(jar.bw / d) + 1;
+            for (let m = -reach; m <= reach; m++) {
+                const x = jar.cx + m * d + ((k % 2) * d) / 2;
+                if (!this.fitsInJar(x, y, r + 0.3)) continue;
+                cands.push({ x, y, h: y0 - y, dx: Math.abs(x - jar.cx), rnd: Math.random() * d * 0.6 });
+            }
+        }
+        // 入りきらないとき（ふつうは ない）は、いつもの ならびのまま 下から うめる
+        if (cands.length < n) {
+            return jarBalls.slice().sort((a, b) => b.y - a.y).map(ball => ({ ball, landY: ball.y }));
+        }
+        const height = (c, slope) => c.h + c.dx * slope;
+        cands.sort((a, b) => height(a, this.MOUND_SLOPE) + a.rnd - height(b, this.MOUND_SLOPE) - b.rnd);
+        const chosen = cands.slice(0, n).sort((a, b) => height(a, this.HEAP_SLOPE) - height(b, this.HEAP_SLOPE));
+        const top = Math.max(...chosen.filter(c => c.dx < d).map(c => c.h), 0); // さいごの 山の てっぺん
+        return chosen.map((c, i) => {
+            const ball = jarBalls[i];
+            Object.assign(ball, { x: c.x, y: c.y, px: c.x, py: c.y, va: 0, settled: true, calmFrames: 20 });
+            const peak = Math.min(top, height(c, this.HEAP_SLOPE)); // この粒が つもるときの 山の てっぺん
+            return { ball, landY: Math.max(jar.shoulderBottom + r, y0 - peak - r) };
+        });
+    },
+
+    // (x, y) に 半径 rr の粒が、びんの かべに かからずに 入るか（びんの絵の大きさで）
+    fitsInJar(x, y, rr) {
+        if (!DropJar.insideJar(x, y)) return false;
+        return DropJar.jar.segments.every(g => {
+            const q = closestOnSegment(x, y, g);
+            return Math.hypot(x - q.x, y - q.y) >= rr;
+        });
+    },
+
+    // 粒が あつまる、口の上の まんなかあたり
+    gatherPoint() {
         const shape = DropJar.jar;
-        const x = clampNum(slot.x, shape.cx - shape.nw + slot.r + 2, shape.cx + shape.nw - slot.r - 2);
-        return this.toWorld(this.pose, x, shape.rimTop - slot.r - 6);
+        return this.toWorld(this.pose, shape.cx + (Math.random() * 2 - 1) * shape.nw * 0.35, shape.rimTop - 16 - Math.random() * 22);
     },
 
     // 'fly'：すこし ふくらんだ道を通って 口の上へ とぶ（とびながら びんの粒の大きさに ちぢむ）
-    // 'fall'：おく場所へ すとんと 落ちて、ぴたっと 止まる
+    // 'gather'：口の上で ちょっと まって
+    // 'fall'：口から まっすぐ 落ちて、いまの 山の てっぺんへ
+    // 'roll'：山の斜面を ころがって、おく場所で ぴたっと 止まる
     stepFill() {
         this.t++;
         const s = this.pose.scale;
+        const shape = DropJar.jar;
         this.balls = this.balls.filter(b => {
             if (b.stage === 'done') return true;
             if (b.delay > 0) {
@@ -689,30 +741,51 @@ const DropTable = {
             b.hidden = false;
             b.t++;
             if (b.stage === 'fly') {
-                const m = b.slot ? this.entryOf(b.slot) : this.toWorld(this.pose, DropJar.jar.cx, DropJar.jar.rimTop - 4);
+                // 上へ 山なりに とんで、口の上へ 上から おりてくる
+                const m = b.gather;
                 const k = Math.min(1, b.t / this.FLY_FRAMES);
                 const e = k * k;
-                const cx = (b.sx + m.x) / 2 + (b.sy - m.y) * 0.25;
-                const cy = (b.sy + m.y) / 2 - (b.sx - m.x) * 0.25;
+                const cx = (b.sx + m.x) / 2;
+                const cy = Math.min(b.sy, m.y) - 120 * s;
                 b.x = (1 - e) * (1 - e) * b.sx + 2 * (1 - e) * e * cx + e * e * m.x;
                 b.y = (1 - e) * (1 - e) * b.sy + 2 * (1 - e) * e * cy + e * e * m.y;
-                b.r = lerp(b.sr, b.slot ? b.slot.r * s : 0.5, e);
+                b.r = lerp(b.sr, b.slot ? b.slot.ball.r * s : 0.5, e);
                 b.angle += 0.3;
-                b.sa = b.angle;
                 if (k < 1) return true;
                 if (!b.slot) return false; // おく場所がない：口で すいこまれて 見えなくなる
-                Object.assign(b, { stage: 'fall', t: 0, sx: b.x, sy: b.y, sr: b.r });
+                Object.assign(b, { stage: 'gather', t: 0, wait: Math.floor(Math.random() * 7) });
                 return true;
             }
-            const to = this.toWorld(this.pose, b.slot.x, b.slot.y);
-            if (!b.fallFrames) b.fallFrames = Math.max(6, Math.round(Math.sqrt(Math.hypot(to.x - b.sx, to.y - b.sy)) * 1.6));
-            const k = Math.min(1, b.t / b.fallFrames);
-            const e = k * k;
-            b.x = lerp(b.sx, to.x, e);
-            b.y = lerp(b.sy, to.y, e);
-            b.r = lerp(b.sr, b.slot.r * s, k);
-            b.angle = lerp(b.sa, b.slot.angle, k);
-            if (k >= 1) b.stage = 'done';
+            if (b.stage === 'gather') {
+                if (b.t <= b.wait) return true;
+                const land = this.toWorld(this.pose, shape.cx + (Math.random() - 0.5) * b.slot.ball.r, b.slot.landY);
+                Object.assign(b, { stage: 'fall', t: 0, sx: b.x, sy: b.y, tx: land.x, ty: land.y });
+                b.frames = Math.max(4, Math.round(Math.sqrt(Math.hypot(land.x - b.x, land.y - b.y)) * 1.1));
+                return true;
+            }
+            if (b.stage === 'fall') {
+                const k = Math.min(1, b.t / b.frames);
+                const e = k * k;
+                b.x = lerp(b.sx, b.tx, e);
+                b.y = lerp(b.sy, b.ty, e);
+                b.angle += 0.08;
+                if (k >= 1) Object.assign(b, { stage: 'roll', t: 0, sx: b.x, sy: b.y, frames: 0 });
+                return true;
+            }
+            // 'roll'：はじめは はやく、止まる前に ゆっくり（ころがった きょりの分だけ まわる）
+            const to = this.toWorld(this.pose, b.slot.ball.x, b.slot.ball.y);
+            if (!b.frames) b.frames = Math.max(4, Math.round(Math.hypot(to.x - b.sx, to.y - b.sy) / 4));
+            const k = Math.min(1, b.t / b.frames);
+            const e = 1 - (1 - k) * (1 - k);
+            const nx = lerp(b.sx, to.x, e), ny = lerp(b.sy, to.y, e);
+            b.angle += (Math.hypot(nx - b.x, ny - b.y) / Math.max(1, b.r)) * (to.x >= b.sx ? 1 : -1);
+            b.x = nx;
+            b.y = ny;
+            b.r = lerp(b.sr, b.slot.ball.r * s, k);
+            if (k >= 1) {
+                b.stage = 'done';
+                b.slot.ball.angle = b.angle; // いつもの びんでも、同じ向き
+            }
             return true;
         });
         if (this.balls.every(b => b.stage === 'done')) {
@@ -815,6 +888,11 @@ const DropTable = {
         const oy = this.bump ? Math.cos(this.t * 3.1) * this.bump * 0.6 : 0;
         ctx.setTransform(dpr, 0, 0, dpr, ox * dpr, oy * dpr);
 
+        // おかたづけで びんへ とんでいく粒は、びんの うしろを通る（びんの中に うかんで見えないように）
+        const behind = b => b.stage === 'fly';
+        this.balls.forEach(b => { if (behind(b)) this.drawBall(b, ox, oy); });
+        ctx.setTransform(dpr, 0, 0, dpr, ox * dpr, oy * dpr);
+
         // びん と コルク
         const p = this.pose;
         ctx.save();
@@ -836,32 +914,35 @@ const DropTable = {
         ctx.fillStyle = 'rgba(30, 80, 120, 0.2)';
         ctx.beginPath();
         this.balls.forEach(b => {
-            if (b.hidden) return;
-            const off = b.held ? 7 : b.inside || b.rigid || b.stage === 'fall' || b.stage === 'done' ? 1 : 2;
+            if (b.hidden || behind(b)) return;
+            const off = b.held ? 7 : b.inside || b.rigid || ['fall', 'roll', 'done'].includes(b.stage) ? 1 : 2;
             ctx.moveTo(b.x + off + b.r, b.y + off * 1.4);
             ctx.arc(b.x + off, b.y + off * 1.4, b.r, 0, Math.PI * 2);
         });
         ctx.fill();
 
         // 粒
-        this.balls.forEach(b => {
-            const img = DropJar.images[b.src];
-            if (!img || !img.ready || b.hidden) return;
-            const r = b.r * (b.held ? 1.15 : 1);
-            const cos = Math.cos(b.angle) * dpr, sin = Math.sin(b.angle) * dpr;
-            ctx.setTransform(cos, sin, -sin, cos, (b.x + ox) * dpr, (b.y + oy) * dpr);
-            ctx.drawImage(img, -r, -r, r * 2, r * 2);
-            // 100玉・500玉・1000玉は、びんの中と同じ ふちどり
-            const fx = b.tier >= 100 ? DropJar.FX[`to${b.tier}`] : null;
-            if (fx) {
-                ctx.beginPath();
-                ctx.arc(0, 0, Math.max(0.5, r - 1), 0, Math.PI * 2);
-                ctx.strokeStyle = fx.color.rim;
-                ctx.lineWidth = fx.rimWidth * Math.min(1, r / b.rTable);
-                ctx.stroke();
-            }
-        });
+        this.balls.forEach(b => { if (!behind(b)) this.drawBall(b, ox, oy); });
         ctx.setTransform(1, 0, 0, 1, 0, 0);
+    },
+
+    drawBall(b, ox, oy) {
+        const { ctx, dpr } = this;
+        const img = DropJar.images[b.src];
+        if (!img || !img.ready || b.hidden) return;
+        const r = b.r * (b.held ? 1.15 : 1);
+        const cos = Math.cos(b.angle) * dpr, sin = Math.sin(b.angle) * dpr;
+        ctx.setTransform(cos, sin, -sin, cos, (b.x + ox) * dpr, (b.y + oy) * dpr);
+        ctx.drawImage(img, -r, -r, r * 2, r * 2);
+        // 100玉・500玉・1000玉は、びんの中と同じ ふちどり
+        const fx = b.tier >= 100 ? DropJar.FX[`to${b.tier}`] : null;
+        if (fx) {
+            ctx.beginPath();
+            ctx.arc(0, 0, Math.max(0.5, r - 1), 0, Math.PI * 2);
+            ctx.strokeStyle = fx.color.rim;
+            ctx.lineWidth = fx.rimWidth * Math.min(1, r / b.rTable);
+            ctx.stroke();
+        }
     },
 };
 
