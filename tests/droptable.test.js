@@ -5,7 +5,8 @@
 //   ・粒は びんの中より大きく、テーブルを おおいつくさない数まで。画面の中で、ガラスに めりこまずに、自分で止まる
 //   ・指でつまんで動かせる・はじくと すべる・何本の指でも
 //   ・口からなら びんの中に入れられる（ガラスは すりぬけない）
-//   ・「おかたづけ」で 口から つまっていき（中に入れておいた粒は そのまま）、びんにもどる。ほかの画面へ行っても もどる
+//   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口から入って 下から つもり（つもったら 動かない）、ふたが しまる
+//     そのあとの いつもの びんは、つもった ならびと まったく同じ。ほかの画面へ行っても もどる
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://localhost:8765/';
 let failures = 0;
@@ -223,18 +224,60 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
   });
   ok(blocked, `${name}：ガラスは すりぬけない`);
 
-  // おかたづけ：口から つまっていく。中に入れておいた粒は そのまま
+  // おかたづけ：まず びんが おきあがって 定位置に もどる（そのあいだ、テーブルの粒は まだ動かない）
   await page.click('.drop-table-done');
-  for (let i = 0; i < 40 && (await page.evaluate(() => DropTable.phase === 'clean')); i++) await pump(page, 10);
-  const packed = await page.evaluate(() => {
+  const rise = await page.evaluate(() => {
     const T = DropTable;
-    return { phase: T.phase, kept: T.balls.includes(window.__putIn) && window.__putIn.inside, n: T.balls.length, max: T.jarCount, all: T.balls.every(b => b.inside && T.glassDepth(b) < 1.5) };
+    const before = T.balls.filter(b => !b.inside).map(b => [b, b.x, b.y]);
+    let still = true;
+    for (let i = 0; i < 200 && T.phase === 'rise'; i++) {
+      window.__pump(1);
+      if (T.phase === 'rise') still = still && before.every(([b, x, y]) => b.x === x && b.y === y);
+    }
+    const r = DropJar.canvas.getBoundingClientRect();
+    return { phase: T.phase, still, angle: T.pose.angle, dx: T.pose.x - (r.left + r.width / 2), dy: T.pose.y - (r.top + r.height / 2) };
   });
-  ok(packed.phase === 'stand' && packed.kept, `${name}：おかたづけでも、中に入れておいた粒は そのまま`);
-  ok(packed.n > 1 && packed.n <= packed.max && packed.all, `${name}：口から びんの中に つまっていく（${packed.n}こ／たおれる前 ${packed.max}こ）`);
+  ok(rise.phase === 'fill' && rise.still && rise.angle === 0 && Math.abs(rise.dx) < 1 && Math.abs(rise.dy) < 1,
+    `${name}：おかたづけは、まず びんが おきあがって 定位置に もどる`);
 
-  // びんが おきあがって、もとの びんに もどる
-  for (let i = 0; i < 20 && (await page.evaluate(() => DropTable.isOpen)); i++) await pump(page, 30);
+  // 粒が 口から入って、下から つもる。中に入れておいた粒も、いっしょに つもる
+  const fill = await page.evaluate(() => {
+    const T = DropTable;
+    let order = true, lastY = Infinity;
+    for (let i = 0; i < 600 && T.phase === 'fill'; i++) {
+      window.__pump(1);
+      // 止まった粒は、下から じゅんばん（おく場所の高さが だんだん上へ）
+      T.balls.forEach(b => {
+        if (b.stage === 'done' && !b.counted) {
+          b.counted = true;
+          if (b.slot.y > lastY + 40) order = false;
+          lastY = Math.min(lastY, b.slot.y);
+        }
+      });
+    }
+    const p = T.pose;
+    const atSlot = T.balls.every(b => { const w = T.toWorld(p, b.slot.x, b.slot.y); return b.stage === 'done' && Math.hypot(b.x - w.x, b.y - w.y) < 0.5; });
+    const snap = T.balls.map(b => [b.x, b.y, b.angle]);
+    window.__pump(5);
+    const calm = T.balls.every((b, i) => b.x === snap[i][0] && b.y === snap[i][1] && b.angle === snap[i][2]);
+    return { phase: T.phase, order, atSlot, calm, n: T.balls.length, slots: DropJar.balls.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
+  });
+  ok(fill.phase === 'lid' && fill.atSlot && fill.order, `${name}：粒が 口から入って、下から つもる`);
+  ok(fill.calm, `${name}：つもったら 動かない`);
+  ok(fill.kept, `${name}：中に入れておいた粒も、いっしょに つもる`);
+  ok(fill.n === fill.slots, `${name}：いつもの びんと 同じ数だけ つもる（${fill.n}こ）`);
+
+  // ふたが しまると、いつもの びん（つもった ならびと まったく同じ）
+  const handoff = await page.evaluate(() => {
+    const T = DropTable;
+    const last = T.balls.map(b => ({ slot: b.slot, src: b.src }));
+    for (let i = 0; i < 200 && T.isOpen; i++) window.__pump(1);
+    return { closed: !T.isOpen, same: last.every(l => DropJar.balls.includes(l.slot) && l.slot.src === l.src), lid: DropJar.lidY === 0 && DropJar.lidAngle === 0, quiet: !DropJar.running };
+  });
+  ok(handoff.closed && handoff.lid, `${name}：さいごに ふたが しまる`);
+  ok(handoff.same && handoff.quiet, `${name}：ふたが しまったあとの びんは、つもった ならびのまま（入れかわらない）`);
+
+  // もとの びんに もどる
   st = await tableState(page);
   ok(!st.open && !st.overlayShown && !st.jarHidden, `${name}：おかたづけで びんにもどる`);
   ok(await page.evaluate(() => DropJar.balls.length > 0 && document.documentElement.style.overflow === ''), `${name}：びんに中身がもどり、ページが また スクロールできる`);
