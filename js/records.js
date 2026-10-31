@@ -429,7 +429,8 @@ const DropJar = {
     },
     sparkles: [],           // 「キラキラ✨」の星パーティクル
 
-    show(log) {
+    // settled：テーブルから びんに もどったときは、上から落ちてくる粒なしで、ふたも しまった状態から はじめる（js/drop-table.js）
+    show(log, settled = false) {
         const drops = log.filter(e => e.drop).map(e => e.drop);
         const total = drops.length;
         this.drops = drops;     // びんをたおしたとき（js/drop-table.js）に使う
@@ -461,12 +462,12 @@ const DropJar = {
         this.quake = 0;
 
         // ページを開くたびに毎回「均一サイズで詰める ＞ 1クリックごとに100玉・500玉・1000玉」を準備する
-        this.setupBallsAndMerges(drops);
+        this.setupBallsAndMerges(drops, settled);
         this.start();
     },
 
     // 毎回最初はすべて均一な大きさで自然に詰め、クリックごとの「100玉生成 → 100玉5個で500玉 → 500玉2個で1000玉」を予約する
-    setupBallsAndMerges(drops) {
+    setupBallsAndMerges(drops, settled = false) {
         const total = drops.length;
         const count100 = Math.floor(total / 100);
         const count500 = Math.floor(total / 500);
@@ -540,9 +541,9 @@ const DropJar = {
         this.updateRadii(true);
 
         // 新しい最大8個は上から落ちてくる
-        const falling = Math.min(8, this.balls.length);
-        this.lidY = falling > 0 ? -60 : -22;
-        this.lidAngle = (Math.random() < 0.5 ? -1 : 1) * 0.20;
+        const falling = settled ? 0 : Math.min(8, this.balls.length);
+        this.lidY = settled ? 0 : falling > 0 ? -60 : -22;
+        this.lidAngle = settled ? 0 : (Math.random() < 0.5 ? -1 : 1) * 0.20;
         this.lidVa = 0;
         this.lidRocking = false;
         this.lidHits = 0;
