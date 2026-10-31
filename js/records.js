@@ -359,6 +359,7 @@ const DropJar = {
     lidHits: 0,             // ふたの角が、口のふちに当たった回数（開くたびに数えなおす）
     lidBounced: false,      // ふたが口にはまって、小さく跳ねたか
     LID_PLUG: 14,           // コルクの、口に差しこむ部分の長さ（px）
+    CORK_H: 28,             // コルクの、上の太い部分の高さ（px）
     LID_ALIGN: 0.07,        // これより傾いていると、口のふちに当たって跳ねかえる（ラジアン）
     LID_MAX_HITS: 3,        // ふちに当たって跳ねかえるのは、この回数まで（そのあとは すべりこむ）
     baseR: 10.8,            // 個数に応じて自動調整された現在の基準半径
@@ -431,6 +432,7 @@ const DropJar = {
     show(log) {
         const drops = log.filter(e => e.drop).map(e => e.drop);
         const total = drops.length;
+        this.drops = drops;     // びんをたおしたとき（js/drop-table.js）に使う
         document.getElementById('dropTotal').textContent = `ぜんぶで ${total} こ`;
 
         const canvas = document.getElementById('dropJar');
@@ -592,6 +594,20 @@ const DropJar = {
     },
 
     newBall(drop, scale = 1.0, tier = 1) {
+        const src = this.loadImage(drop);
+        const r = this.baseR * scale;
+        return {
+            src, scale, tier, r, targetR: r,
+            x: 0, y: 0, px: 0, py: 0,
+            angle: Math.random() * Math.PI * 2, va: 0,
+            settled: false, wasHit: false,
+            calmFrames: 0, merging: false,
+            glow: 0, popTimer: 0,
+        };
+    },
+
+    // ドロップの絵を読みこんでおく（読みこめたら this.images[src] が ready になる）。src を返す
+    loadImage(drop) {
         const src = dropSrc(drop);
         if (!this.images[src]) {
             const img = new Image();
@@ -608,15 +624,63 @@ const DropJar = {
             };
             img.src = src;
         }
-        const r = this.baseR * scale;
-        return {
-            src, scale, tier, r, targetR: r,
-            x: 0, y: 0, px: 0, py: 0,
-            angle: Math.random() * Math.PI * 2, va: 0,
-            settled: false, wasHit: false,
-            calmFrames: 0, merging: false,
-            glow: 0, popTimer: 0,
-        };
+        return src;
+    },
+
+    // ふた（口のふちより上）をタッチしたか（clientX, clientY は画面の座標）
+    hitsLid(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = (clientX - rect.left) * this.canvas.width / rect.width;
+        const y = (clientY - rect.top) * this.canvas.height / rect.height;
+        const { cx, nw, wall, rimTop } = this.jar;
+        return y < rimTop + 12 && Math.abs(x - cx) < nw + wall + 14;
+    },
+
+    // たおしたびんの絵（中身も ふたもない、からっぽのびん）
+    emptyJarImage() {
+        const off = document.createElement('canvas');
+        off.width = this.canvas.width;
+        off.height = this.canvas.height;
+        const keys = ['canvas', 'ctx', 'balls', 'activeMerges', 'popEffects', 'sparkles', 'shards', 'fxTexts', 'lidY', 'flash', 'quake', 'jarKick'];
+        const saved = {};
+        keys.forEach(k => { saved[k] = this[k]; });
+        Object.assign(this, {
+            canvas: off, ctx: off.getContext('2d'), balls: [], activeMerges: [], popEffects: [], sparkles: [], shards: [], fxTexts: [],
+            lidY: -1000, flash: 0, quake: 0, jarKick: 0,
+        });
+        this.draw();
+        Object.assign(this, saved);
+        return off;
+    },
+
+    // コルクのふたを、まんなかを (0, 0) にして描く（part：'plug' 口に差しこむ部分 / 'top' 上の太い部分）
+    drawCork(ctx, part) {
+        const { nw, wall } = this.jar;
+        const corkW = nw + wall + 6;
+        const corkH = this.CORK_H;
+        if (part === 'plug') {
+            ctx.fillStyle = 'rgba(200, 150, 100, 0.55)';
+            ctx.fillRect(-nw, corkH / 2 - 4, nw * 2, 20);
+            return;
+        }
+        const g = ctx.createLinearGradient(0, -corkH / 2, 0, corkH / 2);
+        g.addColorStop(0, '#d9a36b');
+        g.addColorStop(1, '#b8834f');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(-corkW, -corkH / 2 + 3);
+        ctx.quadraticCurveTo(-corkW, -corkH / 2, -corkW + 4, -corkH / 2);
+        ctx.lineTo(corkW - 4, -corkH / 2);
+        ctx.quadraticCurveTo(corkW, -corkH / 2, corkW, -corkH / 2 + 3);
+        ctx.lineTo(corkW - 3, corkH / 2);
+        ctx.lineTo(-corkW + 3, corkH / 2);
+        ctx.closePath();
+        ctx.fill();
+        // コルクのつぶつぶ
+        ctx.fillStyle = 'rgba(120, 80, 40, 0.35)';
+        for (let i = 0; i < 70; i++) {
+            ctx.fillRect(-corkW + 4 + ((i * 37) % (corkW * 2 - 8)), -corkH / 2 + 3 + ((i * 13) % (corkH - 6)), 2, 1.5);
+        }
     },
 
     // 初期配置：千鳥（ハニカム）＋ランダムな揺らぎを入れて不自然な格子整列を防ぐ
@@ -1924,7 +1988,7 @@ const DropJar = {
         // コルクのふた：口に差しこむ部分（ガラスごしに見える）と、上の太い部分
         //   （傾きに応じて、口のふちを支点に斜めに浮き上がらせて描く）
         const corkW = rimW + 2;
-        const corkH = 28;
+        const corkH = this.CORK_H;
         const corkTop = rimTop - corkH + 2 + this.lidY;
         const drawCork = part => {
             if (corkTop < -45) return;
@@ -1932,29 +1996,7 @@ const DropJar = {
             ctx.save();
             ctx.translate(cx, corkTop + corkH / 2 - rockLift);
             ctx.rotate(this.lidAngle);
-            if (part === 'plug') {
-                ctx.fillStyle = 'rgba(200, 150, 100, 0.55)';
-                ctx.fillRect(-nw, corkH / 2 - 4, nw * 2, 20);
-            } else {
-                const g = ctx.createLinearGradient(0, -corkH / 2, 0, corkH / 2);
-                g.addColorStop(0, '#d9a36b');
-                g.addColorStop(1, '#b8834f');
-                ctx.fillStyle = g;
-                ctx.beginPath();
-                ctx.moveTo(-corkW, -corkH / 2 + 3);
-                ctx.quadraticCurveTo(-corkW, -corkH / 2, -corkW + 4, -corkH / 2);
-                ctx.lineTo(corkW - 4, -corkH / 2);
-                ctx.quadraticCurveTo(corkW, -corkH / 2, corkW, -corkH / 2 + 3);
-                ctx.lineTo(corkW - 3, corkH / 2);
-                ctx.lineTo(-corkW + 3, corkH / 2);
-                ctx.closePath();
-                ctx.fill();
-                // コルクのつぶつぶ
-                ctx.fillStyle = 'rgba(120, 80, 40, 0.35)';
-                for (let i = 0; i < 70; i++) {
-                    ctx.fillRect(-corkW + 4 + ((i * 37) % (corkW * 2 - 8)), -corkH / 2 + 3 + ((i * 13) % (corkH - 6)), 2, 1.5);
-                }
-            }
+            this.drawCork(ctx, part);
             ctx.restore();
         };
         drawCork('plug');
@@ -2062,17 +2104,27 @@ dropJarEl.style.touchAction = 'none';
 dropJarEl.style.webkitUserSelect = 'none';
 dropJarEl.style.userSelect = 'none';
 
-// ② タッチ端末（iPad / iPhone / Android）は touchstart で即座に拡大を阻止して反応させる（合体 → ぜんぶ合体したら ふたが開く）
+// ふたをタッチしたら びんがたおれる（js/drop-table.js）。それ以外は、合体 → ぜんぶ合体したら ふたが開く
+function tapDropJar(clientX, clientY) {
+    if (DropJar.hitsLid(clientX, clientY)) {
+        DropTable.open();
+    } else {
+        DropJar.shake();
+    }
+}
+
+// ② タッチ端末（iPad / iPhone / Android）は touchstart で即座に拡大を阻止して反応させる
 dropJarEl.addEventListener('touchstart', (e) => {
     e.preventDefault(); // iPadのダブルタップ拡大を完全に防ぐ
-    DropJar.shake();
+    const t = e.changedTouches[0];
+    tapDropJar(t.clientX, t.clientY);
 }, { passive: false });
 
 // ③ PCのマウスクリック用（タッチのときは ② が動くので二重に反応しないようにする）
 dropJarEl.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch') return;
     e.preventDefault();
-    DropJar.shake();
+    tapDropJar(e.clientX, e.clientY);
 });
 document.getElementById('calPrev').addEventListener('click', () => Records.moveMonth(-1));
 document.getElementById('calNext').addEventListener('click', () => Records.moveMonth(1));

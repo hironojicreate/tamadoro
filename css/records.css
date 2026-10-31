@@ -541,3 +541,69 @@ html[data-mode="records"] body {
     white-space: nowrap;
     pointer-events: none;
 }
+
+
+/* ---------- びんをたおしたときの テーブル（js/drop-table.js） ---------- */
+
+.drop-table {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.drop-table[hidden] {
+    display: none;
+}
+
+/* 木のテーブル（板のつなぎめ と 木目） */
+.drop-table-wood {
+    position: absolute;
+    inset: 0;
+    background-color: #e8cda2;
+    background-image:
+        repeating-linear-gradient(0deg, rgba(120, 75, 30, 0.22) 0 2px, transparent 2px 120px),
+        repeating-linear-gradient(0deg, rgba(150, 100, 50, 0.07) 0 1px, transparent 1px 9px),
+        linear-gradient(160deg, #f2dcb6, #e2c08e);
+    opacity: 0;
+    transition: opacity 0.5s;
+}
+
+.drop-table.is-shown .drop-table-wood {
+    opacity: 1;
+}
+
+.drop-table canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.drop-table-done {
+    position: absolute;
+    left: 50%;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    padding: 10px 32px;
+    border: 3px solid #f48fb1;
+    border-radius: 999px;
+    background: #fff;
+    color: #c2185b;
+    font: 900 22px 'M PLUS Rounded 1c', sans-serif;
+    box-shadow: 0 4px 0 #e57399, 0 6px 14px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.drop-table-done:active {
+    transform: translateX(-50%) translateY(3px);
+    box-shadow: 0 1px 0 #e57399, 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.drop-table-done:disabled {
+    opacity: 0;
+    pointer-events: none;
+}
