@@ -5,7 +5,8 @@
 //   ・粒は びんの中より大きく、テーブルを おおいつくさない数まで。画面の中で、ガラスに めりこまずに、自分で止まる
 //   ・指でつまんで動かせる・はじくと すべる・何本の指でも
 //   ・口からなら びんの中に入れられる（ガラスは すりぬけない）
-//   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口から入って 下から つもり（つもったら 動かない）、ふたが しまる
+//   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口の上の まんなかに あつまって 落ち、山になって つもり
+//     （はじめは けわしい山、さいごは なだらかな山。つもったら 動かない）、ふたが しまる
 //     そのあとの いつもの びんは、つもった ならびと まったく同じ。ほかの画面へ行っても もどる
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://localhost:8765/';
@@ -240,39 +241,59 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
   ok(rise.phase === 'fill' && rise.still && rise.angle === 0 && Math.abs(rise.dx) < 1 && Math.abs(rise.dy) < 1,
     `${name}：おかたづけは、まず びんが おきあがって 定位置に もどる`);
 
-  // 粒が 口から入って、下から つもる。中に入れておいた粒も、いっしょに つもる
+  // 粒が 口の上の まんなかに あつまって 落ち、山になって つもる（はじめは けわしく、さいごは なだらか）。中に入れておいた粒も いっしょに
   const fill = await page.evaluate(() => {
-    const T = DropTable;
-    let order = true, lastY = Infinity;
-    for (let i = 0; i < 600 && T.phase === 'fill'; i++) {
+    const T = DropTable, shape = DropJar.jar;
+    // 山の けわしさ：まんなかの いちばん上と、すその いちばん上の 高さの差（びんの絵の大きさで）
+    const steep = () => {
+      const done = T.balls.filter(b => b.stage === 'done').map(b => b.slot.ball);
+      const top = list => Math.min(...list.map(b => b.y));
+      const mid = done.filter(b => Math.abs(b.x - shape.cx) < shape.bw * 0.25), side = done.filter(b => Math.abs(b.x - shape.cx) > shape.bw * 0.6);
+      return mid.length && side.length ? top(side) - top(mid) : null;
+    };
+    let center = true, half = null;
+    for (let i = 0; i < 900 && T.phase === 'fill'; i++) {
       window.__pump(1);
-      // 止まった粒は、下から じゅんばん（おく場所の高さが だんだん上へ）
       T.balls.forEach(b => {
-        if (b.stage === 'done' && !b.counted) {
-          b.counted = true;
-          if (b.slot.y > lastY + 40) order = false;
-          lastY = Math.min(lastY, b.slot.y);
+        if (b.stage === 'fall' && b.t === 1) {
+          const l = T.toLocal(b.sx, b.sy, true);
+          if (Math.abs(l.x - shape.cx) > shape.nw * 0.45 || l.y > shape.rimTop) center = false;
         }
       });
+      const doneN = T.balls.filter(b => b.stage === 'done').length;
+      if (half === null && doneN >= T.balls.length * 0.5) half = steep();
     }
+    const end = steep();
     const p = T.pose;
-    const atSlot = T.balls.every(b => { const w = T.toWorld(p, b.slot.x, b.slot.y); return b.stage === 'done' && Math.hypot(b.x - w.x, b.y - w.y) < 0.5; });
+    const atSlot = T.balls.every(b => { const w = T.toWorld(p, b.slot.ball.x, b.slot.ball.y); return b.stage === 'done' && Math.hypot(b.x - w.x, b.y - w.y) < 0.5; });
     const snap = T.balls.map(b => [b.x, b.y, b.angle]);
     window.__pump(5);
     const calm = T.balls.every((b, i) => b.x === snap[i][0] && b.y === snap[i][1] && b.angle === snap[i][2]);
-    return { phase: T.phase, order, atSlot, calm, n: T.balls.length, slots: DropJar.balls.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
+    // いつもの びんの ならびとして おかしくない（かさならない・ガラスに かからない）
+    const jb = DropJar.balls;
+    let overlap = 0;
+    jb.forEach((a, i) => jb.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 0.5) overlap++; }));
+    const fits = jb.every(b => T.fitsInJar(b.x, b.y, b.r - 0.5));
+    return { phase: T.phase, center, half, end, atSlot, calm, overlap, fits, n: T.balls.length, slots: jb.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
   });
-  ok(fill.phase === 'lid' && fill.atSlot && fill.order, `${name}：粒が 口から入って、下から つもる`);
+  ok(fill.phase === 'lid' && fill.atSlot, `${name}：粒が びんに入って つもる`);
+  ok(fill.center, `${name}：粒は 口の上の まんなかあたりに あつまって 落ちる`);
+  ok(fill.half !== null && fill.end !== null && fill.end >= 0 && fill.half > fill.end,
+    `${name}：まんなかに 山ができて、だんだん なだらかに なる（とちゅう ${fill.half && fill.half.toFixed(0)} → さいご ${fill.end && fill.end.toFixed(0)}）`);
   ok(fill.calm, `${name}：つもったら 動かない`);
   ok(fill.kept, `${name}：中に入れておいた粒も、いっしょに つもる`);
   ok(fill.n === fill.slots, `${name}：いつもの びんと 同じ数だけ つもる（${fill.n}こ）`);
+  ok(fill.overlap === 0 && fill.fits, `${name}：つもった ならびは かさならず、ガラスに かからない`);
 
   // ふたが しまると、いつもの びん（つもった ならびと まったく同じ）
   const handoff = await page.evaluate(() => {
     const T = DropTable;
-    const last = T.balls.map(b => ({ slot: b.slot, src: b.src }));
+    const last = T.balls.map(b => ({ ball: b.slot.ball, src: b.src, x: b.slot.ball.x, y: b.slot.ball.y }));
     for (let i = 0; i < 200 && T.isOpen; i++) window.__pump(1);
-    return { closed: !T.isOpen, same: last.every(l => DropJar.balls.includes(l.slot) && l.slot.src === l.src), lid: DropJar.lidY === 0 && DropJar.lidAngle === 0, quiet: !DropJar.running };
+    return {
+      closed: !T.isOpen, lid: DropJar.lidY === 0 && DropJar.lidAngle === 0, quiet: !DropJar.running,
+      same: last.every(l => DropJar.balls.includes(l.ball) && l.ball.src === l.src && l.ball.x === l.x && l.ball.y === l.y),
+    };
   });
   ok(handoff.closed && handoff.lid, `${name}：さいごに ふたが しまる`);
   ok(handoff.same && handoff.quiet, `${name}：ふたが しまったあとの びんは、つもった ならびのまま（入れかわらない）`);
