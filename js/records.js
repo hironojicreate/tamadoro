@@ -371,17 +371,60 @@ const DropJar = {
     activeMerges: [],       // 現在進行中の合体アニメーション
     popEffects: [],         // 「ピカッ！」のフラッシュ＆光の輪エフェクト
     shards: [],             // 「パキーン！」と飛びちる、ガラスのかけら
-    fxTexts: [],            // 「100!」「1000!」の文字
+    fxTexts: [],            // 「100!」「500!」「1000!」の文字
     hitStop: 0,             // 合体の瞬間に、ほんの少し 時間を止めるコマ数（ヒットストップ）
-    flash: 0,               // びん全体が白く（1000玉は金色に）光る強さ
-    flashGold: false,
+    flash: 0,               // びん全体が光る強さ（100玉は白、500玉はピンク、1000玉は金色）
+    flashColor: '255, 255, 255',
     quake: 0,               // びん全体がゆれる強さ（px）
     fxFrame: 0,             // ゆれの計算に使うコマ番号
-    // 合体の演出の強さ（100玉 / 1000玉）
-    //   gather：集まる時間（ステップ）、hitStop：止めるコマ数、push：まわりの玉を押しのける強さ、maxR：衝撃波の大きさ（玉の半径の何倍か）
+    // 合体の演出（100玉 → 500玉 → 1000玉 と、大きな玉ほど 派手で大きく）
+    //   tier：できる玉の種類、scale：できる玉の大きさ（ふつうの粒の何倍か）、from・count：あつめる玉の種類と数（100玉は100こ分の粒のかたまり）
+    //   gather：集まる時間（ステップ）、gatherQuake：集まるときの ふるえ、hitStop：止めるコマ数、flash：びん全体の光、quake：びんのゆれ、kick：びんの傾き
+    //   push：まわりの玉を押しのける強さ、maxR：衝撃波の大きさ（玉の半径の何倍か）、waves：衝撃波の数、rays：光線の数、lines：集中線の数
+    //   shards：ガラスのかけらの数、sparkles：キラキラの数、after：あとから湧く余韻のキラキラの数、textSize：「100!」などの文字の大きさ
     FX: {
-        to100: { gather: 34, hitStop: 3, flash: 0.7, quake: 6, push: 2.6, rays: 8, maxR: 4.6, shards: 14, sparkles: 22, text: '100!' },
-        to1000: { gather: 46, hitStop: 6, flash: 0.95, quake: 11, push: 4.2, rays: 16, maxR: 6.8, shards: 26, sparkles: 36, text: '1000!' },
+        to100: {
+            tier: 100, scale: 1.5,
+            gather: 34, gatherQuake: 2.0, hitStop: 3, flash: 0.7, quake: 6, kick: 0.045, push: 2.6,
+            maxR: 4.6, popAge: 60, ring: 4.0, wave: 9, waves: 1, rays: 8, rayWidth: 3.2, ringReach: 5, lines: 10, lineWidth: 2,
+            shards: 14, shardSpeed: 4, shardLen: 7,
+            sparkles: 22, sparkSpeed: 3.6, sparkSize: 4.5, sparkAge: 85, after: 8, afterGap: 11,
+            text: '100!', textSize: 26, textAge: 85, rimWidth: 2.0,
+            color: {
+                glow: '255, 248, 175', ring: '#ffffff', line: '#ffffff', wave: '#e8fbff', aura: '255, 255, 210', flash: '255, 255, 255',
+                rim: 'rgba(255, 255, 255, 0.75)', textStroke: '#1f7fbf', textFill: '#ffffff',
+                shards: ['#ffffff', '#e6fbff', '#b8f2ff', '#fffbe0'],
+                sparkles: ['#ffffff', '#fff9b0', '#ffe066', '#b8f2ff'],
+            },
+        },
+        to500: {
+            tier: 500, scale: 1.75, from: 100, count: 5,
+            gather: 42, gatherQuake: 2.8, hitStop: 5, flash: 0.85, quake: 9, kick: 0.06, push: 3.6,
+            maxR: 6.0, popAge: 72, ring: 5.0, wave: 11, waves: 2, rays: 12, rayWidth: 4.0, ringReach: 6.5, lines: 14, lineWidth: 2.4,
+            shards: 24, shardSpeed: 4.8, shardLen: 8.5,
+            sparkles: 34, sparkSpeed: 4.8, sparkSize: 5.2, sparkAge: 100, after: 12, afterGap: 10,
+            text: '500!', textSize: 32, textAge: 100, rimWidth: 2.5,
+            color: {
+                glow: '255, 175, 225', ring: '#ff8fd8', line: '#ffd1f0', wave: '#ffe0f4', aura: '255, 190, 235', flash: '255, 228, 246',
+                rim: 'rgba(255, 140, 215, 0.9)', textStroke: '#c2187a', textFill: '#ffd6f2',
+                shards: ['#ffffff', '#ffe0f4', '#ff9fdc', '#e6d4ff'],
+                sparkles: ['#ffffff', '#ffd1f0', '#ff8fd8', '#c9a8ff', '#b8f2ff'],
+            },
+        },
+        to1000: {
+            tier: 1000, scale: 2.0, from: 500, count: 2,
+            gather: 54, gatherQuake: 4.0, hitStop: 8, flash: 1.0, quake: 14, kick: 0.085, push: 5.0,
+            maxR: 8.0, popAge: 92, ring: 6.5, wave: 14, waves: 3, rays: 20, rayWidth: 5.2, ringReach: 8.5, lines: 20, lineWidth: 3.0,
+            shards: 38, shardSpeed: 5.5, shardLen: 10,
+            sparkles: 52, sparkSpeed: 6.0, sparkSize: 6.0, sparkAge: 120, after: 20, afterGap: 8,
+            text: '1000!', textSize: 40, textAge: 120, rimWidth: 3.0,
+            color: {
+                glow: '255, 220, 60', ring: '#ffd700', line: '#fff3a0', wave: '#fff0a0', aura: '255, 235, 110', flash: '255, 244, 190',
+                rim: 'rgba(255, 230, 80, 0.9)', textStroke: '#c45a00', textFill: '#ffe14d',
+                shards: ['#ffffff', '#fff3a0', '#ffd700', '#ffe9b0'],
+                sparkles: ['#ffffff', '#fff799', '#ffd700', '#ffae00', '#a8f0ff', '#ffb8e6'],
+            },
+        },
     },
     sparkles: [],           // 「キラキラ✨」の星パーティクル
 
@@ -415,15 +458,16 @@ const DropJar = {
         this.flash = 0;
         this.quake = 0;
 
-        // ページを開くたびに毎回「均一サイズで詰める ＞ 1クリックごとに100玉・1000玉」を準備する
+        // ページを開くたびに毎回「均一サイズで詰める ＞ 1クリックごとに100玉・500玉・1000玉」を準備する
         this.setupBallsAndMerges(drops);
         this.start();
     },
 
-    // 毎回最初はすべて均一な大きさで自然に詰め、クリックごとの「100玉生成 → 10個で1000玉生成」を予約する
+    // 毎回最初はすべて均一な大きさで自然に詰め、クリックごとの「100玉生成 → 100玉5個で500玉 → 500玉2個で1000玉」を予約する
     setupBallsAndMerges(drops) {
         const total = drops.length;
         const count100 = Math.floor(total / 100);
+        const count500 = Math.floor(total / 500);
         const count1000 = Math.floor(total / 1000);
         const remainder = total % 100;
         const balls = [];
@@ -436,7 +480,7 @@ const DropJar = {
         const { left, right, top, bottom } = this.inner;
         const cx = (left + right) / 2;
 
-        // 100個ごとの塊を生成（1クリックごとに1つずつ100玉になり、10個たまると次のクリックで1000玉になる）
+        // 100個ごとの塊を生成（1クリックごとに1つずつ100玉になり、5個たまると次のクリックで500玉、500玉が2個たまると次のクリックで1000玉になる）
         for (let bIdx = 0; bIdx < count100; bIdx++) {
             const groupId = `m100_${bIdx}`;
             const startIdx = bIdx * 100;
@@ -456,7 +500,18 @@ const DropJar = {
                 targetY: (top + bottom) / 2 + 20 + offsetY,
             });
 
-            // 100玉が10個揃うごとに、次のクリックで1000玉へ合体する予約を入れる
+            // 100玉が5個揃うごとに、次のクリックで500玉へ合体する予約を入れる
+            if ((bIdx + 1) % 5 === 0) {
+                const k500 = Math.floor(bIdx / 5);
+                this.mergeQueue.push({
+                    type: 'to500',
+                    drop: drops[(bIdx + 1) * 100 - 1],
+                    targetX: cx + (k500 % 2 === 0 ? -15 : 15) * (count500 > 1 ? 1 : 0),
+                    targetY: (top + bottom) / 2 + 22,
+                });
+            }
+
+            // 500玉が2個揃うごとに、次のクリックで1000玉へ合体する予約を入れる
             if ((bIdx + 1) % 10 === 0) {
                 const k1000 = Math.floor(bIdx / 10);
                 this.mergeQueue.push({
@@ -656,7 +711,7 @@ const DropJar = {
 
     // びんをタッチ（クリック）したときの処理
     shake() {
-        // ① まだ合体していない100個・1000個の塊があるときは、1クリックにつき次の1個だけを合体させる
+        // ① まだ合体していない100個・500個・1000個の塊があるときは、1クリックにつき次の1個だけを合体させる
         if (this.mergeQueue.length > 0 || this.activeMerges.length > 0) {
             if (this.mergeQueue.length > 0) {
                 if (this.activeMerges.length === 0) {
@@ -803,42 +858,38 @@ const DropJar = {
         requestAnimationFrame(loop);
     },
 
-    // 合体した瞬間に「ピカッ！」のフラッシュと「キラキラ✨」を生成する
-    spawnMergeEffects(x, y, baseRadius, is1000, ball) {
-        // ① ピカッと光るフラッシュ＆スターバースト光線＆二重リング
+    // 合体した瞬間に「ピカッ！」のフラッシュと「キラキラ✨」を生成する（fx は FX.to100 など）
+    spawnMergeEffects(x, y, baseRadius, fx, ball) {
+        // ① ピカッと光るフラッシュ＆スターバースト光線＆衝撃波
         this.popEffects.push({
             x,
             y,
             r: baseRadius * 0.5,
-            maxR: baseRadius * this.FX[is1000 ? 'to1000' : 'to100'].maxR,
+            maxR: baseRadius * fx.maxR,
             age: 0,
-            maxAge: is1000 ? 80 : 60,
-            is1000,
+            maxAge: fx.popAge,
+            fx,
         });
 
         // ② パッと飛び散るキラキラ✨パーティクル
-        const palette = is1000
-            ? ['#ffffff', '#fff799', '#ffd700', '#ffae00', '#a8f0ff', '#ffb8e6']
-            : ['#ffffff', '#fff9b0', '#ffe066', '#b8f2ff'];
-
-        const fx = this.FX[is1000 ? 'to1000' : 'to100'];
+        const palette = fx.color.sparkles;
         const burstCount = fx.sparkles;
         for (let i = 0; i < burstCount; i++) {
             const angle = (Math.PI * 2 * i) / burstCount + (Math.random() - 0.5) * 0.35;
-            const speed = (2.4 + Math.random() * (is1000 ? 5.2 : 3.6));
+            const speed = 2.4 + Math.random() * fx.sparkSpeed;
             const dist = baseRadius * (0.2 + Math.random() * 0.4);
             this.sparkles.push({
                 x: x + Math.cos(angle) * dist,
                 y: y + Math.sin(angle) * dist,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed - 0.35,
-                size: (is1000 ? 5.5 : 4.5) + Math.random() * (is1000 ? 6.5 : 4.5),
+                size: fx.sparkSize * (1 + Math.random()),
                 color: palette[i % palette.length],
                 rot: Math.random() * Math.PI,
                 vRot: (Math.random() - 0.5) * 0.12,
                 age: 0,
                 delay: 0,
-                maxAge: (is1000 ? 110 : 85) + Math.floor(Math.random() * 55), // 約1.5〜2.5秒で消える
+                maxAge: fx.sparkAge + Math.floor(Math.random() * 55), // 約1.5〜3秒で消える
                 twinkleSpeed: 0.22 + Math.random() * 0.18,
                 phase: Math.random() * Math.PI * 2,
                 isStar: i % 3 !== 2,
@@ -846,8 +897,7 @@ const DropJar = {
         }
 
         // ③ 合体したドロップの周りから時間差でふわっと湧き出る余韻のキラキラ（約2秒間）
-        const afterCount = is1000 ? 14 : 8;
-        for (let i = 0; i < afterCount; i++) {
+        for (let i = 0; i < fx.after; i++) {
             const angle = Math.random() * Math.PI * 2;
             const dist = baseRadius * (0.55 + Math.random() * 0.75);
             this.sparkles.push({
@@ -858,12 +908,12 @@ const DropJar = {
                 y: y + Math.sin(angle) * dist,
                 vx: (Math.random() - 0.5) * 0.25,
                 vy: -0.25 - Math.random() * 0.35,
-                size: (is1000 ? 5.0 : 4.0) + Math.random() * 4.5,
+                size: fx.sparkSize - 0.5 + Math.random() * 4.5,
                 color: palette[i % palette.length],
                 rot: Math.random() * Math.PI,
                 vRot: (Math.random() - 0.5) * 0.08,
                 age: 0,
-                delay: 18 + Math.floor(i * (is1000 ? 9 : 11) + Math.random() * 10),
+                delay: 18 + Math.floor(i * fx.afterGap + Math.random() * 10),
                 maxAge: 65 + Math.floor(Math.random() * 35),
                 twinkleSpeed: 0.25 + Math.random() * 0.15,
                 phase: Math.random() * Math.PI * 2,
@@ -872,13 +922,12 @@ const DropJar = {
         }
     },
 
-    // 「パキーン！」と飛びちる ガラスのかけらと、「100!」「1000!」の文字
-    spawnShards(x, y, baseRadius, is1000) {
-        const fx = this.FX[is1000 ? 'to1000' : 'to100'];
-        const colors = is1000 ? ['#ffffff', '#fff3a0', '#ffd700', '#ffe9b0'] : ['#ffffff', '#e6fbff', '#b8f2ff', '#fffbe0'];
+    // 「パキーン！」と飛びちる ガラスのかけらと、「100!」「500!」「1000!」の文字
+    spawnShards(x, y, baseRadius, fx) {
+        const colors = fx.color.shards;
         for (let i = 0; i < fx.shards; i++) {
             const angle = (Math.PI * 2 * i) / fx.shards + (Math.random() - 0.5) * 0.5;
-            const speed = (is1000 ? 5 : 4) + Math.random() * (is1000 ? 6 : 4);
+            const speed = fx.shardSpeed * (1 + Math.random());
             this.shards.push({
                 x: x + Math.cos(angle) * baseRadius * 0.6,
                 y: y + Math.sin(angle) * baseRadius * 0.6,
@@ -886,13 +935,13 @@ const DropJar = {
                 vy: Math.sin(angle) * speed - 1.2,
                 rot: angle,
                 vr: (Math.random() - 0.5) * 0.5,
-                len: (is1000 ? 9 : 7) + Math.random() * (is1000 ? 10 : 7),
+                len: fx.shardLen * (1 + Math.random()),
                 color: colors[i % colors.length],
                 age: 0,
                 maxAge: 40 + Math.floor(Math.random() * 25),
             });
         }
-        this.fxTexts.push({ x, y: y - baseRadius - 10, text: fx.text, gold: is1000, age: 0, maxAge: is1000 ? 110 : 85 });
+        this.fxTexts.push({ x, y: y - baseRadius - 10, text: fx.text, fx, age: 0, maxAge: fx.textAge });
     },
 
     // 衝撃波：合体した玉のまわりの玉を、外へ はじきとばす（近いほど強く）
@@ -933,7 +982,7 @@ const DropJar = {
         });
         this.shards = this.shards.filter(sh => sh.age < sh.maxAge);
 
-        // 「100!」「1000!」の文字（ぽんと出て、ふわっと上がって消える）
+        // 「100!」「500!」「1000!」の文字（ぽんと出て、ふわっと上がって消える）
         this.fxTexts.forEach(t => {
             t.age++;
             t.y -= 0.35;
@@ -977,13 +1026,13 @@ const DropJar = {
         if (this.pendingMerges > 0 && this.mergeQueue.length > 0 && this.activeMerges.length === 0 && this.mergeCooldown <= 0) {
             this.pendingMerges--;
             const next = this.mergeQueue.shift();
+            const fx = this.FX[next.type];
             const targets = next.type === 'to100'
                 ? this.balls.filter(b => b.mergeGroup === next.groupId && !b.merging)
-                : this.balls.filter(b => b.tier === 100 && !b.merging).slice(0, 10);
+                : this.balls.filter(b => b.tier === fx.from && !b.merging).slice(0, fx.count);
 
             if (targets.length > 0) {
-                const is1000 = next.type === 'to1000';
-                const newScale = is1000 ? 2.0 : 1.5;
+                const newScale = fx.scale;
 
                 // 合体する粒たちの現在位置の平均を求め、高すぎない自然な位置で合体させる
                 const avgY = targets.reduce((s, b) => s + b.y, 0) / targets.length;
@@ -1005,10 +1054,10 @@ const DropJar = {
                     cy,
                     targetScale: newScale,
                     timer: 0,
-                    duration: this.FX[next.type].gather, // グワッと集まる時間
+                    duration: fx.gather,                 // グワッと集まる時間
                     spin: Math.random() < 0.5 ? -1 : 1,  // うずを巻く向き
-                    lines: Array.from({ length: is1000 ? 16 : 10 }, (_, k) => ({
-                        angle: (Math.PI * 2 * k) / (is1000 ? 16 : 10) + (Math.random() - 0.5) * 0.3,
+                    lines: Array.from({ length: fx.lines }, (_, k) => ({
+                        angle: (Math.PI * 2 * k) / fx.lines + (Math.random() - 0.5) * 0.3,
                         phase: Math.random(),
                     })),
                 });
@@ -1018,6 +1067,7 @@ const DropJar = {
         // 進行中の合体アニメーションを更新
         for (let i = this.activeMerges.length - 1; i >= 0; i--) {
             const m = this.activeMerges[i];
+            const fx = this.FX[m.type];
             m.timer++;
 
             if (m.timer <= m.duration) {
@@ -1034,14 +1084,13 @@ const DropJar = {
                     b.py = b.y;
                     b.r = Math.max(2.5, b.r * 0.976);
                 });
-                this.quake = Math.max(this.quake, progress * progress * (m.type === 'to1000' ? 3.2 : 2.0));
+                this.quake = Math.max(this.quake, progress * progress * fx.gatherQuake);
             } else {
                 // ピカッ！と合体して1個の大きなドロップに変わる
                 const targetSet = new Set(m.targets);
                 this.balls = this.balls.filter(b => !targetSet.has(b));
 
-                const is1000 = m.type === 'to1000';
-                const newBall = this.newBall(m.drop, m.targetScale, is1000 ? 1000 : 100);
+                const newBall = this.newBall(m.drop, m.targetScale, fx.tier);
                 this.balls.push(newBall);
 
                 // 合体中にスペースもサイズも調整済みなので、物理半径はそのままピタッと出現させる
@@ -1059,17 +1108,15 @@ const DropJar = {
 
                 this.settleBoost = 22;
                 this.settleDeadline = performance.now() + 900; // 物理は0.9秒以内にピタッと静止させる
-                this.jarKick = (Math.random() < 0.5 ? -1 : 1) * (is1000 ? 0.045 : 0.028);
 
                 // パキーン：フラッシュ・衝撃波・光線・ガラスのかけら・キラキラ・文字
-                this.spawnMergeEffects(m.cx, m.cy, newBall.targetR, is1000, newBall);
-                this.spawnShards(m.cx, m.cy, newBall.targetR, is1000);
-                const fx = this.FX[m.type];
+                this.spawnMergeEffects(m.cx, m.cy, newBall.targetR, fx, newBall);
+                this.spawnShards(m.cx, m.cy, newBall.targetR, fx);
                 this.hitStop = fx.hitStop;
                 this.flash = fx.flash;
-                this.flashGold = is1000;
+                this.flashColor = fx.color.flash;
                 this.quake = fx.quake;
-                this.jarKick = (Math.random() < 0.5 ? -1 : 1) * (is1000 ? 0.07 : 0.045);
+                this.jarKick = (Math.random() < 0.5 ? -1 : 1) * fx.kick;
                 this.pushAway(m.cx, m.cy, newBall, fx.push);
 
                 this.activeMerges.splice(i, 1);
@@ -1685,11 +1732,12 @@ const DropJar = {
 
         // 合体に向けてギュッと集まっている最中の中心の光の予兆
         this.activeMerges.forEach(m => {
+            const fx = this.FX[m.type];
             const p = m.timer / m.duration;
             const glowR = this.baseR * m.targetScale * (0.4 + p * 1.3);
             const grad = ctx.createRadialGradient(m.cx, m.cy, 0, m.cx, m.cy, glowR);
             grad.addColorStop(0, `rgba(255, 255, 255, ${0.85 * p})`);
-            grad.addColorStop(0.5, m.type === 'to1000' ? `rgba(255, 215, 0, ${0.55 * p})` : `rgba(255, 245, 160, ${0.45 * p})`);
+            grad.addColorStop(0.5, `rgba(${fx.color.glow}, ${0.5 * p})`);
             grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
             ctx.save();
             ctx.fillStyle = grad;
@@ -1698,11 +1746,10 @@ const DropJar = {
             ctx.fill();
 
             // 外から縮んでくる光の輪
-            const is1000 = m.type === 'to1000';
-            const ringR = this.baseR * m.targetScale * (1 + (1 - p) * (is1000 ? 7 : 5));
+            const ringR = this.baseR * m.targetScale * (1 + (1 - p) * fx.ringReach);
             ctx.globalAlpha = 0.25 + p * 0.65;
-            ctx.strokeStyle = is1000 ? '#ffd700' : '#ffffff';
-            ctx.lineWidth = 1.5 + p * (is1000 ? 4 : 3);
+            ctx.strokeStyle = fx.color.ring;
+            ctx.lineWidth = 1.5 + p * (fx.ring - 1);
             ctx.beginPath();
             ctx.arc(m.cx, m.cy, ringR, 0, Math.PI * 2);
             ctx.stroke();
@@ -1711,11 +1758,11 @@ const DropJar = {
             ctx.lineCap = 'round';
             m.lines.forEach(l => {
                 const t = (p * 2.2 + l.phase) % 1;
-                const outer = this.baseR * m.targetScale * (2 + (1 - t) * (is1000 ? 6 : 4.5));
+                const outer = this.baseR * m.targetScale * (2 + (1 - t) * fx.ringReach * 0.9);
                 const inner = outer * 0.55;
                 ctx.globalAlpha = p * (1 - t) * 0.9;
-                ctx.strokeStyle = is1000 ? '#fff3a0' : '#ffffff';
-                ctx.lineWidth = is1000 ? 2.6 : 2;
+                ctx.strokeStyle = fx.color.line;
+                ctx.lineWidth = fx.lineWidth;
                 ctx.beginPath();
                 ctx.moveTo(m.cx + Math.cos(l.angle) * outer, m.cy + Math.sin(l.angle) * outer);
                 ctx.lineTo(m.cx + Math.cos(l.angle) * inner, m.cy + Math.sin(l.angle) * inner);
@@ -1742,10 +1789,11 @@ const DropJar = {
             ctx.translate(b.x, b.y);
 
             // 合体して生まれた大玉の背後で数秒間輝く余韻オーラ
-            if (b.glow > 0.01) {
+            const tierFx = b.tier >= 100 ? this.FX[`to${b.tier}`] : null;
+            if (b.glow > 0.01 && tierFx) {
                 const auraR = drawR * (1.75 + Math.sin(b.glow * 18) * 0.12);
                 const aura = ctx.createRadialGradient(0, 0, drawR * 0.4, 0, 0, auraR);
-                aura.addColorStop(0, b.tier === 1000 ? `rgba(255, 235, 110, ${b.glow * 0.85})` : `rgba(255, 255, 210, ${b.glow * 0.75})`);
+                aura.addColorStop(0, `rgba(${tierFx.color.aura}, ${b.glow * 0.8})`);
                 aura.addColorStop(1, 'rgba(255, 255, 255, 0)');
                 ctx.fillStyle = aura;
                 ctx.beginPath();
@@ -1756,12 +1804,12 @@ const DropJar = {
             ctx.rotate(b.angle);
             ctx.drawImage(img, -drawR, -drawR, drawR * 2, drawR * 2);
 
-            // 1.5倍・2倍の記念ドロップにはツヤの縁取りを添える
-            if (b.tier >= 100) {
+            // 100玉・500玉・1000玉の記念ドロップにはツヤの縁取りを添える（白・ピンク・金色）
+            if (tierFx) {
                 ctx.beginPath();
                 ctx.arc(0, 0, drawR - 1, 0, Math.PI * 2);
-                ctx.strokeStyle = b.tier === 1000 ? 'rgba(255, 230, 80, 0.9)' : 'rgba(255, 255, 255, 0.75)';
-                ctx.lineWidth = b.tier === 1000 ? 2.8 : 2.0;
+                ctx.strokeStyle = tierFx.color.rim;
+                ctx.lineWidth = tierFx.rimWidth;
                 ctx.stroke();
             }
             ctx.restore();
@@ -1769,6 +1817,7 @@ const DropJar = {
 
         // 「ピカッ！」と合体した瞬間のフラッシュ・クロス光線・二重リング
         this.popEffects.forEach(ef => {
+            const fx = ef.fx;
             const p = ef.age / ef.maxAge;
             ctx.save();
 
@@ -1778,7 +1827,7 @@ const DropJar = {
                 const flashR = ef.maxR * (0.65 + p * 0.8);
                 const grad = ctx.createRadialGradient(ef.x, ef.y, 0, ef.x, ef.y, flashR);
                 grad.addColorStop(0, `rgba(255, 255, 255, ${flashAlpha})`);
-                grad.addColorStop(0.4, ef.is1000 ? `rgba(255, 230, 90, ${flashAlpha * 0.85})` : `rgba(255, 250, 190, ${flashAlpha * 0.75})`);
+                grad.addColorStop(0.4, `rgba(${fx.color.glow}, ${flashAlpha * 0.8})`);
                 grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
                 ctx.fillStyle = grad;
                 ctx.beginPath();
@@ -1790,8 +1839,8 @@ const DropJar = {
             if (p < 0.6) {
                 const rayAlpha = (1 - p / 0.6) * 0.95;
                 const rayLen = ef.maxR * (0.75 + p * 0.75);
-                const rayWidth = ef.is1000 ? 4.5 : 3.2;
-                const rays = this.FX[ef.is1000 ? 'to1000' : 'to100'].rays;
+                const rayWidth = fx.rayWidth;
+                const rays = fx.rays;
                 ctx.save();
                 ctx.translate(ef.x, ef.y);
                 ctx.rotate(p * 0.35);
@@ -1817,9 +1866,9 @@ const DropJar = {
             const ringAlpha = Math.pow(1 - p, 1.5);
             ctx.beginPath();
             ctx.arc(ef.x, ef.y, ef.r, 0, Math.PI * 2);
-            ctx.strokeStyle = ef.is1000 ? '#ffd700' : '#ffffff';
+            ctx.strokeStyle = fx.color.ring;
             ctx.globalAlpha = ringAlpha;
-            ctx.lineWidth = (ef.is1000 ? 5.5 : 4.0) * (1 - p * 0.6);
+            ctx.lineWidth = fx.ring * (1 - p * 0.6);
             ctx.stroke();
 
             ctx.beginPath();
@@ -1829,15 +1878,16 @@ const DropJar = {
             ctx.lineWidth = 2.2 * (1 - p * 0.5);
             ctx.stroke();
 
-            // ④ いちばん速く、太く広がる衝撃波（パキーン！）
-            if (p < 0.5) {
-                const q = p / 0.5;
-                const waveR = ef.maxR * 1.5 * (1 - Math.pow(1 - q, 3));
+            // ④ いちばん速く、太く広がる衝撃波（パキーン！）。500玉は2重、1000玉は3重に、少しずつ遅れて広がる
+            for (let w = 0; w < fx.waves; w++) {
+                const q = (p - w * 0.14) / 0.5;
+                if (q <= 0 || q >= 1) continue;
+                const waveR = ef.maxR * 1.5 * (1 - w * 0.15) * (1 - Math.pow(1 - q, 3));
                 ctx.beginPath();
                 ctx.arc(ef.x, ef.y, waveR, 0, Math.PI * 2);
-                ctx.strokeStyle = ef.is1000 ? '#fff0a0' : '#e8fbff';
-                ctx.globalAlpha = Math.pow(1 - q, 1.2);
-                ctx.lineWidth = (ef.is1000 ? 12 : 9) * (1 - q) + 1;
+                ctx.strokeStyle = w % 2 === 0 ? fx.color.wave : '#ffffff';
+                ctx.globalAlpha = Math.pow(1 - q, 1.2) * (1 - w * 0.2);
+                ctx.lineWidth = fx.wave * (1 - w * 0.25) * (1 - q) + 1;
                 ctx.stroke();
             }
 
@@ -1957,7 +2007,7 @@ const DropJar = {
             ctx.restore();
         });
 
-        // 「100!」「1000!」の文字（ぽんと大きく出て、少し縮んで、ふわっと消える）
+        // 「100!」「500!」「1000!」の文字（ぽんと大きく出て、少し縮んで、ふわっと消える）
         this.fxTexts.forEach(t => {
             const p = t.age / t.maxAge;
             const pop = p < 0.12 ? 0.4 + (p / 0.12) * 1.0 : 1.4 - Math.min(0.4, (p - 0.12) * 2.5);
@@ -1965,14 +2015,14 @@ const DropJar = {
             ctx.translate(t.x, t.y);
             ctx.scale(pop, pop);
             ctx.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1;
-            ctx.font = `900 ${t.gold ? 34 : 26}px 'M PLUS Rounded 1c', sans-serif`;
+            ctx.font = `900 ${t.fx.textSize}px 'M PLUS Rounded 1c', sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.lineJoin = 'round';
             ctx.lineWidth = 6;
-            ctx.strokeStyle = t.gold ? '#c45a00' : '#1f7fbf';
+            ctx.strokeStyle = t.fx.color.textStroke;
             ctx.strokeText(t.text, 0, 0);
-            ctx.fillStyle = t.gold ? '#ffe14d' : '#ffffff';
+            ctx.fillStyle = t.fx.color.textFill;
             ctx.fillText(t.text, 0, 0);
             ctx.restore();
         });
@@ -1981,7 +2031,7 @@ const DropJar = {
 
         // びん全体が光る（パキーン！）
         if (this.flash > 0) {
-            ctx.fillStyle = this.flashGold ? `rgba(255, 244, 190, ${this.flash})` : `rgba(255, 255, 255, ${this.flash})`;
+            ctx.fillStyle = `rgba(${this.flashColor}, ${this.flash})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
     },
