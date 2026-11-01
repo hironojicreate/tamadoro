@@ -10,7 +10,7 @@
 const DropTable = {
     AREA: 0.3,          // ドロップがテーブルの何わりまで おおうか（こえるときは、出す粒の数を へらす）
     MAX_BALLS: 1500,    // 動きが重くならないための、粒の数の上限
-    BENCH_BUDGET: 1400,  // おそい端末では、出す粒を「BENCH_BUDGET ÷ はかった時間（bench、ms）」こまでに へらす（はかり方の ずれがあるので、ざっくり）
+    BENCH_BUDGET: 2800, // おそい端末では、出す粒を「BENCH_BUDGET ÷ はかった時間（bench、ms）」こまでに へらす（はかり方の ずれがあるので、ざっくり）
     SLOW_FRAME: 14,     // ぶちまけている あいだ、1こまの計算が これ（ms）より 長いことが 3こま つづいたら、のこりを 口から 出さない
     SIZE_UP: 1.35,      // テーブルの粒は、びんの中より 少し大きく（びんの中の粒の何倍か）
     MIN_R: 9,           // テーブルの粒の半径（px）の下限・上限
@@ -1220,16 +1220,16 @@ const DropTable = {
         DropJar.drawCork(ctx, 'top');
         ctx.restore();
 
-        // 粒のかげ（まとめて1回で塗る。つまんでいる粒は うきあがって、かげが はなれる。びんの中の粒は かげが小さい）
-        ctx.fillStyle = 'rgba(30, 80, 120, 0.2)';
-        ctx.beginPath();
-        this.balls.forEach(b => {
-            if (b.hidden || behind(b)) return;
-            const off = b.held ? 7 : b.inside || b.rigid || ['fall', 'roll', 'done'].includes(b.stage) ? 1 : 2;
-            ctx.moveTo(b.x + off + b.r, b.y + off * 1.4);
-            ctx.arc(b.x + off, b.y + off * 1.4, b.r, 0, Math.PI * 2);
-        });
-        ctx.fill();
+        // つまんでいる粒の かげ（うきあがって、かげが はなれる）。ほかの粒には かげを つけない（たくさんの まるを 塗ると 重い）
+        if (this.holds.size) {
+            ctx.fillStyle = 'rgba(30, 80, 120, 0.2)';
+            ctx.beginPath();
+            this.holds.forEach(({ ball: b }) => {
+                ctx.moveTo(b.x + 7 + b.r, b.y + 9.8);
+                ctx.arc(b.x + 7, b.y + 9.8, b.r, 0, Math.PI * 2);
+            });
+            ctx.fill();
+        }
 
         // 粒
         this.balls.forEach(b => { if (!behind(b)) this.drawBall(b, ox, oy); });
