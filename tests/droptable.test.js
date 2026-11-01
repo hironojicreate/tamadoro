@@ -7,7 +7,7 @@
 //   ・口からなら びんの中に入れられる（ガラスは すりぬけない）
 //   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口の上の まんなかに あつまって 落ち、山になって つもり
 //     （はじめは けわしい山、さいごは なだらかな山。つもったら 動かない）、ふたが しまる
-//     そのあとの いつもの びんは、つもった ならびと まったく同じ。ほかの画面へ行っても もどる
+//     そのあとの いつもの びんは、つもった ならびと まったく同じ。合体した玉も、合体の つづきも、たおす前のまま。ほかの画面へ行っても もどる
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://localhost:8765/';
 let failures = 0;
@@ -98,6 +98,8 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
 
   // ふたをタッチ → たおれて ちらばる
   const visible = await page.evaluate(() => DropJar.balls.length);
+  // たおす前の びんの中身（合体した玉と、合体の つづき）
+  await page.evaluate(() => { window.__before = { balls: DropJar.balls.slice(), queue: DropJar.mergeQueue.length }; });
   const lid = await jarPoint(page, 'lid');
   await page.mouse.click(lid.x, lid.y);
   let st = await tableState(page);
@@ -238,6 +240,8 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
     const r = DropJar.canvas.getBoundingClientRect();
     return { phase: T.phase, still, angle: T.pose.angle, dx: T.pose.x - (r.left + r.width / 2), dy: T.pose.y - (r.top + r.height / 2) };
   });
+  const spawned = await page.evaluate(() => DropTable.balls.filter(b => b.stage === 'spawn').length);
+  ok(merges === 0 || spawned === 0, `${name}：合体した玉は ほどけない（口の上から わいてくる粒が ない：${spawned}こ）`);
   ok(rise.phase === 'fill' && rise.still && rise.angle === 0 && Math.abs(rise.dx) < 1 && Math.abs(rise.dy) < 1,
     `${name}：おかたづけは、まず びんが おきあがって 定位置に もどる`);
 
@@ -308,6 +312,21 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
   });
   ok(handoff.closed && handoff.lid, `${name}：さいごに ふたが しまる`);
   ok(handoff.same && handoff.quiet, `${name}：ふたが しまったあとの びんは、つもった ならびのまま（入れかわらない）`);
+  const kept = await page.evaluate(() => {
+    const B = window.__before, J = DropJar;
+    return {
+      same: J.balls.length === B.balls.length && J.balls.every(b => B.balls.includes(b)),
+      t100: J.balls.filter(b => b.tier === 100).length, queue: J.mergeQueue.length, queueBefore: B.queue,
+    };
+  });
+  ok(kept.same && kept.t100 === merges && kept.queue === kept.queueBefore,
+    `${name}：おかたづけのあとも、たおす前の びんの中身のまま（100玉${kept.t100}こ・のこりの合体${kept.queue}回）`);
+  // つづけて タップすると、合体の つづきから
+  const body2 = await jarPoint(page, 'body');
+  await page.mouse.click(body2.x, body2.y);
+  await pump(page, 150);
+  const next = await page.evaluate(() => ({ t100: DropJar.balls.filter(b => b.tier === 100).length, queue: DropJar.mergeQueue.length }));
+  ok(next.t100 === merges + 1 && next.queue === kept.queue - 1, `${name}：タップすると、合体の つづきから（100玉${next.t100}こ）`);
 
   // もとの びんに もどる
   st = await tableState(page);
