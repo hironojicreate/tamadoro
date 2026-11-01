@@ -44,6 +44,7 @@ const DropTable = {
         this.setupDom();
         const jar = DropJar;
         jar.running = false;
+        this.saveJar();
         this.isOpen = true;
         this.savedOverflow = document.documentElement.style.overflow;
         document.documentElement.style.overflow = 'hidden';
@@ -331,7 +332,7 @@ const DropTable = {
             : smalls;
 
         const list = bigs.concat(keep).map(b => Object.assign(this.newBall(b.src, b.tier, r * b.scale, jar.baseR * b.scale), {
-            rigid: true, lx: b.x, ly: b.y, la: b.angle, inside: jar.insideJar(b.x, b.y),
+            rigid: true, lx: b.x, ly: b.y, la: b.angle, inside: jar.insideJar(b.x, b.y), from: b, // from：もとになった びんの粒
         }));
         // 合体した分は、記録の はじめのほうから つかっている。のこりの粒は うしろのほうから まんべんなく えらぶ
         const first = drops.length - singles;
@@ -344,6 +345,32 @@ const DropTable = {
         this.reach = Array.from({ length: list.length + this.extra.length }, () => Math.sqrt(Math.random())).sort((a, b) => a - b);
         this.cell = 2 * list.concat(this.extra).reduce((m, b) => Math.max(m, b.rTable), r);
         return list;
+    },
+
+    // たおす ときの びんの中身を おぼえておく（おかたづけで そのまま もどす。合体した玉も、合体の つづきも）
+    //   合体の とちゅうだったら、その合体は とりけして、つぎに タップしたときに やりなおす
+    saveJar() {
+        const jar = DropJar;
+        jar.activeMerges.forEach(m => {
+            m.targets.forEach(t => { t.merging = false; });
+            jar.mergeQueue.unshift({ type: m.type, groupId: m.groupId, drop: m.drop, targetX: m.targetX, targetY: m.targetY });
+        });
+        jar.activeMerges = [];
+        jar.pendingMerges = 0;
+        jar.balls.forEach(b => { b.grow = 0; b.glow = 0; b.popTimer = 0; });
+        jar.updateRadii(true);
+        this.saved = { balls: jar.balls.slice(), mergeQueue: jar.mergeQueue.slice() };
+    },
+
+    // びんを、たおす前の中身に もどす（ならべる場所は moundLayout で きめなおす）
+    restoreJar() {
+        const jar = DropJar;
+        Object.assign(jar, {
+            balls: this.saved.balls, mergeQueue: this.saved.mergeQueue, activeMerges: [], pendingMerges: 0, mergeCooldown: 0,
+            popEffects: [], sparkles: [], shards: [], fxTexts: [], hitStop: 0, flash: 0, quake: 0, jarKick: 0, heat: 0,
+            lidY: 0, lidVy: 0, lidAngle: 0, lidVa: 0, lidRocking: false, running: false,
+        });
+        jar.updateRadii(true);
     },
 
     // rTable：テーブルでの半径（px）、rIn：びんの中での半径（びんの絵の大きさで）
@@ -632,81 +659,120 @@ const DropTable = {
         if (k >= 1) this.startFill();
     },
 
-    // もどったあとの びん（いつもの びん）を 先に つくり、その粒を なだらかな山の形に ならべなおして「おく場所」にする（moundSlots）
-    //   びんの中に入っていた粒 → 口に近い粒 の順で、おく場所を つもる じゅんばんに うめる（うめた粒の色を、おく場所の粒にも うつす）
-    //   粒は 口の上の まんなかあたりに あつまって、口から 落ち、いまの 山の てっぺんに 落ちてから、斜面を ころがって おく場所で 止まる
-    //   おく場所より 多い粒は、口で すいこまれて 見えなくなる。たりない分は、さいごに 口から 入ってくる
-    //   粒どうしで おしあう計算は しないので、つもった粒は ぴたっと 止まる。ふたが しまったら、いつもの びんと まったく同じ ならび
+    // びんを たおす前の中身に もどし（合体した玉も、合体の つづきも そのまま）、その粒を なだらかな山の形に ならべなおして「おく場所」にする
+    //   テーブルの粒は、もとになった びんの粒の場所へ もどる（100玉は 100玉のまま）
+    //   びんの粒が ない粒（びんの おくに あった分）は、テーブルに 出なかった びんの粒の かわりになる。あまったら、口で すいこまれて 見えなくなる
+    //   びんの中に 入れておいた粒は、かならず のこる（場所が たりなければ、いちばん遠い粒と いれかわる）
+    //   粒は 口の上から とびこんで、いまの 山の てっぺんに 落ち、斜面を ころがって おく場所で 止まる（つもる じゅんばんは moundLayout）
+    //   粒どうしで おしあう計算は しないので、つもった粒は ぴたっと 止まる。ふたが しまったら、そのまま いつもの びん
     startFill() {
-        DropJar.show(History.getLog(), true);
-        DropJar.running = false; // おく場所を うごかさない
-        const slots = this.moundSlots(DropJar.balls);
+        this.restoreJar();
         const shape = DropJar.jar;
         const mouth = this.toWorld(this.pose, shape.cx, shape.rimTop);
         const dist = b => Math.hypot(b.x - mouth.x, b.y - mouth.y);
         const inside = this.balls.filter(b => b.inside);
         const outside = this.balls.filter(b => !b.inside).sort((a, b) => dist(a) - dist(b));
-        inside.concat(outside).forEach((b, n) => {
-            Object.assign(b, { rigid: false, held: false, slot: slots[n] || null, t: 0, sx: b.x, sy: b.y, sr: b.r });
+        const drops = inside.concat(outside);
+
+        // テーブルの粒と びんの粒を くみあわせる
+        const left = new Set(DropJar.balls);
+        drops.forEach(b => {
+            b.home = b.from && left.has(b.from) ? b.from : null;
+            if (b.home) left.delete(b.home);
+        });
+        const take = tier => {
+            const j = [...left].find(x => x.tier === tier);
+            if (j) left.delete(j);
+            return j || null;
+        };
+        inside.forEach(b => {
+            if (b.home) return;
+            b.home = take(b.tier);
+            if (b.home) return;
+            const giver = outside.slice().reverse().find(o => o.home && o.home.tier === b.tier);
+            if (giver) {
+                b.home = giver.home;
+                giver.home = null;
+            }
+        });
+        outside.forEach(b => { if (!b.home) b.home = take(b.tier); });
+        const spawned = [...left]; // テーブルの粒が たりない分：口の上から 入ってくる
+
+        const homes = drops.filter(b => b.home).map(b => b.home).concat(spawned);
+        const layout = this.moundLayout(homes);
+        const delayOf = j => Math.floor((layout.get(j).rank / Math.max(1, homes.length)) * this.FILL_FRAMES);
+        drops.forEach((b, n) => {
+            Object.assign(b, { rigid: false, held: false, t: 0, sx: b.x, sy: b.y, sr: b.r });
+            b.slot = b.home ? { ball: b.home, landY: layout.get(b.home).landY } : null;
             if (b.slot) b.slot.ball.src = b.src;
             if (b.inside) {
                 b.stage = b.slot ? 'roll' : 'gone'; // びんの中にいた粒は、そのまま 山の場所へ ころがる
-                b.delay = Math.floor(n * 0.3);
+                b.delay = b.slot ? delayOf(b.home) : 0;
             } else {
                 b.stage = 'fly';
-                b.delay = Math.floor(((n - inside.length) / Math.max(1, outside.length)) * this.FILL_FRAMES);
+                b.delay = b.slot ? delayOf(b.home) : Math.floor((n / drops.length) * this.FILL_FRAMES);
                 b.gather = this.gatherPoint();
             }
         });
         this.balls = this.balls.filter(b => b.stage !== 'gone');
-        for (let n = inside.length + outside.length; n < slots.length; n++) {
-            const slot = slots[n];
+        spawned.forEach(j => {
             const at = this.gatherPoint();
-            const r = slot.ball.r * this.pose.scale;
-            const b = this.newBall(slot.ball.src, 1, r, slot.ball.r);
+            const r = j.r * this.pose.scale;
+            const b = this.newBall(j.src, j.tier, r, j.r);
             Object.assign(b, {
-                slot, stage: 'spawn', hidden: true, t: 0, x: at.x, y: at.y, r, sx: at.x, sy: at.y, sr: r,
-                delay: this.FILL_FRAMES + this.FLY_FRAMES + Math.floor((n - inside.length - outside.length) * 0.5),
+                slot: { ball: j, landY: layout.get(j).landY }, stage: 'spawn', hidden: true, t: 0, x: at.x, y: at.y, r, sx: at.x, sy: at.y, sr: r,
+                delay: delayOf(j) + this.FLY_FRAMES,
             });
             this.balls.push(b);
-        }
+        });
         this.phase = 'fill';
         this.t = 0;
     },
 
-    // びんの中に、なだらかな山の形に 粒を ならべる場所（びんの絵の大きさで）を、つもる じゅんばんに 返す
-    //   六角形に すきまなく ならぶ場所のうち「高さ ＋ まんなかからの きょり × MOUND_SLOPE」が ひくい場所を 粒の数だけ えらぶ（上の面が なだらかな山）
-    //   つもる じゅんばんは「高さ ＋ まんなかからの きょり × HEAP_SLOPE」が ひくい順（まんなかから けわしく つもり、すそが あとから うまる）
-    //   粒は いまの 山の てっぺんに 落ちてから ころがってくる（landY）。いつもの びんの粒（jarBalls）も、この場所に うごかしておく
-    moundSlots(jarBalls) {
-        const n = jarBalls.length;
-        if (n === 0) return [];
-        const jar = DropJar.jar, r = jarBalls[0].r, d = 2 * r + 0.4, rowH = (d * Math.sqrt(3)) / 2;
-        const y0 = jar.bottom - r - 0.5;
+    // びんの粒（大きさの ちがう 100玉なども）を、なだらかな山の形に ならべる（びんの絵の大きさで）。粒ごとに { rank, landY } を返す
+    //   ① order の じゅんばんに、六角形の あみの目のうち「高さ ＋ まんなかからの きょり × MOUND_SLOPE」が いちばん ひくい、空いている場所に おく
+    //     （上の面が なだらかな山）。大きい玉は、そこから 下に つかえるまで しずめる（すきまの上に うかない）
+    //   ② つもる じゅんばん（rank）は、おいた場所の「高さ ＋ まんなかからの きょり × HEAP_SLOPE」が ひくい順（まんなかから けわしく つもり、すそが あとから うまる）
+    //   粒は いまの 山の てっぺんに 落ちてから ころがってくる（landY）。入りきらない粒は（ふつうは ない）、いまの場所のまま
+    moundLayout(order) {
+        const result = new Map();
+        if (!order.length) return result;
+        const jar = DropJar.jar;
+        const rs = Math.min(...order.map(b => b.r)), d = 2 * rs + 0.4, rowH = (d * Math.sqrt(3)) / 2;
+        const y0 = jar.bottom - rs - 0.5;
         const cands = [];
-        for (let k = 0; y0 - k * rowH > jar.shoulderBottom + r; k++) {
+        for (let k = 0; y0 - k * rowH > jar.shoulderBottom + rs; k++) {
             const y = y0 - k * rowH;
             const reach = Math.ceil(jar.bw / d) + 1;
             for (let m = -reach; m <= reach; m++) {
                 const x = jar.cx + m * d + ((k % 2) * d) / 2;
-                if (!this.fitsInJar(x, y, r + 0.3)) continue;
-                cands.push({ x, y, h: y0 - y, dx: Math.abs(x - jar.cx), rnd: Math.random() * d * 0.6 });
+                if (!this.fitsInJar(x, y, rs + 0.3)) continue;
+                cands.push({ x, y, free: true, p: y0 - y + Math.abs(x - jar.cx) * this.MOUND_SLOPE + Math.random() * d * 0.6 });
             }
         }
-        // 入りきらないとき（ふつうは ない）は、いつもの ならびのまま 下から うめる
-        if (cands.length < n) {
-            return jarBalls.slice().sort((a, b) => b.y - a.y).map(ball => ({ ball, landY: ball.y }));
-        }
-        const height = (c, slope) => c.h + c.dx * slope;
-        cands.sort((a, b) => height(a, this.MOUND_SLOPE) + a.rnd - height(b, this.MOUND_SLOPE) - b.rnd);
-        const chosen = cands.slice(0, n).sort((a, b) => height(a, this.HEAP_SLOPE) - height(b, this.HEAP_SLOPE));
-        const top = Math.max(...chosen.filter(c => c.dx < d).map(c => c.h), 0); // さいごの 山の てっぺん
-        return chosen.map((c, i) => {
-            const ball = jarBalls[i];
-            Object.assign(ball, { x: c.x, y: c.y, px: c.x, py: c.y, va: 0, settled: true, calmFrames: 20 });
-            const peak = Math.min(top, height(c, this.HEAP_SLOPE)); // この粒が つもるときの 山の てっぺん
-            return { ball, landY: Math.max(jar.shoulderBottom + r, y0 - peak - r) };
+        cands.sort((a, b) => a.p - b.p);
+        const placed = [];
+        const clear = (x, y, r) => this.fitsInJar(x, y, r + 0.3) && placed.every(o => Math.hypot(o.x - x, o.y - y) >= o.r + r + 0.3);
+        order.forEach(ball => {
+            const r = ball.r, big = r > rs + 0.01;
+            const spot = cands.find(c => c.free && (!big || clear(c.x, c.y, r)));
+            if (!spot) {
+                placed.push({ ball, x: ball.x, y: ball.y, r });
+                return;
+            }
+            let { x, y } = spot;
+            if (big) while (clear(x, y + 0.5, r)) y += 0.5;
+            cands.forEach(c => { if (c.free && Math.hypot(c.x - x, c.y - y) < r + rs + 0.3) c.free = false; });
+            placed.push({ ball, x, y, r });
+            Object.assign(ball, { x, y, px: x, py: y, va: 0, settled: true, calmFrames: 20, wasHit: false });
         });
+        const heap = o => y0 - o.y + Math.abs(o.x - jar.cx) * this.HEAP_SLOPE;
+        const top = Math.max(0, ...placed.filter(o => Math.abs(o.x - jar.cx) < d).map(o => y0 - o.y)); // さいごの 山の てっぺん
+        placed.sort((a, b) => heap(a) - heap(b)).forEach((o, rank) => {
+            const peak = Math.min(top, heap(o)); // この粒が つもるときの 山の てっぺん
+            result.set(o.ball, { rank, landY: Math.max(jar.shoulderBottom + o.r, y0 - peak - o.r) });
+        });
+        return result;
     },
 
     // (x, y) に 半径 rr の粒が、びんの かべに かからずに 入るか（びんの絵の大きさで）
