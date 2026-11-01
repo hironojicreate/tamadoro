@@ -251,9 +251,19 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
       const mid = done.filter(b => Math.abs(b.x - shape.cx) < shape.bw * 0.25), side = done.filter(b => Math.abs(b.x - shape.cx) > shape.bw * 0.6);
       return mid.length && side.length ? top(side) - top(mid) : null;
     };
-    let center = true, half = null;
+    let center = true, half = null, slowest = Infinity;
     for (let i = 0; i < 900 && T.phase === 'fill'; i++) {
+      const prev = new Map(T.balls.map(b => [b, { x: b.x, y: b.y, stage: b.stage, v: b.lastV }]));
       window.__pump(1);
+      // 口の上で 止まらない：とびはじめて 速くなってから 山に つくまで、速く動いている粒が 1こまで 速さが 半分より おそくならない（空中で 止まって見えない）
+      T.balls.forEach(b => {
+        const p = prev.get(b);
+        if (!p) return;
+        b.lastV = Math.hypot(b.x - p.x, b.y - p.y);
+        const moving = b.stage === 'fly' || b.stage === 'fall'; // 山に ついたら（ころがりはじめたら）おわり
+        if (b.fast && moving && p.v > 3) slowest = Math.min(slowest, b.lastV / p.v);
+        if (b.stage === 'fly' && b.lastV > 3) b.fast = true;
+      });
       T.balls.forEach(b => {
         if (b.stage === 'fall' && b.t === 1) {
           const l = T.toLocal(b.sx, b.sy, true);
@@ -274,10 +284,11 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
     let overlap = 0;
     jb.forEach((a, i) => jb.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 0.5) overlap++; }));
     const fits = jb.every(b => T.fitsInJar(b.x, b.y, b.r - 0.5));
-    return { phase: T.phase, center, half, end, atSlot, calm, overlap, fits, n: T.balls.length, slots: jb.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
+    return { phase: T.phase, center, slowest, half, end, atSlot, calm, overlap, fits, n: T.balls.length, slots: jb.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
   });
   ok(fill.phase === 'lid' && fill.atSlot, `${name}：粒が びんに入って つもる`);
   ok(fill.center, `${name}：粒は 口の上の まんなかあたりに あつまって 落ちる`);
+  ok(fill.slowest >= 0.5, `${name}：口の上で 止まらずに、そのまま 落ちる（いちばん 速さが おちた こまで ${fill.slowest.toFixed(2)}倍）`);
   ok(fill.half !== null && fill.end !== null && fill.end >= 0 && fill.half > fill.end,
     `${name}：まんなかに 山ができて、だんだん なだらかに なる（とちゅう ${fill.half && fill.half.toFixed(0)} → さいご ${fill.end && fill.end.toFixed(0)}）`);
   ok(fill.calm, `${name}：つもったら 動かない`);
