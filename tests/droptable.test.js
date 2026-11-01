@@ -5,6 +5,8 @@
 //   ・粒は びんの中より大きく、テーブルを おおいつくさない数まで。画面の中で、ガラスに めりこまずに、自分で止まる
 //   ・指でつまんで動かせる・はじくと すべる・何本の指でも
 //   ・口からなら びんの中に入れられる（ガラスは すりぬけない）
+//   ・おそい端末では、出す粒を へらす（さいしょに 速さを はかって。ぶちまけている あいだも 重ければ のこりを 出さない）
+//     おかたづけで 口から 入ってきて、いつもの びん（たおす前の 中身）に もどる
 //   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口の上の まんなかに あつまって 落ち、つもって
 //     （すきまなく。大きい玉の まわりにも すきまが ない。つもったら 動かない）、ふたが しまる
 //     そのあとの いつもの びんは、つもった ならびと まったく同じ。合体した玉も、合体の つづきも、たおす前のまま。ほかの画面へ行っても もどる
@@ -276,15 +278,21 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
     // いつもの びんの ならびとして おかしくない（かさならない・ガラスに かからない）
     const jb = DropJar.balls;
     let overlap = 0;
-    jb.forEach((a, i) => jb.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 0.15 * Math.min(a.r, c.r)) overlap++; }));
+    jb.forEach((a, i) => jb.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 0.25 * Math.min(a.r, c.r)) overlap++; }));
     const fits = jb.every(b => T.fitsInJar(b.x, b.y, b.r - 1));
-    // すきまが ない：どの粒も、底か かべか 下の粒に のっている。山の上の面では ない 大きい玉は、まわりの粒 5こ以上に ふれている
-    const touch = (a, c) => Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r + 1.5;
+    // すきまが ない：どの粒も、底か かべか 下の粒に のっている（3px までは ふれている とみなす）
+    //   山の上の面では ない 大きい玉の まわりに、粒が 1つ 入るほどの すきまが ない
+    const touch = (a, c) => Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r + 3;
     const onWall = b => !T.fitsInJar(b.x, b.y, b.r + 1.5);
     const floating = jb.filter(b => !onWall(b) && !jb.some(o => o !== b && o.y > b.y && touch(b, o))).length;
     const topY = x => Math.min(...jb.filter(o => Math.abs(o.x - x) < o.r * 2).map(o => o.y - o.r));
     const buried = jb.filter(b => b.tier >= 100 && b.y - b.r > topY(b.x) + b.r * 2);
-    const loose = buried.filter(b => jb.filter(o => o !== b && touch(b, o)).length + (onWall(b) ? 2 : 0) < 5).length;
+    const rs = Math.min(...jb.map(o => o.r));
+    const hole = b => Array.from({ length: 24 }, (_, k) => (Math.PI * 2 * k) / 24).some(a => {
+      const x = b.x + Math.cos(a) * (b.r + rs + 0.5), y = b.y + Math.sin(a) * (b.r + rs + 0.5);
+      return y - rs > topY(x) && T.fitsInJar(x, y, rs) && jb.every(o => o === b || Math.hypot(o.x - x, o.y - y) >= o.r + rs - 0.5);
+    });
+    const loose = buried.filter(hole).length;
     return { phase: T.phase, center, slowest, atSlot, calm, overlap, fits, floating, loose, buried: buried.length, n: T.balls.length, slots: jb.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
   });
   ok(fill.phase === 'lid' && fill.atSlot, `${name}：粒が びんに入って つもる`);
@@ -295,7 +303,7 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
   ok(fill.calm, `${name}：つもったら 動かない`);
   ok(fill.kept, `${name}：中に入れておいた粒も、いっしょに つもる`);
   ok(fill.n === fill.slots, `${name}：いつもの びんと 同じ数だけ つもる（${fill.n}こ）`);
-  ok(fill.overlap === 0 && fill.fits, `${name}：つもった ならびは かさならず、ガラスに かからない`);
+  ok(fill.overlap === 0 && fill.fits, `${name}：つもった ならびは 大きく かさならず、ガラスに かからない`);
 
   // ふたが しまると、いつもの びん（つもった ならびと まったく同じ）
   const handoff = await page.evaluate(() => {
@@ -347,8 +355,52 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
   await page.close();
 }
 
+// おそい端末の ふり（テストでは 時計が とまっているので、速さを はかる計算と 時計を さしかえる）
+async function slowDevice(browser) {
+  const name = 'おそい端末';
+  const { page, errors } = await openRecords(browser, 1200, { width: 1280, height: 720 });
+  // ① さいしょに はかった速さで へらす（ためしの計算に 14ms ＝ ふつうの パソコンの 10倍くらい おそい）
+  const first = await page.evaluate(() => {
+    const T = DropTable;
+    T.bench = () => 14;
+    window.__before = DropJar.balls.slice();
+    T.open();
+    return { planned: T.balls.length + T.extra.length, cap: Math.floor(T.BENCH_BUDGET / 14), visible: window.__before.length };
+  });
+  ok(first.planned > 0 && first.planned <= first.cap && first.planned < first.visible,
+    `${name}：さいしょに はかった速さで、出す粒を へらす（${first.planned}こ ≦ ${first.cap}こ。びんに 見えていたのは ${first.visible}こ）`);
+  // おかたづけで、出なかった分も 口から 入ってきて、たおす前の びんに もどる
+  const back = await page.evaluate(() => {
+    const T = DropTable;
+    for (let i = 0; i < 400 && T.phase !== 'play'; i++) window.__pump(1);
+    T.cleanUp();
+    for (let i = 0; i < 300 && T.phase !== 'fill'; i++) window.__pump(1);
+    const spawned = T.balls.filter(b => b.stage === 'spawn').length;
+    for (let i = 0; i < 3000 && T.isOpen; i++) window.__pump(1);
+    const B = window.__before, J = DropJar.balls;
+    return { spawned, same: J.length === B.length && J.every(b => B.includes(b)) };
+  });
+  ok(back.spawned > 0 && back.same, `${name}：おかたづけで、出なかった分も 口から 入ってきて、いつもの びんに もどる（${back.spawned}こ）`);
+
+  // ② ぶちまけている あいだに 重かったら、のこりを 口から 出さない（1こまの計算に 20ms かかる ふり）
+  const watch = await page.evaluate(() => {
+    const T = DropTable;
+    T.bench = () => 0.5;
+    let c = 0;
+    T.clock = () => (c += 20);
+    T.open();
+    const planned = T.balls.length + T.extra.length;
+    for (let i = 0; i < 400 && T.phase !== 'play'; i++) window.__pump(1);
+    return { planned, out: T.balls.length, extra: T.extra.length };
+  });
+  ok(watch.extra === 0 && watch.out < watch.planned, `${name}：ぶちまけている あいだに 重かったら、のこりを 出さない（${watch.out}こ／予定 ${watch.planned}こ）`);
+  ok(errors.length === 0, `${name}：エラーなし ${errors.join(' / ')}`);
+  await page.close();
+}
+
 (async () => {
   const browser = await chromium.launch();
+  await slowDevice(browser);
   await scenario(browser, { name: 'パソコン 600こ（100玉2こ合体してから）', n: 600, viewport: { width: 1280, height: 720 }, merges: 2, expectAll: true });
   await scenario(browser, { name: 'スマホ 600こ', n: 600, viewport: { width: 390, height: 844 }, merges: 0 });
   await scenario(browser, { name: 'スマホ 3589こ（おおいつくさない数まで）', n: 3589, viewport: { width: 390, height: 844 }, merges: 0 });

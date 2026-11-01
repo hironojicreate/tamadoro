@@ -10,6 +10,8 @@
 const DropTable = {
     AREA: 0.3,          // ドロップがテーブルの何わりまで おおうか（こえるときは、出す粒の数を へらす）
     MAX_BALLS: 1500,    // 動きが重くならないための、粒の数の上限
+    BENCH_BUDGET: 1400,  // おそい端末では、出す粒を「BENCH_BUDGET ÷ はかった時間（bench、ms）」こまでに へらす（はかり方の ずれがあるので、ざっくり）
+    SLOW_FRAME: 14,     // ぶちまけている あいだ、1こまの計算が これ（ms）より 長いことが 3こま つづいたら、のこりを 口から 出さない
     SIZE_UP: 1.35,      // テーブルの粒は、びんの中より 少し大きく（びんの中の粒の何倍か）
     MIN_R: 9,           // テーブルの粒の半径（px）の下限・上限
     MAX_R: 15,
@@ -93,6 +95,7 @@ const DropTable = {
         this.phase = 'tip';
         this.t = 0;
         this.emptyT = 0;
+        this.slowFrames = 0;
         this.placeRigid();
         this.wake();
     },
@@ -322,6 +325,7 @@ const DropTable = {
 
     // びんの「いま」の中身から、テーブルに出す粒をつくる。びんの中に見えている粒は、びんと いっしょに たおれる
     //   合体した玉（100玉・500玉・1000玉）はそのまま。のこりの粒は、テーブルを おおいつくさない数まで ほんとうの数で出す
+    //   おそい端末では もっと へらす（出なかった分は、おかたづけで 口から 入ってきて、いつもの びんに もどる）
     //   見えている粒より多いときは、のこりを 口から つづけて出す（びんの おくに あった分）。少ないときは、見えている粒を まんべんなく へらす
     makeBalls(r) {
         const jar = DropJar;
@@ -330,7 +334,9 @@ const DropTable = {
         const smalls = jar.balls.filter(b => b.tier < 100);
         const singles = Math.max(0, drops.length - bigs.reduce((sum, b) => sum + b.tier, 0));
         const room = this.AREA * this.W * this.H - bigs.reduce((sum, b) => sum + Math.PI * (r * b.scale) ** 2, 0);
-        const n = Math.max(0, Math.min(singles, this.MAX_BALLS - bigs.length, Math.floor(room / (Math.PI * r * r))));
+        // おそい端末では、さいしょから へらす（この端末の速さを はかって きめる）
+        const speedCap = Math.floor(this.BENCH_BUDGET / Math.max(0.2, this.bench())) - bigs.length;
+        const n = Math.max(0, Math.min(singles, this.MAX_BALLS - bigs.length, speedCap, Math.floor(room / (Math.PI * r * r))));
         const keep = smalls.length > n
             ? smalls.filter((b, i) => Math.floor(((i + 1) * n) / smalls.length) > Math.floor((i * n) / smalls.length))
             : smalls;
@@ -375,6 +381,29 @@ const DropTable = {
             lidY: 0, lidVy: 0, lidAngle: 0, lidVa: 0, lidRocking: false, running: false,
         });
         jar.updateRadii(true);
+    },
+
+    // 時間を はかる時計（ms）。テストでは さしかえて「おそい端末」の ふりをする
+    clock() {
+        return performance.now();
+    },
+
+    // この端末の速さを はかる：ためしの粒 400こで、テーブルと同じ ぶつかりの計算を 6回 して かかった時間（ms）
+    //   さいしょの 1回は 計算の じゅんびで おそいので はぶき、つぎの 5回の まんなかの値を つかう（たまたま はやい・おそい回に ひっぱられない）
+    bench() {
+        const saved = { balls: this.balls, cell: this.cell };
+        const times = [];
+        for (let round = 0; round < 6; round++) {
+            this.balls = Array.from({ length: 400 }, (_, i) => ({
+                x: (i % 20) * 15 + Math.random() * 4, y: Math.floor(i / 20) * 15 + Math.random() * 4, r: 8, m: 64, vx: 0, vy: 0, held: false, hop: 0,
+            }));
+            this.cell = 16;
+            const t0 = this.clock();
+            for (let k = 0; k < 6; k++) this.collide();
+            if (round > 0) times.push(this.clock() - t0);
+        }
+        Object.assign(this, saved);
+        return times.sort((a, b) => a - b)[2];
     },
 
     // rTable：テーブルでの半径（px）、rIn：びんの中での半径（びんの絵の大きさで）
@@ -430,9 +459,11 @@ const DropTable = {
                 this.close(false);
                 return;
             }
+            const t0 = this.clock();
             const busy = this.update();
             if (!this.isOpen) return;
             this.draw();
+            this.watchSpeed(this.clock() - t0);
             this.quiet = busy ? 0 : this.quiet + 1;
             if (this.quiet > 20) {
                 this.running = false; // 止まったら、指でさわるまで休む
@@ -441,6 +472,14 @@ const DropTable = {
             requestAnimationFrame(loop);
         };
         requestAnimationFrame(loop);
+    },
+
+    // ぶちまけている あいだ、1こまの計算に かかった時間（ms）を 見はる。重い こまが 3つ つづいたら、のこりを 口から 出さない
+    //   （出なかった分は、びんの おくに のこっている あつかい。おかたづけで 口から 入ってきて、いつもの びんに もどる）
+    watchSpeed(ms) {
+        if (this.phase !== 'pour' || !this.extra.length) return;
+        this.slowFrames = ms > this.SLOW_FRAME ? (this.slowFrames || 0) + 1 : 0;
+        if (this.slowFrames >= 3) this.extra = [];
     },
 
     // 1こま進める。まだ動いているものがあれば true
