@@ -5,8 +5,8 @@
 //   ・粒は びんの中より大きく、テーブルを おおいつくさない数まで。画面の中で、ガラスに めりこまずに、自分で止まる
 //   ・指でつまんで動かせる・はじくと すべる・何本の指でも
 //   ・口からなら びんの中に入れられる（ガラスは すりぬけない）
-//   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口の上の まんなかに あつまって 落ち、山になって つもり
-//     （はじめは けわしい山、さいごは なだらかな山。つもったら 動かない）、ふたが しまる
+//   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口の上の まんなかに あつまって 落ち、つもって
+//     （すきまなく。大きい玉の まわりにも すきまが ない。つもったら 動かない）、ふたが しまる
 //     そのあとの いつもの びんは、つもった ならびと まったく同じ。合体した玉も、合体の つづきも、たおす前のまま。ほかの画面へ行っても もどる
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://localhost:8765/';
@@ -245,17 +245,10 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
   ok(rise.phase === 'fill' && rise.still && rise.angle === 0 && Math.abs(rise.dx) < 1 && Math.abs(rise.dy) < 1,
     `${name}：おかたづけは、まず びんが おきあがって 定位置に もどる`);
 
-  // 粒が 口の上の まんなかに あつまって 落ち、山になって つもる（はじめは けわしく、さいごは なだらか）。中に入れておいた粒も いっしょに
+  // 粒が 口の上の まんなかに あつまって 落ち、すきまなく つもる。中に入れておいた粒も いっしょに
   const fill = await page.evaluate(() => {
     const T = DropTable, shape = DropJar.jar;
-    // 山の けわしさ：まんなかの いちばん上と、すその いちばん上の 高さの差（びんの絵の大きさで）
-    const steep = () => {
-      const done = T.balls.filter(b => b.stage === 'done').map(b => b.slot.ball);
-      const top = list => Math.min(...list.map(b => b.y));
-      const mid = done.filter(b => Math.abs(b.x - shape.cx) < shape.bw * 0.25), side = done.filter(b => Math.abs(b.x - shape.cx) > shape.bw * 0.6);
-      return mid.length && side.length ? top(side) - top(mid) : null;
-    };
-    let center = true, half = null, slowest = Infinity;
+    let center = true, slowest = Infinity;
     for (let i = 0; i < 900 && T.phase === 'fill'; i++) {
       const prev = new Map(T.balls.map(b => [b, { x: b.x, y: b.y, stage: b.stage, v: b.lastV }]));
       window.__pump(1);
@@ -274,10 +267,7 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
           if (Math.abs(l.x - shape.cx) > shape.nw * 0.45 || l.y > shape.rimTop) center = false;
         }
       });
-      const doneN = T.balls.filter(b => b.stage === 'done').length;
-      if (half === null && doneN >= T.balls.length * 0.5) half = steep();
     }
-    const end = steep();
     const p = T.pose;
     const atSlot = T.balls.every(b => { const w = T.toWorld(p, b.slot.ball.x, b.slot.ball.y); return b.stage === 'done' && Math.hypot(b.x - w.x, b.y - w.y) < 0.5; });
     const snap = T.balls.map(b => [b.x, b.y, b.angle]);
@@ -286,15 +276,22 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
     // いつもの びんの ならびとして おかしくない（かさならない・ガラスに かからない）
     const jb = DropJar.balls;
     let overlap = 0;
-    jb.forEach((a, i) => jb.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 0.5) overlap++; }));
-    const fits = jb.every(b => T.fitsInJar(b.x, b.y, b.r - 0.5));
-    return { phase: T.phase, center, slowest, half, end, atSlot, calm, overlap, fits, n: T.balls.length, slots: jb.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
+    jb.forEach((a, i) => jb.slice(i + 1).forEach(c => { if (Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r - 0.15 * Math.min(a.r, c.r)) overlap++; }));
+    const fits = jb.every(b => T.fitsInJar(b.x, b.y, b.r - 1));
+    // すきまが ない：どの粒も、底か かべか 下の粒に のっている。山の上の面では ない 大きい玉は、まわりの粒 5こ以上に ふれている
+    const touch = (a, c) => Math.hypot(a.x - c.x, a.y - c.y) < a.r + c.r + 1.5;
+    const onWall = b => !T.fitsInJar(b.x, b.y, b.r + 1.5);
+    const floating = jb.filter(b => !onWall(b) && !jb.some(o => o !== b && o.y > b.y && touch(b, o))).length;
+    const topY = x => Math.min(...jb.filter(o => Math.abs(o.x - x) < o.r * 2).map(o => o.y - o.r));
+    const buried = jb.filter(b => b.tier >= 100 && b.y - b.r > topY(b.x) + b.r * 2);
+    const loose = buried.filter(b => jb.filter(o => o !== b && touch(b, o)).length + (onWall(b) ? 2 : 0) < 5).length;
+    return { phase: T.phase, center, slowest, atSlot, calm, overlap, fits, floating, loose, buried: buried.length, n: T.balls.length, slots: jb.length, kept: !!window.__putIn.slot && T.balls.includes(window.__putIn) };
   });
   ok(fill.phase === 'lid' && fill.atSlot, `${name}：粒が びんに入って つもる`);
   ok(fill.center, `${name}：粒は 口の上の まんなかあたりに あつまって 落ちる`);
   ok(fill.slowest >= 0.5, `${name}：口の上で 止まらずに、そのまま 落ちる（いちばん 速さが おちた こまで ${fill.slowest.toFixed(2)}倍）`);
-  ok(fill.half !== null && fill.end !== null && fill.end >= 0 && fill.half > fill.end,
-    `${name}：まんなかに 山ができて、だんだん なだらかに なる（とちゅう ${fill.half && fill.half.toFixed(0)} → さいご ${fill.end && fill.end.toFixed(0)}）`);
+  ok(fill.floating === 0, `${name}：すきまなく つもる（うかんでいる粒 ${fill.floating}こ）`);
+  ok(fill.loose === 0, `${name}：大きい玉の まわりにも すきまが ない（すきまの ある 大きい玉 ${fill.loose}こ／${fill.buried}こ）`);
   ok(fill.calm, `${name}：つもったら 動かない`);
   ok(fill.kept, `${name}：中に入れておいた粒も、いっしょに つもる`);
   ok(fill.n === fill.slots, `${name}：いつもの びんと 同じ数だけ つもる（${fill.n}こ）`);

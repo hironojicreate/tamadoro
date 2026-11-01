@@ -22,12 +22,15 @@ const DropTable = {
     TIP_FRAMES: 36,     // びんが たおれる時間（こま）
     POUR_FRAMES: 70,    // 見えていなかった粒が 口から出てくる時間
     POUR_MAX: 360,      // ぶちまけるのは ここまで（つまって出られない粒は、びんの中に のこる）
-    RISE_FRAMES: 34,    // おかたづけで、びんが おきあがって 定位置に もどる時間
+    REPOSE: 0.6,        // おかたづけで つもる 山の 坂の けわしさ（くぼみが これより 急な 坂に あると、こえて ころがりつづける）
+    POUR_SPREAD: 0.8,   // おかたづけで 粒が 落ちる はば（口の はばの何わりか。せまいと 山が とがる）
+    SETTLE_STEPS: 45,   // そそいで きめた場所を、重力で ならす回数（とがった山や すきまが くずれる。多いほど 平らになる）
+    SETTLE_SLIDE: 0.6,  // ならすときに、よこへ すべる 速さを どれだけ残すか（小さいほど 山の形が のこる）
+    RELAX_MAX: 30,      // ならしたあと、重なりを なくす回数の上限（のこった 小さな 重なりは 見えない。ふだんの びんの ほうが 重なっている）
+    RISE_FRAMES: 48,    // おかたづけで、びんが おきあがって 定位置に もどる時間（このあいだに おく場所を きめる）
     FILL_FRAMES: 150,   // 粒が つぎつぎ 口に あつまってくる時間のはば（ながいほど、口から落ちる ながれが ほそい）
     FLY_FRAMES: 22,     // 1つぶが びんの口の上へ とんでいく時間
     LID_FRAMES: 30,     // さいごに コルクが とんできて ふたをする時間
-    HEAP_SLOPE: 1.0,    // つもっている とちゅうの 山の けわしさ（まんなかから 1px はなれると、どれだけ ひくいか）。はじめは けわしい山
-    MOUND_SLOPE: 0.3,   // さいごに つもった山の なだらかさ（すそが うまって、ここまで なだらかに なる）
 
     isOpen: false,
     running: false,
@@ -130,6 +133,7 @@ const DropTable = {
         const rect = DropJar.canvas.getBoundingClientRect();
         this.riseFrom = { ...this.pose };
         this.home = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, angle: 0, scale: rect.width / this.cw };
+        this.planFill();
         this.phase = 'rise';
         this.t = 0;
         this.wake();
@@ -362,7 +366,7 @@ const DropTable = {
         this.saved = { balls: jar.balls.slice(), mergeQueue: jar.mergeQueue.slice() };
     },
 
-    // びんを、たおす前の中身に もどす（ならべる場所は moundLayout で きめなおす）
+    // びんを、たおす前の中身に もどす（ならべる場所は pourer で きめなおす）
     restoreJar() {
         const jar = DropJar;
         Object.assign(jar, {
@@ -656,19 +660,19 @@ const DropTable = {
         const a = this.riseFrom, b = this.home;
         this.pose = { x: lerp(a.x, b.x, e), y: lerp(a.y, b.y, e), angle: lerp(a.angle, b.angle, e), scale: lerp(a.scale, b.scale, e) };
         this.placeRigid();
+        this.packWork(1);
         if (k >= 1) this.startFill();
     },
 
-    // びんを たおす前の中身に もどし（合体した玉も、合体の つづきも そのまま）、その粒を なだらかな山の形に ならべなおして「おく場所」にする
+    // おかたづけの じゅんび（「おかたづけ」を おしたとき）：
+    //   びんを たおす前の中身に もどし（合体した玉も、合体の つづきも そのまま）、テーブルの粒と くみあわせて、びんに そそいだ ときの 場所を きめる
     //   テーブルの粒は、もとになった びんの粒の場所へ もどる（100玉は 100玉のまま）
     //   びんの粒が ない粒（びんの おくに あった分）は、テーブルに 出なかった びんの粒の かわりになる。あまったら、口で すいこまれて 見えなくなる
     //   びんの中に 入れておいた粒は、かならず のこる（場所が たりなければ、いちばん遠い粒と いれかわる）
-    //   粒は 口の上から とびこんで、いまの 山の てっぺんに 落ち、斜面を ころがって おく場所で 止まる（つもる じゅんばんは moundLayout）
-    //   粒どうしで おしあう計算は しないので、つもった粒は ぴたっと 止まる。ふたが しまったら、そのまま いつもの びん
-    startFill() {
+    planFill() {
         this.restoreJar();
         const shape = DropJar.jar;
-        const mouth = this.toWorld(this.pose, shape.cx, shape.rimTop);
+        const mouth = this.toWorld(this.home, shape.cx, shape.rimTop);
         const dist = b => Math.hypot(b.x - mouth.x, b.y - mouth.y);
         const inside = this.balls.filter(b => b.inside);
         const outside = this.balls.filter(b => !b.inside).sort((a, b) => dist(a) - dist(b));
@@ -697,13 +701,49 @@ const DropTable = {
         });
         outside.forEach(b => { if (!b.home) b.home = take(b.tier); });
         const spawned = [...left]; // テーブルの粒が たりない分：口の上から 入ってくる
-
         const homes = drops.filter(b => b.home).map(b => b.home).concat(spawned);
-        const layout = this.moundLayout(homes);
-        const delayOf = j => Math.floor((layout.get(j).rank / Math.max(1, homes.length)) * this.FILL_FRAMES);
+        this.plan = { drops, spawned, homes, land: new Map(), next: 0, pour: this.pourer(homes), step: 0, relax: 0, relaxed: false, sweep: null, done: false };
+    },
+
+    // おく場所を きめる計算を、すこし すすめる（びんが おきあがる あいだに 少しずつ。いちどに やると、スマホで 一瞬 かたまる）
+    //   ① 1つぶずつ そそぐ（pourer。16こまで ぜんぶ）→ ② 重力で ならす（SETTLE_STEPS 回。1こまに 2回）→ ③ 重なりを なくす（RELAX_MAX 回まで）
+    //   → ④ 下の粒から じゅんばんに、まっすぐ 下に 落ちられるだけ 落とす（かべや となりに よりかかって できた すきまを うめる）
+    packWork(frames) {
+        const p = this.plan;
+        const per = Math.ceil(p.homes.length / 16);
+        for (let f = 0; f < frames && !p.done; f++) {
+            if (p.next < p.homes.length) {
+                for (let k = 0; k < per && p.next < p.homes.length; k++, p.next++) p.land.set(p.homes[p.next], p.pour(p.homes[p.next], p.next));
+                if (p.next === p.homes.length) p.homes.forEach(b => { b.px = b.x; b.py = b.y; });
+            } else if (p.step < this.SETTLE_STEPS) {
+                for (let k = 0; k < 2 && p.step < this.SETTLE_STEPS; k++) this.settleStep(p.homes, p.step++);
+            } else if (!p.relaxed) {
+                let worst = Infinity;
+                for (let k = 0; k < 10 && p.relax < this.RELAX_MAX && worst >= 0.1; k++, p.relax++) worst = this.relaxStep(p.homes);
+                if (worst < 0.1 || p.relax >= this.RELAX_MAX) p.relaxed = true;
+            } else {
+                // 下に落ちた粒の上の粒も 落ちられるように、うごく粒が なくなるまで くりかえす（4回まで）
+                if (!p.sweep) Object.assign(p, { sweep: p.homes.slice().sort((a, b) => b.y - a.y), sweeps: (p.sweeps || 0) + 1, moved: false });
+                p.sweep.splice(0, 100).forEach(b => { if (this.sinkDown(b, p.homes)) p.moved = true; });
+                if (!p.sweep.length) {
+                    p.sweep = null;
+                    if (!p.moved || p.sweeps >= 4) p.done = true;
+                }
+            }
+        }
+    },
+
+    // びんが おきあがったら、粒が 口の上から とびこんで、山の上に 落ち、斜面を ころがって おく場所で 止まる（pourer で きめた じゅんばん・場所）
+    //   粒どうしで おしあう計算は しないので、つもった粒は ぴたっと 止まる。ふたが しまったら、そのまま いつもの びん
+    startFill() {
+        this.packWork(Infinity);
+        DropJar.balls.forEach(b => Object.assign(b, { px: b.x, py: b.y, va: 0, settled: true, calmFrames: 20, wasHit: false }));
+        const { drops, spawned, homes, land } = this.plan;
+        const delayOf = j => Math.floor((land.get(j).rank / Math.max(1, homes.length)) * this.FILL_FRAMES);
+        const slotOf = j => ({ ball: j, ...land.get(j) });
         drops.forEach((b, n) => {
             Object.assign(b, { rigid: false, held: false, t: 0, sx: b.x, sy: b.y, sr: b.r });
-            b.slot = b.home ? { ball: b.home, landY: layout.get(b.home).landY } : null;
+            b.slot = b.home ? slotOf(b.home) : null;
             if (b.slot) b.slot.ball.src = b.src;
             if (b.inside) {
                 b.stage = b.slot ? 'roll' : 'gone'; // びんの中にいた粒は、そのまま 山の場所へ ころがる
@@ -720,7 +760,7 @@ const DropTable = {
             const r = j.r * this.pose.scale;
             const b = this.newBall(j.src, j.tier, r, j.r);
             Object.assign(b, {
-                slot: { ball: j, landY: layout.get(j).landY }, stage: 'spawn', hidden: true, t: 0, x: at.x, y: at.y, r, sx: at.x, sy: at.y, sr: r,
+                slot: slotOf(j), stage: 'spawn', hidden: true, t: 0, x: at.x, y: at.y, r, sx: at.x, sy: at.y, sr: r,
                 delay: delayOf(j) + this.FLY_FRAMES,
             });
             this.balls.push(b);
@@ -729,54 +769,203 @@ const DropTable = {
         this.t = 0;
     },
 
-    // びんの粒（大きさの ちがう 100玉なども）を、なだらかな山の形に ならべる（びんの絵の大きさで）。粒ごとに { rank, landY } を返す
-    //   ① order の じゅんばんに、六角形の あみの目のうち「高さ ＋ まんなかからの きょり × MOUND_SLOPE」が いちばん ひくい、空いている場所に おく
-    //     （上の面が なだらかな山）。大きい玉は、そこから 下に つかえるまで しずめる（すきまの上に うかない）
-    //   ② つもる じゅんばん（rank）は、おいた場所の「高さ ＋ まんなかからの きょり × HEAP_SLOPE」が ひくい順（まんなかから けわしく つもり、すそが あとから うまる）
-    //   粒は いまの 山の てっぺんに 落ちてから ころがってくる（landY）。入りきらない粒は（ふつうは ない）、いまの場所のまま
-    moundLayout(order) {
-        const result = new Map();
-        if (!order.length) return result;
+    // びんに、order の じゅんばんに 粒を そそいだ ときの 場所を きめる（びんの絵の大きさで）。1つぶずつ きめる関数を返す（粒ごとに { rank, landX, landY }）
+    //   1つぶずつ、口の下の まんなかあたりから まっすぐ 落とし、山に ついた所（landX・landY）から 下の粒の まわりを ころがして、
+    //   2つの粒（か かべ）の あいだの くぼみに はまった所に おく。下の粒の よこまで ころがったら、また まっすぐ 落ちる
+    //   まわりの粒に そって 止まるので、大きい玉の まわりにも すきまが できない。山の 坂は、ころがって できる 自然な けわしさ
+    //   いつもの びんの粒（order）も、この場所に うごかしておく
+    pourer(order) {
         const jar = DropJar.jar;
-        const rs = Math.min(...order.map(b => b.r)), d = 2 * rs + 0.4, rowH = (d * Math.sqrt(3)) / 2;
-        const y0 = jar.bottom - rs - 0.5;
-        const cands = [];
-        for (let k = 0; y0 - k * rowH > jar.shoulderBottom + rs; k++) {
-            const y = y0 - k * rowH;
-            const reach = Math.ceil(jar.bw / d) + 1;
-            for (let m = -reach; m <= reach; m++) {
-                const x = jar.cx + m * d + ((k % 2) * d) / 2;
-                if (!this.fitsInJar(x, y, rs + 0.3)) continue;
-                cands.push({ x, y, free: true, p: y0 - y + Math.abs(x - jar.cx) * this.MOUND_SLOPE + Math.random() * d * 0.6 });
+        const maxR = order.reduce((m, b) => Math.max(m, b.r), 1);
+        const colW = 2 * maxR;
+        const cols = new Map(); // 置いた粒を、よこの はばごとに わけておく
+        const near = (x, reach, fn) => {
+            for (let c = Math.floor((x - reach) / colW); c <= Math.floor((x + reach) / colW); c++) {
+                const list = cols.get(c);
+                if (list) for (const o of list) if (fn(o)) return o;
             }
-        }
-        cands.sort((a, b) => a.p - b.p);
-        const placed = [];
-        const clear = (x, y, r) => this.fitsInJar(x, y, r + 0.3) && placed.every(o => Math.hypot(o.x - x, o.y - y) >= o.r + r + 0.3);
-        order.forEach(ball => {
-            const r = ball.r, big = r > rs + 0.01;
-            const spot = cands.find(c => c.free && (!big || clear(c.x, c.y, r)));
-            if (!spot) {
-                placed.push({ ball, x: ball.x, y: ball.y, r });
-                return;
+            return null;
+        };
+        // (x, y) に 半径 r の粒を おくと、ぶつかる もの（ほかの粒・かべ 'wall'。なにも なければ null）
+        const hit = (x, y, r) => near(x, r + maxR, o => {
+            const dx = o.x - x, dy = o.y - y, d = o.r + r + 0.1;
+            return dx * dx + dy * dy < d * d;
+        }) || (this.fitsInJar(x, y, r + 0.2) ? null : 'wall');
+        const free = (x, y, r) => !hit(x, y, r);
+        // (x, fromY) から まっすぐ 落ちて、とまる 高さと、のっている粒（底や かべなら null）
+        const fall = (x, fromY, r) => {
+            let y = jar.bottom - r - 0.5, on = null;
+            near(x, r + maxR, o => {
+                const dx = Math.abs(o.x - x), reach = o.r + r + 0.15; // free より 少しだけ はなす（計算の こまかい ずれで「かさなる」と ならないように）
+                if (dx >= reach) return false;
+                let cy = o.y - Math.sqrt(reach * reach - dx * dx);
+                if (cy < fromY - 0.01 && o.y > fromY) cy = fromY; // もう よこに ふれている 下の粒：その場で つかえる
+                if (cy >= fromY - 0.01 && cy < y) {
+                    y = cy;
+                    on = o;
+                }
+                return false;
+            });
+            while (y > fromY && !this.fitsInJar(x, y, r + 0.2)) {
+                y -= 0.5; // 底の すみの まるみ
+                on = null;
             }
-            let { x, y } = spot;
-            if (big) while (clear(x, y + 0.5, r)) y += 0.5;
-            cands.forEach(c => { if (c.free && Math.hypot(c.x - x, c.y - y) < r + rs + 0.3) c.free = false; });
-            placed.push({ ball, x, y, r });
+            return { y, on };
+        };
+        // 空いている いちばん ひくい場所（びんが いっぱいで 口の下に 入らないとき。ふつうは ない）
+        const lowest = r => {
+            for (let y = jar.bottom - r - 0.5; y > jar.shoulderBottom; y -= r * 0.5) {
+                for (let dx = 0; dx < jar.bw; dx += r * 0.5) {
+                    for (const x of [jar.cx - dx, jar.cx + dx]) if (free(x, y, r)) return { x, y };
+                }
+            }
+            return { x: jar.cx, y: jar.shoulderBottom + r };
+        };
+        return (ball, rank) => {
+            const r = ball.r;
+            let x = jar.cx + (Math.random() * 2 - 1) * jar.nw * this.POUR_SPREAD;
+            let y = jar.shoulderBottom + r;
+            let landX = null, landY = null;
+            if (!free(x, y, r)) {
+                ({ x, y } = lowest(r));
+                landX = x;
+                landY = y;
+            } else {
+                let push = 0; // いきおい：高い所から 落ちた粒は、たいらな所でも となりの粒を いくつか こえて ころがる
+                for (let k = 0; k < 60; k++) {
+                    const f = fall(x, y, r);
+                    push += Math.floor((f.y - y) / (r * 4));
+                    y = f.y;
+                    if (landX === null) {
+                        landX = x;
+                        landY = y;
+                        push += 1;
+                    }
+                    if (!f.on) break; // 底か かべに ついた
+                    // のっている粒の まわりを、外がわへ ころがる。ほかの粒か かべに つかえたら、くぼみに はまって 止まる
+                    //   ただし くぼみが 急な 坂に あるとき（つかえた粒が REPOSE より 急に ひくい）や、いきおいが のこっていて
+                    //   つかえた粒が 高くないときは、その粒を こえて ころがりつづける
+                    let o = f.on;
+                    const dir = Math.abs(x - o.x) < 0.01 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(x - o.x);
+                    let stuck = false;
+                    for (let n = 0; n < 40 && !stuck; n++) {
+                        const reach = o.r + r + 0.15;
+                        let a = Math.asin(Math.max(-1, Math.min(1, ((x - o.x) * dir) / reach)));
+                        let block = null;
+                        while (a < Math.PI / 2) {
+                            const na = Math.min(Math.PI / 2, a + 0.05);
+                            const nx = o.x + dir * reach * Math.sin(na), ny = o.y - reach * Math.cos(na);
+                            block = hit(nx, ny, r);
+                            if (block) break;
+                            a = na;
+                            x = nx;
+                            y = ny;
+                        }
+                        if (!block) break; // 粒の よこまで ころがった
+                        if (block !== 'wall' && block.y - o.y > Math.abs(block.x - o.x) * this.REPOSE) {
+                            o = block; // 急な 坂の くぼみ：こえて ころがりつづける
+                        } else if (block !== 'wall' && push > 0 && block.y >= o.y - r * 0.3) {
+                            o = block; // いきおいで こえる
+                            push--;
+                        } else {
+                            stuck = true;
+                        }
+                    }
+                    if (stuck) break;
+                    // 粒の よこまで ころがった：また まっすぐ 落ちる
+                }
+            }
             Object.assign(ball, { x, y, px: x, py: y, va: 0, settled: true, calmFrames: 20, wasHit: false });
+            const c = Math.floor(x / colW);
+            if (!cols.has(c)) cols.set(c, []);
+            cols.get(c).push(ball);
+            return { rank, landX, landY };
+        };
+    },
+
+    // 重力で 1回 ならす（びんの絵の大きさで）。大きい玉ほど 重く、小さい粒を おしのける
+    //   重力は だんだん よわめて、さいごの 4分の1は 重力なしで 重なりを ほどく
+    settleStep(balls, step) {
+        const g = 0.45 * Math.max(0, 1 - step / (this.SETTLE_STEPS * 0.75));
+        balls.forEach(b => {
+            const vx = (b.x - b.px) * this.SETTLE_SLIDE, vy = (b.y - b.py) * 0.65 + g;
+            b.px = b.x;
+            b.py = b.y;
+            b.x += vx;
+            b.y += vy;
         });
-        const heap = o => y0 - o.y + Math.abs(o.x - jar.cx) * this.HEAP_SLOPE;
-        const top = Math.max(0, ...placed.filter(o => Math.abs(o.x - jar.cx) < d).map(o => y0 - o.y)); // さいごの 山の てっぺん
-        placed.sort((a, b) => heap(a) - heap(b)).forEach((o, rank) => {
-            const peak = Math.min(top, heap(o)); // この粒が つもるときの 山の てっぺん
-            result.set(o.ball, { rank, landY: Math.max(jar.shoulderBottom + o.r, y0 - peak - o.r) });
+        for (let iter = 0; iter < 4; iter++) {
+            this.eachNearPair(balls, (a, b) => {
+                const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r;
+                const d2 = dx * dx + dy * dy;
+                if (d2 >= min * min || d2 === 0) return;
+                const d = Math.sqrt(d2), ma = a.r * a.r, mb = b.r * b.r;
+                const over = min - d, nx = dx / d, ny = dy / d;
+                a.x -= nx * over * (mb / (ma + mb));
+                a.y -= ny * over * (mb / (ma + mb));
+                b.x += nx * over * (ma / (ma + mb));
+                b.y += ny * over * (ma / (ma + mb));
+            });
+            balls.forEach(b => DropJar.collideWithJar(b, false));
+        }
+    },
+
+    // 重なっている粒を、重力なしで 1回 おしひろげる。いちばん大きな 重なりを返す
+    relaxStep(balls) {
+        let worst = 0;
+        this.eachNearPair(balls, (a, b) => {
+            const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r + 0.1;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= min * min || d2 === 0) return;
+            const d = Math.sqrt(d2), push = (min - d) / 2;
+            worst = Math.max(worst, min - d);
+            a.x -= (dx / d) * push;
+            a.y -= (dy / d) * push;
+            b.x += (dx / d) * push;
+            b.y += (dy / d) * push;
         });
-        return result;
+        balls.forEach(b => DropJar.collideWithJar(b, false));
+        return worst;
+    },
+
+    // まっすぐ 下に、ほかの粒や かべに ぶつかるまで 落とす（びんの絵の大きさで）
+    //   よこに ふれている粒からは、下に さがると はなれるだけなので、ちかづく 粒だけを しらべる
+    sinkDown(b, balls) {
+        const others = balls.filter(o => o !== b && Math.abs(o.x - b.x) < o.r + b.r + 0.1 && o.y > b.y);
+        const freeAt = y => this.fitsInJar(b.x, y, b.r - 0.3) && others.every(o => {
+            const now = Math.hypot(o.x - b.x, o.y - b.y), next = Math.hypot(o.x - b.x, o.y - y);
+            return next >= Math.min(now, o.r + b.r + 0.05);
+        });
+        const y0 = b.y;
+        for (let i = 0; i < 80 && freeAt(b.y + 0.5); i++) b.y += 0.5;
+        return b.y !== y0;
+    },
+
+    // 近くの粒どうしの組だけ しらべる（マスに わけて。遠い粒どうしは ぶつからない）
+    eachNearPair(balls, fn) {
+        const size = 2 * balls.reduce((m, b) => Math.max(m, b.r), 0) + 1;
+        const grid = new Map();
+        balls.forEach((b, i) => {
+            const key = Math.floor(b.x / size) + Math.floor(b.y / size) * 4096;
+            const list = grid.get(key);
+            if (list) list.push(i); else grid.set(key, [i]);
+        });
+        balls.forEach((a, i) => {
+            const gx = Math.floor(a.x / size), gy = Math.floor(a.y / size);
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    const list = grid.get(gx + ox + (gy + oy) * 4096);
+                    if (list) list.forEach(j => { if (j > i) fn(a, balls[j]); });
+                }
+            }
+        });
     },
 
     // (x, y) に 半径 rr の粒が、びんの かべに かからずに 入るか（びんの絵の大きさで）
     fitsInJar(x, y, rr) {
+        // 胴の まんなかあたりは、どの かべにも とどかない（計算を はぶく）
+        const jar = DropJar.jar, adx = Math.abs(x - jar.cx);
+        if (y >= jar.shoulderBottom + rr && ((adx <= jar.bw - rr && y <= jar.bottom - jar.cornerR) || (adx <= jar.bw - jar.cornerR && y <= jar.bottom - rr))) return true;
         if (!DropJar.insideJar(x, y)) return false;
         return DropJar.jar.segments.every(g => {
             const q = closestOnSegment(x, y, g);
@@ -802,10 +991,9 @@ const DropTable = {
         return b.gather.y - 80 * this.pose.scale;
     },
 
-    // 口から 落ちはじめる（v：はじめの 速さ px／こま）。落ちる先は、いまの 山の てっぺん
+    // 口から 落ちはじめる（v：はじめの 速さ px／こま）。落ちる先は、山に ついた所（pourer の landX・landY）
     startFall(b, v) {
-        const shape = DropJar.jar;
-        const land = this.toWorld(this.pose, shape.cx + (Math.random() - 0.5) * b.slot.ball.r, b.slot.landY);
+        const land = this.toWorld(this.pose, b.slot.landX, b.slot.landY);
         Object.assign(b, { stage: 'fall', t: 0, sx: b.x, sy: b.y, tx: land.x, ty: land.y, v, d: 0, len: Math.max(1, Math.hypot(land.x - b.x, land.y - b.y)) });
     },
 
@@ -816,7 +1004,7 @@ const DropTable = {
     },
 
     // 'fly'：山なりに とんで、口の 真上から 口へ とびこむ（とびながら びんの粒の大きさに ちぢむ）
-    // 'fall'：とびこんだ いきおいのまま、どんどん 速く 落ちて、いまの 山の てっぺんへ（とちゅうで 止まらない）
+    // 'fall'：とびこんだ いきおいのまま、どんどん 速く 落ちて、山の上へ（とちゅうで 止まらない）
     // 'roll'：山の斜面を ころがって、おく場所で ぴたっと 止まる
     stepFill() {
         this.t++;
