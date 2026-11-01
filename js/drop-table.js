@@ -665,7 +665,7 @@ const DropTable = {
             const r = slot.ball.r * this.pose.scale;
             const b = this.newBall(slot.ball.src, 1, r, slot.ball.r);
             Object.assign(b, {
-                slot, stage: 'gather', hidden: true, t: 0, wait: 0, x: at.x, y: at.y, r, sx: at.x, sy: at.y, sr: r,
+                slot, stage: 'spawn', hidden: true, t: 0, x: at.x, y: at.y, r, sx: at.x, sy: at.y, sr: r,
                 delay: this.FILL_FRAMES + this.FLY_FRAMES + Math.floor((n - inside.length - outside.length) * 0.5),
             });
             this.balls.push(b);
@@ -718,20 +718,43 @@ const DropTable = {
         });
     },
 
+    // とんでいく道（k：0〜1）。ポンと 上へ とびあがり、びんより 上を よこへ わたって、口の上の 真上から まっすぐ 口へ とびこむ
+    //   よこの速さは まんなかで いちばん速く、たかい所を わたる あいだも よこへ うごきつづけるので、空中で 止まって見えない
+    //   口の ほぼ真下から 高く とびあがる粒は、よこに 少し ふくらむ（まっすぐ 上がって まっすぐ 落ちると、てっぺんで 止まって見える）
+    flyAt(b, k) {
+        const s = this.pose.scale, m = b.gather, w = 50 * s;
+        const dx = m.x - b.sx, top = this.flyTop(b), u = 1 - k;
+        const swing = Math.abs(dx) < 2 * w && b.sy - top > 2 * w ? (b.sx >= m.x ? 1 : -1) * w * 6.75 * k * u * u : 0;
+        return {
+            x: b.sx + dx * k * k * (3 - 2 * k) + swing,
+            y: u * u * u * b.sy + 3 * u * k * top + k * k * k * m.y,
+        };
+    },
+
+    // とんでいく道の、山なりの 高さ（口の上の 少し上。上のほうから とんでくる粒は、ここまで おりてくる）
+    flyTop(b) {
+        return b.gather.y - 80 * this.pose.scale;
+    },
+
+    // 口から 落ちはじめる（v：はじめの 速さ px／こま）。落ちる先は、いまの 山の てっぺん
+    startFall(b, v) {
+        const shape = DropJar.jar;
+        const land = this.toWorld(this.pose, shape.cx + (Math.random() - 0.5) * b.slot.ball.r, b.slot.landY);
+        Object.assign(b, { stage: 'fall', t: 0, sx: b.x, sy: b.y, tx: land.x, ty: land.y, v, d: 0, len: Math.max(1, Math.hypot(land.x - b.x, land.y - b.y)) });
+    },
+
     // 粒が あつまる、口の上の まんなかあたり
     gatherPoint() {
         const shape = DropJar.jar;
         return this.toWorld(this.pose, shape.cx + (Math.random() * 2 - 1) * shape.nw * 0.35, shape.rimTop - 16 - Math.random() * 22);
     },
 
-    // 'fly'：すこし ふくらんだ道を通って 口の上へ とぶ（とびながら びんの粒の大きさに ちぢむ）
-    // 'gather'：口の上で ちょっと まって
-    // 'fall'：口から まっすぐ 落ちて、いまの 山の てっぺんへ
+    // 'fly'：山なりに とんで、口の 真上から 口へ とびこむ（とびながら びんの粒の大きさに ちぢむ）
+    // 'fall'：とびこんだ いきおいのまま、どんどん 速く 落ちて、いまの 山の てっぺんへ（とちゅうで 止まらない）
     // 'roll'：山の斜面を ころがって、おく場所で ぴたっと 止まる
     stepFill() {
         this.t++;
         const s = this.pose.scale;
-        const shape = DropJar.jar;
         this.balls = this.balls.filter(b => {
             if (b.stage === 'done') return true;
             if (b.delay > 0) {
@@ -741,33 +764,27 @@ const DropTable = {
             b.hidden = false;
             b.t++;
             if (b.stage === 'fly') {
-                // 上へ 山なりに とんで、口の上へ 上から おりてくる
-                const m = b.gather;
                 const k = Math.min(1, b.t / this.FLY_FRAMES);
-                const e = k * k;
-                const cx = (b.sx + m.x) / 2;
-                const cy = Math.min(b.sy, m.y) - 120 * s;
-                b.x = (1 - e) * (1 - e) * b.sx + 2 * (1 - e) * e * cx + e * e * m.x;
-                b.y = (1 - e) * (1 - e) * b.sy + 2 * (1 - e) * e * cy + e * e * m.y;
-                b.r = lerp(b.sr, b.slot ? b.slot.ball.r * s : 0.5, e);
+                const at = this.flyAt(b, k);
+                b.x = at.x;
+                b.y = at.y;
+                b.r = lerp(b.sr, b.slot ? b.slot.ball.r * s : 0.5, k);
                 b.angle += 0.3;
                 if (k < 1) return true;
                 if (!b.slot) return false; // おく場所がない：口で すいこまれて 見えなくなる
-                Object.assign(b, { stage: 'gather', t: 0, wait: Math.floor(Math.random() * 7) });
+                this.startFall(b, (3 * (b.gather.y - this.flyTop(b))) / this.FLY_FRAMES); // とびこんだ ときの 速さのまま
                 return true;
             }
-            if (b.stage === 'gather') {
-                if (b.t <= b.wait) return true;
-                const land = this.toWorld(this.pose, shape.cx + (Math.random() - 0.5) * b.slot.ball.r, b.slot.landY);
-                Object.assign(b, { stage: 'fall', t: 0, sx: b.x, sy: b.y, tx: land.x, ty: land.y });
-                b.frames = Math.max(4, Math.round(Math.sqrt(Math.hypot(land.x - b.x, land.y - b.y)) * 1.1));
+            if (b.stage === 'spawn') {
+                this.startFall(b, 4 * s); // たりない分：口の上から 落ちてくる
                 return true;
             }
             if (b.stage === 'fall') {
-                const k = Math.min(1, b.t / b.frames);
-                const e = k * k;
-                b.x = lerp(b.sx, b.tx, e);
-                b.y = lerp(b.sy, b.ty, e);
+                b.v = Math.min(b.v + 0.6 * s, 30 * s); // 重力で どんどん 速く（はやすぎない）
+                b.d += b.v;
+                const k = Math.min(1, b.d / b.len);
+                b.x = lerp(b.sx, b.tx, k);
+                b.y = lerp(b.sy, b.ty, k);
                 b.angle += 0.08;
                 if (k >= 1) Object.assign(b, { stage: 'roll', t: 0, sx: b.x, sy: b.y, frames: 0 });
                 return true;
