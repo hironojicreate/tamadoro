@@ -16,6 +16,7 @@ const DropTable = {
     MIN_R: 9,           // テーブルの粒の半径（px）の下限・上限
     MAX_R: 15,
     FRICTION: 0.97,     // 1こまごとに 速さを どれだけ残すか（摩擦）
+    SLOW_SPEED: 0.3,    // どの粒も 1こまに「いちばん小さい粒の 半径 × これ」より おそいときは、1こまを わけずに すすめる
     BOUNCE: 0.45,       // テーブルのはしや ガラスに当たったときの はねかえり
     MAX_FLICK: 45,      // はじいたときの速さの上限（px／こま）
     HOP_FRAMES: 24,     // 口から とびだした粒は、しばらく ほかの粒の上を はねて こえる（出たとたんに ぶつかりあって、まんなかに かたまらない）
@@ -594,9 +595,10 @@ const DropTable = {
     },
 
     // テーブルの上：転がる・摩擦で止まる・ぶつかる・はしと ガラスで はねかえる
+    //   1こまを 2回に わけて すすめる。ただし、あそんでいる ときに 速い粒が なく、指も ふれていなければ 1回で すすめる（計算が 半分）
     stepPhysics() {
-        const SUB = 2;
         let moving = false;
+        let fast = 0, small = Infinity; // いちばん速い 粒の速さ（の2乗）・いちばん小さい 粒の半径
         const mouth = this.toWorld(this.pose, DropJar.jar.cx, DropJar.jar.rimTop - 80); // 口の 少し先
         this.balls.forEach(b => {
             if (b.hop > 0) b.hop--;
@@ -615,7 +617,11 @@ const DropTable = {
                 b.vx += (dx / d) * this.POUR_PULL;
                 b.vy += (dy / d) * this.POUR_PULL;
             }
+            fast = Math.max(fast, b.vx * b.vx + b.vy * b.vy);
+            small = Math.min(small, b.r);
         });
+        const slow = this.phase === 'play' && this.holds.size === 0 && fast < (small * this.SLOW_SPEED) ** 2;
+        const SUB = slow ? 1 : 2;
         for (let sub = 0; sub < SUB; sub++) {
             this.balls.forEach(b => {
                 if (b.held) return;
