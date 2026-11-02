@@ -663,26 +663,64 @@ const DropTable = {
     },
 
     // 粒どうしの ぶつかり（近くのマスの粒だけ しらべる）。いちばん大きく おしもどした きょりを返す
+    //   マスわけは 数の ならび（Int32Array）で：マスごとの 粒の数を かぞえ、マスの じゅんに 粒の番号を ならべておく
+    //   （マスの表を 毎回 つくると、メモリの かたづけで 重くなる。しらべる じゅんばんは、粒の番号の 小さい順で かわらない）
     collide() {
         const balls = this.balls, size = this.cell, n = balls.length;
-        const grid = new Map();
-        for (let i = 0; i < n; i++) {
-            if (balls[i].hop > 0) continue;
-            const key = Math.floor(balls[i].x / size) + Math.floor(balls[i].y / size) * 4096;
-            const list = grid.get(key);
-            if (list) list.push(i); else grid.set(key, [i]);
+        if (!this.cellOf || this.cellOf.length < n) {
+            this.cellOf = new Int32Array(n * 2);
+            this.order = new Int32Array(n * 2);
         }
+        const cellOf = this.cellOf, order = this.order;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (let i = 0; i < n; i++) {
+            const b = balls[i];
+            if (b.hop > 0) continue;
+            const gx = Math.floor(b.x / size), gy = Math.floor(b.y / size);
+            if (gx < minX) minX = gx;
+            if (gx > maxX) maxX = gx;
+            if (gy < minY) minY = gy;
+            if (gy > maxY) maxY = gy;
+        }
+        if (minX > maxX) return 0;
+        const cols = maxX - minX + 1, rows = maxY - minY + 1, cells = cols * rows;
+        if (!this.cellStart || this.cellStart.length < cells + 1) {
+            this.cellStart = new Int32Array((cells + 1) * 2);
+            this.cellFill = new Int32Array((cells + 1) * 2);
+        }
+        const start = this.cellStart, fill = this.cellFill;
+        start.fill(0, 0, cells + 1);
+        for (let i = 0; i < n; i++) {
+            const b = balls[i];
+            if (b.hop > 0) {
+                cellOf[i] = -1;
+                continue;
+            }
+            const c = (Math.floor(b.x / size) - minX) + (Math.floor(b.y / size) - minY) * cols;
+            cellOf[i] = c;
+            start[c + 1]++;
+        }
+        for (let c = 0; c < cells; c++) start[c + 1] += start[c];
+        fill.set(start.subarray(0, cells), 0);
+        for (let i = 0; i < n; i++) if (cellOf[i] >= 0) order[fill[cellOf[i]]++] = i;
+
         let maxFix = 0;
         for (let i = 0; i < n; i++) {
             const a = balls[i];
             if (a.hop > 0) continue;
-            const gx = Math.floor(a.x / size), gy = Math.floor(a.y / size);
+            const gx = Math.floor(a.x / size) - minX, gy = Math.floor(a.y / size) - minY;
             for (let oy = -1; oy <= 1; oy++) {
+                const cy = gy + oy;
+                if (cy < 0 || cy >= rows) continue;
                 for (let ox = -1; ox <= 1; ox++) {
-                    const list = grid.get(gx + ox + (gy + oy) * 4096);
-                    if (!list) continue;
-                    for (const j of list) {
-                        if (j > i) maxFix = Math.max(maxFix, this.resolve(a, balls[j]));
+                    const cx = gx + ox;
+                    if (cx < 0 || cx >= cols) continue;
+                    const c = cx + cy * cols;
+                    for (let k = start[c], end = start[c + 1]; k < end; k++) {
+                        const j = order[k];
+                        if (j <= i) continue;
+                        const fix = this.resolve(a, balls[j]);
+                        if (fix > maxFix) maxFix = fix;
                     }
                 }
             }
