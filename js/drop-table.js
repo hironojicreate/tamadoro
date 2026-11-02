@@ -11,11 +11,13 @@ const DropTable = {
     AREA: 0.3,          // ドロップがテーブルの何わりまで おおうか（こえるときは、出す粒の数を へらす）
     MAX_BALLS: 1500,    // 動きが重くならないための、粒の数の上限
     BENCH_BUDGET: 2800, // おそい端末では、出す粒を「BENCH_BUDGET ÷ はかった時間（bench、ms）」こまでに へらす（はかり方の ずれがあるので、ざっくり）
+    CATCH_UP: 3,        // 描くのが まにあわない おそい端末で、1回に すすめる うごきの こま数の 上限（それより おくれた分は すてる）
     SLOW_FRAME: 14,     // ぶちまけている あいだ、1こまの計算が これ（ms）より 長いことが 3こま つづいたら、のこりを 口から 出さない
     SIZE_UP: 1.35,      // テーブルの粒は、びんの中より 少し大きく（びんの中の粒の何倍か）
     MIN_R: 9,           // テーブルの粒の半径（px）の下限・上限
     MAX_R: 15,
     FRICTION: 0.97,     // 1こまごとに 速さを どれだけ残すか（摩擦）
+    SLOW_SPEED: 0.3,    // どの粒も 1こまに「いちばん小さい粒の 半径 × これ」より おそいときは、1こまを わけずに すすめる
     BOUNCE: 0.45,       // テーブルのはしや ガラスに当たったときの はねかえり
     MAX_FLICK: 45,      // はじいたときの速さの上限（px／こま）
     HOP_FRAMES: 24,     // 口から とびだした粒は、しばらく ほかの粒の上を はねて こえる（出たとたんに ぶつかりあって、まんなかに かたまらない）
@@ -192,6 +194,10 @@ const DropTable = {
             { ax: jar.cx - rimW + h, ay: y, bx: jar.cx - jar.nw - h, by: y },
             { ax: jar.cx + jar.nw + h, ay: y, bx: jar.cx + rimW - h, by: y },
         );
+        // 太い線の はしからはしまでの 四角（これより 遠い粒には とどかないので、しらべなくてよい）
+        this.glass.forEach(g => Object.assign(g, {
+            minX: Math.min(g.ax, g.bx), maxX: Math.max(g.ax, g.bx), minY: Math.min(g.ay, g.by), maxY: Math.max(g.ay, g.by),
+        }));
         this.jarReach = Math.max(...jar.points.map(([x, y]) => Math.hypot(x - this.cw / 2, y - this.ch / 2))) + jar.wall + 10;
     },
 
@@ -233,8 +239,31 @@ const DropTable = {
     toLocal(x, y, always = false) {
         const p = this.pose, dx = x - p.x, dy = y - p.y;
         if (!always && dx * dx + dy * dy > (this.jarReach * p.scale) ** 2) return null;
-        const c = Math.cos(p.angle), s = Math.sin(p.angle);
+        const { c, s } = this.turn(p.angle);
         return { x: (dx * c + dy * s) / p.scale + this.cw / 2, y: (-dx * s + dy * c) / p.scale + this.ch / 2 };
+    },
+
+    // びんの かたむきの cos・sin（かたむきが かわるまで、計算を つかいまわす）
+    turn(angle) {
+        if (this.turnAngle !== angle) {
+            this.turnAngle = angle;
+            this.turnCS = { c: Math.cos(angle), s: Math.sin(angle) };
+        }
+        return this.turnCS;
+    },
+
+    // びんの絵の中の点（lx, ly）に 半径 rr の粒を おいても、びんの 内がわの 面に とどかない（胴の まんなかあたり）
+    deepInside(lx, ly, rr) {
+        const jar = DropJar.jar, adx = Math.abs(lx - jar.cx);
+        return ly >= jar.shoulderBottom + rr && ((adx <= jar.bw - rr && ly <= jar.bottom - jar.cornerR) || (adx <= jar.bw - jar.cornerR && ly <= jar.bottom - rr));
+    },
+
+    // びんの絵の中の点が、びんの中（口のふちより下）にあるか（はっきり わかる 場所は、計算を はぶく）
+    inJar(lx, ly) {
+        const jar = DropJar.jar;
+        if (ly < jar.rimTop || ly > jar.bottom || Math.abs(lx - jar.cx) > jar.bw) return false;
+        if (this.deepInside(lx, ly, 0)) return true;
+        return DropJar.insideJar(lx, ly);
     },
 
     nearJar(b, extra) {
@@ -247,9 +276,11 @@ const DropTable = {
         const l = this.toLocal(b.x, b.y);
         if (!l) return;
         const s = this.pose.scale, rr = b.r / s + this.glassR;
+        if (this.deepInside(l.x, l.y, b.r / s)) return; // 胴の まんなかあたり：どの ガラスにも とどかない
         let { x: lx, y: ly } = l;
         let nx = 0, ny = 0, hit = false;
         for (const g of this.glass) {
+            if (lx < g.minX - rr || lx > g.maxX + rr || ly < g.minY - rr || ly > g.maxY + rr) continue; // この ガラスには とどかない
             const q = closestOnSegment(lx, ly, g);
             const ox = lx - q.x, oy = ly - q.y;
             const d2 = ox * ox + oy * oy;
@@ -266,7 +297,7 @@ const DropTable = {
         b.x = w.x;
         b.y = w.y;
         if (b.held) return;
-        const c = Math.cos(this.pose.angle), sn = Math.sin(this.pose.angle);
+        const { c, s: sn } = this.turn(this.pose.angle);
         const len = Math.hypot(nx, ny) || 1;
         const wx = (nx * c - ny * sn) / len, wy = (nx * sn + ny * c) / len;
         const vn = b.vx * wx + b.vy * wy;
@@ -281,7 +312,7 @@ const DropTable = {
     hitWall(b) {
         this.hitGlass(b);
         const l = this.toLocal(b.x, b.y);
-        const inside = l ? DropJar.insideJar(l.x, l.y) : false;
+        const inside = l ? this.inJar(l.x, l.y) : false;
         if (inside !== b.inside) {
             const shape = DropJar.jar;
             // 口から入れるのは、指で入れたとき・ころがって入ったとき・おかたづけのときだけ
@@ -449,21 +480,38 @@ const DropTable = {
 
     // ---------- うごき ----------
 
+    // ふつうは 描くたびに うごきを 1こま すすめる
+    //   おそい端末で 描くのが まにあわず、まえに 描いてから 1/60秒の 1.5倍より 長く たっていたら、たった時間の ぶんだけ
+    //   うごきを すすめてから 描く（スローモーションに ならない）。1回に すすめるのは CATCH_UP こままで（それより おくれた分は すてる）
     wake() {
         this.quiet = 0;
         if (this.running || !this.isOpen) return;
         this.running = true;
-        const loop = () => {
+        const STEP = 1000 / 60;
+        let last = null, lag = 0;
+        const loop = now => {
             if (!this.running) return;
             if (document.getElementById('recordsScreen').style.display === 'none') {
                 this.close(false);
                 return;
             }
+            const dt = last === null ? STEP : now - last;
+            last = now;
+            let steps = 1;
+            if (dt < STEP * 1.5) {
+                lag = 0;
+            } else {
+                lag += dt;
+                steps = Math.min(this.CATCH_UP, Math.max(1, Math.floor(lag / STEP)));
+                lag = Math.min(STEP, Math.max(0, lag - steps * STEP));
+            }
             const t0 = this.clock();
-            const busy = this.update();
+            let busy = false;
+            for (let k = 0; k < steps && this.isOpen; k++) busy = this.update() || busy;
             if (!this.isOpen) return;
+            const t1 = this.clock();
             this.draw();
-            this.watchSpeed(this.clock() - t0);
+            this.watchSpeed((t1 - t0) / steps + (this.clock() - t1)); // うごき 1こま ＋ 描く 1回 の 時間
             this.quiet = busy ? 0 : this.quiet + 1;
             if (this.quiet > 20) {
                 this.running = false; // 止まったら、指でさわるまで休む
@@ -565,9 +613,10 @@ const DropTable = {
     },
 
     // テーブルの上：転がる・摩擦で止まる・ぶつかる・はしと ガラスで はねかえる
+    //   1こまを 2回に わけて すすめる。ただし、あそんでいる ときに 速い粒が なく、指も ふれていなければ 1回で すすめる（計算が 半分）
     stepPhysics() {
-        const SUB = 2;
         let moving = false;
+        let fast = 0, small = Infinity; // いちばん速い 粒の速さ（の2乗）・いちばん小さい 粒の半径
         const mouth = this.toWorld(this.pose, DropJar.jar.cx, DropJar.jar.rimTop - 80); // 口の 少し先
         this.balls.forEach(b => {
             if (b.hop > 0) b.hop--;
@@ -586,7 +635,11 @@ const DropTable = {
                 b.vx += (dx / d) * this.POUR_PULL;
                 b.vy += (dy / d) * this.POUR_PULL;
             }
+            fast = Math.max(fast, b.vx * b.vx + b.vy * b.vy);
+            small = Math.min(small, b.r);
         });
+        const slow = this.phase === 'play' && this.holds.size === 0 && fast < (small * this.SLOW_SPEED) ** 2;
+        const SUB = slow ? 1 : 2;
         for (let sub = 0; sub < SUB; sub++) {
             this.balls.forEach(b => {
                 if (b.held) return;
@@ -634,26 +687,64 @@ const DropTable = {
     },
 
     // 粒どうしの ぶつかり（近くのマスの粒だけ しらべる）。いちばん大きく おしもどした きょりを返す
+    //   マスわけは 数の ならび（Int32Array）で：マスごとの 粒の数を かぞえ、マスの じゅんに 粒の番号を ならべておく
+    //   （マスの表を 毎回 つくると、メモリの かたづけで 重くなる。しらべる じゅんばんは、粒の番号の 小さい順で かわらない）
     collide() {
         const balls = this.balls, size = this.cell, n = balls.length;
-        const grid = new Map();
-        for (let i = 0; i < n; i++) {
-            if (balls[i].hop > 0) continue;
-            const key = Math.floor(balls[i].x / size) + Math.floor(balls[i].y / size) * 4096;
-            const list = grid.get(key);
-            if (list) list.push(i); else grid.set(key, [i]);
+        if (!this.cellOf || this.cellOf.length < n) {
+            this.cellOf = new Int32Array(n * 2);
+            this.order = new Int32Array(n * 2);
         }
+        const cellOf = this.cellOf, order = this.order;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (let i = 0; i < n; i++) {
+            const b = balls[i];
+            if (b.hop > 0) continue;
+            const gx = Math.floor(b.x / size), gy = Math.floor(b.y / size);
+            if (gx < minX) minX = gx;
+            if (gx > maxX) maxX = gx;
+            if (gy < minY) minY = gy;
+            if (gy > maxY) maxY = gy;
+        }
+        if (minX > maxX) return 0;
+        const cols = maxX - minX + 1, rows = maxY - minY + 1, cells = cols * rows;
+        if (!this.cellStart || this.cellStart.length < cells + 1) {
+            this.cellStart = new Int32Array((cells + 1) * 2);
+            this.cellFill = new Int32Array((cells + 1) * 2);
+        }
+        const start = this.cellStart, fill = this.cellFill;
+        start.fill(0, 0, cells + 1);
+        for (let i = 0; i < n; i++) {
+            const b = balls[i];
+            if (b.hop > 0) {
+                cellOf[i] = -1;
+                continue;
+            }
+            const c = (Math.floor(b.x / size) - minX) + (Math.floor(b.y / size) - minY) * cols;
+            cellOf[i] = c;
+            start[c + 1]++;
+        }
+        for (let c = 0; c < cells; c++) start[c + 1] += start[c];
+        fill.set(start.subarray(0, cells), 0);
+        for (let i = 0; i < n; i++) if (cellOf[i] >= 0) order[fill[cellOf[i]]++] = i;
+
         let maxFix = 0;
         for (let i = 0; i < n; i++) {
             const a = balls[i];
             if (a.hop > 0) continue;
-            const gx = Math.floor(a.x / size), gy = Math.floor(a.y / size);
+            const gx = Math.floor(a.x / size) - minX, gy = Math.floor(a.y / size) - minY;
             for (let oy = -1; oy <= 1; oy++) {
+                const cy = gy + oy;
+                if (cy < 0 || cy >= rows) continue;
                 for (let ox = -1; ox <= 1; ox++) {
-                    const list = grid.get(gx + ox + (gy + oy) * 4096);
-                    if (!list) continue;
-                    for (const j of list) {
-                        if (j > i) maxFix = Math.max(maxFix, this.resolve(a, balls[j]));
+                    const cx = gx + ox;
+                    if (cx < 0 || cx >= cols) continue;
+                    const c = cx + cy * cols;
+                    for (let k = start[c], end = start[c + 1]; k < end; k++) {
+                        const j = order[k];
+                        if (j <= i) continue;
+                        const fix = this.resolve(a, balls[j]);
+                        if (fix > maxFix) maxFix = fix;
                     }
                 }
             }
