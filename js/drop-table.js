@@ -192,6 +192,10 @@ const DropTable = {
             { ax: jar.cx - rimW + h, ay: y, bx: jar.cx - jar.nw - h, by: y },
             { ax: jar.cx + jar.nw + h, ay: y, bx: jar.cx + rimW - h, by: y },
         );
+        // 太い線の はしからはしまでの 四角（これより 遠い粒には とどかないので、しらべなくてよい）
+        this.glass.forEach(g => Object.assign(g, {
+            minX: Math.min(g.ax, g.bx), maxX: Math.max(g.ax, g.bx), minY: Math.min(g.ay, g.by), maxY: Math.max(g.ay, g.by),
+        }));
         this.jarReach = Math.max(...jar.points.map(([x, y]) => Math.hypot(x - this.cw / 2, y - this.ch / 2))) + jar.wall + 10;
     },
 
@@ -233,8 +237,31 @@ const DropTable = {
     toLocal(x, y, always = false) {
         const p = this.pose, dx = x - p.x, dy = y - p.y;
         if (!always && dx * dx + dy * dy > (this.jarReach * p.scale) ** 2) return null;
-        const c = Math.cos(p.angle), s = Math.sin(p.angle);
+        const { c, s } = this.turn(p.angle);
         return { x: (dx * c + dy * s) / p.scale + this.cw / 2, y: (-dx * s + dy * c) / p.scale + this.ch / 2 };
+    },
+
+    // びんの かたむきの cos・sin（かたむきが かわるまで、計算を つかいまわす）
+    turn(angle) {
+        if (this.turnAngle !== angle) {
+            this.turnAngle = angle;
+            this.turnCS = { c: Math.cos(angle), s: Math.sin(angle) };
+        }
+        return this.turnCS;
+    },
+
+    // びんの絵の中の点（lx, ly）に 半径 rr の粒を おいても、びんの 内がわの 面に とどかない（胴の まんなかあたり）
+    deepInside(lx, ly, rr) {
+        const jar = DropJar.jar, adx = Math.abs(lx - jar.cx);
+        return ly >= jar.shoulderBottom + rr && ((adx <= jar.bw - rr && ly <= jar.bottom - jar.cornerR) || (adx <= jar.bw - jar.cornerR && ly <= jar.bottom - rr));
+    },
+
+    // びんの絵の中の点が、びんの中（口のふちより下）にあるか（はっきり わかる 場所は、計算を はぶく）
+    inJar(lx, ly) {
+        const jar = DropJar.jar;
+        if (ly < jar.rimTop || ly > jar.bottom || Math.abs(lx - jar.cx) > jar.bw) return false;
+        if (this.deepInside(lx, ly, 0)) return true;
+        return DropJar.insideJar(lx, ly);
     },
 
     nearJar(b, extra) {
@@ -247,9 +274,11 @@ const DropTable = {
         const l = this.toLocal(b.x, b.y);
         if (!l) return;
         const s = this.pose.scale, rr = b.r / s + this.glassR;
+        if (this.deepInside(l.x, l.y, b.r / s)) return; // 胴の まんなかあたり：どの ガラスにも とどかない
         let { x: lx, y: ly } = l;
         let nx = 0, ny = 0, hit = false;
         for (const g of this.glass) {
+            if (lx < g.minX - rr || lx > g.maxX + rr || ly < g.minY - rr || ly > g.maxY + rr) continue; // この ガラスには とどかない
             const q = closestOnSegment(lx, ly, g);
             const ox = lx - q.x, oy = ly - q.y;
             const d2 = ox * ox + oy * oy;
@@ -266,7 +295,7 @@ const DropTable = {
         b.x = w.x;
         b.y = w.y;
         if (b.held) return;
-        const c = Math.cos(this.pose.angle), sn = Math.sin(this.pose.angle);
+        const { c, s: sn } = this.turn(this.pose.angle);
         const len = Math.hypot(nx, ny) || 1;
         const wx = (nx * c - ny * sn) / len, wy = (nx * sn + ny * c) / len;
         const vn = b.vx * wx + b.vy * wy;
@@ -281,7 +310,7 @@ const DropTable = {
     hitWall(b) {
         this.hitGlass(b);
         const l = this.toLocal(b.x, b.y);
-        const inside = l ? DropJar.insideJar(l.x, l.y) : false;
+        const inside = l ? this.inJar(l.x, l.y) : false;
         if (inside !== b.inside) {
             const shape = DropJar.jar;
             // 口から入れるのは、指で入れたとき・ころがって入ったとき・おかたづけのときだけ
