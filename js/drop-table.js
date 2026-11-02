@@ -11,6 +11,7 @@ const DropTable = {
     AREA: 0.3,          // ドロップがテーブルの何わりまで おおうか（こえるときは、出す粒の数を へらす）
     MAX_BALLS: 1500,    // 動きが重くならないための、粒の数の上限
     BENCH_BUDGET: 2800, // おそい端末では、出す粒を「BENCH_BUDGET ÷ はかった時間（bench、ms）」こまでに へらす（はかり方の ずれがあるので、ざっくり）
+    CATCH_UP: 3,        // 描くのが まにあわない おそい端末で、1回に すすめる うごきの こま数の 上限（それより おくれた分は すてる）
     SLOW_FRAME: 14,     // ぶちまけている あいだ、1こまの計算が これ（ms）より 長いことが 3こま つづいたら、のこりを 口から 出さない
     SIZE_UP: 1.35,      // テーブルの粒は、びんの中より 少し大きく（びんの中の粒の何倍か）
     MIN_R: 9,           // テーブルの粒の半径（px）の下限・上限
@@ -479,21 +480,38 @@ const DropTable = {
 
     // ---------- うごき ----------
 
+    // ふつうは 描くたびに うごきを 1こま すすめる
+    //   おそい端末で 描くのが まにあわず、まえに 描いてから 1/60秒の 1.5倍より 長く たっていたら、たった時間の ぶんだけ
+    //   うごきを すすめてから 描く（スローモーションに ならない）。1回に すすめるのは CATCH_UP こままで（それより おくれた分は すてる）
     wake() {
         this.quiet = 0;
         if (this.running || !this.isOpen) return;
         this.running = true;
-        const loop = () => {
+        const STEP = 1000 / 60;
+        let last = null, lag = 0;
+        const loop = now => {
             if (!this.running) return;
             if (document.getElementById('recordsScreen').style.display === 'none') {
                 this.close(false);
                 return;
             }
+            const dt = last === null ? STEP : now - last;
+            last = now;
+            let steps = 1;
+            if (dt < STEP * 1.5) {
+                lag = 0;
+            } else {
+                lag += dt;
+                steps = Math.min(this.CATCH_UP, Math.max(1, Math.floor(lag / STEP)));
+                lag = Math.min(STEP, Math.max(0, lag - steps * STEP));
+            }
             const t0 = this.clock();
-            const busy = this.update();
+            let busy = false;
+            for (let k = 0; k < steps && this.isOpen; k++) busy = this.update() || busy;
             if (!this.isOpen) return;
+            const t1 = this.clock();
             this.draw();
-            this.watchSpeed(this.clock() - t0);
+            this.watchSpeed((t1 - t0) / steps + (this.clock() - t1)); // うごき 1こま ＋ 描く 1回 の 時間
             this.quiet = busy ? 0 : this.quiet + 1;
             if (this.quiet > 20) {
                 this.running = false; // 止まったら、指でさわるまで休む
