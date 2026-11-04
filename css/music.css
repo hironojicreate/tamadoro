@@ -134,6 +134,36 @@ html[data-mode="music"] body {
     transform: scale(0.95);
 }
 
+/* まだ ひらいていない レッスン（くろいけんばん） */
+#musicScreen .music-lesson {
+    position: relative;
+}
+
+.music-lock {
+    display: none;
+}
+
+#musicScreen .music-lesson.locked svg {
+    filter: grayscale(1);
+    opacity: 0.45;
+}
+
+#musicScreen .music-lesson.locked .music-lock {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 34%;
+    transform: translateX(-50%);
+    width: 90%;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(10px, 1.4vw, 14px);
+    color: #57606f;
+}
+
 /* じゅんびちゅうのレッスン（おんぷよみ・リズム） */
 #musicScreen .music-lesson.coming {
     display: flex;
@@ -214,7 +244,8 @@ html[data-mode="music"] body {
 
 /* ---------- けんばん：レベル選択 ---------- */
 
-html[data-mode="keys"] #openingScreen .title-keys {
+html[data-mode="keys"] #openingScreen .title-keys,
+html[data-mode="black"] #openingScreen .title-black {
     display: inline;
 }
 
@@ -222,10 +253,20 @@ html[data-mode="keys"] #openingScreen .opening-board {
     border-color: #c39bd3; /* けんばんは ラベンダーの枠 */
 }
 
+html[data-mode="black"] #openingScreen .opening-board {
+    border-color: #57606f; /* くろいけんばんは グレーの枠 */
+}
+
 html[data-mode="keys"] .select-level-buttons button {
     background-color: #ecdcfa;
     border-color: #6c3483;
     color: #4a235a;
+}
+
+html[data-mode="black"] .select-level-buttons button {
+    background-color: #2f3640;
+    border-color: #a29bfe;
+    color: #ffffff;
 }
 
 
@@ -334,6 +375,59 @@ html[data-mode="keys"] .select-level-buttons button {
     text-align: center;
 }
 
+/* くろいけんばん Lv4：「ド♯ ＝ ？♭」 */
+.keys-equal {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(28px, 6vh, 56px);
+    color: #636e72;
+}
+
+.keys-cards.enharmonic .keys-card {
+    width: min(20vh, 26vw);
+}
+
+/* こたえの ボタン（ド♭〜シ♭ など） */
+.keys-answers {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(4px, 1vw, 10px);
+    pointer-events: auto;
+}
+
+.keys-answers:empty {
+    display: none;
+}
+
+.keys-answer {
+    min-width: clamp(52px, 9vw, 84px);
+    padding: 6px 10px;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(18px, 3vh, 28px);
+    background: #fff;
+    border: 3px solid #d9d2fb;
+    border-radius: 16px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.keys-answer:active {
+    transform: scale(0.92);
+}
+
+.keys-answer.ok {
+    background: #a3e4b8;
+    border-color: #27ae60;
+}
+
+.keys-answer.ng {
+    animation: tk-ng 0.45s ease;
+    border-color: #ff7675;
+}
+
 /* おとあそび：10この ♪ が ひとつずつ ともる */
 .keys-free-notes {
     display: flex;
@@ -364,7 +458,9 @@ html[data-mode="keys"] .select-level-buttons button {
 /* クリア・ざんねんの画面は けんばん・つもった ドロップより手前に。もらったドロップは さらに手前（計算と同じ見え方）
    カードは 上のほうに（けんばんの上に つもった ドロップと かさならないように） */
 html[data-mode="keys"] #completionModal,
-html[data-mode="keys"] #mistakeModal {
+html[data-mode="keys"] #mistakeModal,
+html[data-mode="black"] #completionModal,
+html[data-mode="black"] #mistakeModal {
     z-index: 5;
     align-items: flex-start !important;
     padding-top: max(12px, 4vh);
@@ -372,7 +468,8 @@ html[data-mode="keys"] #mistakeModal {
     overflow-y: auto;
 }
 
-html[data-mode="keys"] .reward-coin {
+html[data-mode="keys"] .reward-coin,
+html[data-mode="black"] .reward-coin {
     z-index: 6;
 }
 
@@ -489,6 +586,30 @@ html[data-mode="keys"] .reward-coin {
     white-space: nowrap;
     pointer-events: none;
     text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+}
+
+/* ♯・♭ の ガイド：もとの音を 光らせて 矢印 */
+.tk-white-key.tk-guide {
+    background: linear-gradient(180deg, #fff9c4 0%, #ffe082 100%);
+    box-shadow: inset 0 0 0 3px #ffb300, 0 3px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tk-arrow {
+    position: absolute;
+    top: 64%;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(22px, 3.6vw, 40px);
+    line-height: 1;
+    color: #e67e22;
+    text-shadow: 0 0 4px #fff, 0 0 4px #fff;
+    pointer-events: none;
+    animation: tk-arrow 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes tk-arrow {
+    from { transform: translateX(-4px); }
+    to { transform: translateX(4px); }
 }
 
 /* まほうで 名前が きえる */

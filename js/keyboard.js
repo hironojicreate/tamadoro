@@ -9,6 +9,7 @@
 //   kb.mark(midi, 'ok' | 'ng')   正解・まちがいの 色を一瞬つける
 //   kb.balloon(midi, 'ミ')       けんばんの上に ふきだし
 //   kb.vanishLabels([60, 67])    名前が まほうで きえる
+//   kb.guide(60, '→')           その けんばんを 光らせて 矢印（くろいけんばんの ♯・♭）。kb.clearGuide() で けす
 
 class TamaKeyboard {
     constructor(container, { onPress = () => {}, glide = false } = {}) {
@@ -154,6 +155,22 @@ class TamaKeyboard {
         balloon.style.left = `${Math.min(92, Math.max(8, center))}%`;
         this.container.appendChild(balloon);
         setTimeout(() => balloon.remove(), ms);
+    }
+
+    guide(midi, arrow) {
+        this.clearGuide();
+        const key = this.keys.get(midi);
+        if (!key) return;
+        key.classList.add('tk-guide');
+        const mark = document.createElement('span');
+        mark.className = 'tk-arrow';
+        mark.textContent = arrow;
+        key.appendChild(mark);
+    }
+
+    clearGuide() {
+        this.container.querySelectorAll('.tk-guide').forEach(key => key.classList.remove('tk-guide'));
+        this.container.querySelectorAll('.tk-arrow').forEach(mark => mark.remove());
     }
 
     vanishLabels(midis) {

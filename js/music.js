@@ -1,7 +1,8 @@
 // おんがくのへや（#/music）
 //   ためしているあいだは、設定（歯車）の入力欄に「/music on」と入れたときだけ、
 //   さいしょの画面に「おんがくのへや」のボタンが出る（「/music off」で かくす）
-//   へやの中：けんばん（#/keys）・おんぷよみ と リズム（じゅんびちゅう）・おとを けす
+//   へやの中：けんばん（#/keys）・くろいけんばん（#/black。けんばんの Lv6 を クリアすると ひらく）・
+//             じゆうにひこう（#/piano）・おんぷよみ と リズム（じゅんびちゅう）・おとを けす
 
 const TamaMusic = {
     KEY: 'tamadoro.music.enabled',
@@ -31,6 +32,20 @@ const TamaMusic = {
         button.textContent = muted ? '🔇 おと なし' : '🔊 おと あり';
         button.classList.toggle('off', muted);
         button.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    },
+
+    // まだ ひらいていない レッスン（くろいけんばん）は、カギを かけて見せる
+    renderLocks() {
+        const button = document.getElementById('musicBlack');
+        if (button) button.classList.toggle('locked', MODES.black.locked());
+    },
+
+    openBlack() {
+        if (MODES.black.locked()) {
+            showNotification(MODES.black.lockedMessage);
+            return;
+        }
+        location.hash = '#/black';
     },
 
     toggleSound() {

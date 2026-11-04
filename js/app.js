@@ -69,6 +69,7 @@ function openMusic() {
     document.documentElement.setAttribute('data-mode', 'music');
     document.title = 'タマの おんがくのへや';
     TamaMusic.renderSoundButton();
+    TamaMusic.renderLocks();
     showOnly('musicScreen');
 }
 
@@ -103,6 +104,11 @@ function route() {
         return;
     }
     TamaSound.musicSession(music); // おんがくの画面では、iPhone のマナーモードでも 音を出す
+    // まだ ひらいていない おんがくのモード（くろいけんばん）は、おんがくのへやへ
+    if (MODES[id] && MODES[id].locked && MODES[id].locked()) {
+        location.hash = '#/music';
+        return;
+    }
     if (id === 'music') {
         openMusic();
     } else if (id === 'piano') {

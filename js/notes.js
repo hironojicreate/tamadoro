@@ -30,6 +30,11 @@ const TamaNotes = {
         return 12 * (octave + 1) + this.STEP_SEMITONES[step] + alter;
     },
 
+    // ♯・♭ つきの名前（spellName(0, 1) → 'ド♯'）
+    spellName(step, alter = 0) {
+        return this.NAMES[step] + (alter > 0 ? '♯' : alter < 0 ? '♭' : '');
+    },
+
     // けんばんの名前（白いけんばんは1つ、黒いけんばんは 2つ：['ド♯', 'レ♭']）
     namesOf(midi) {
         const step = this.stepOf(midi);
