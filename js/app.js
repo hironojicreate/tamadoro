@@ -6,7 +6,7 @@
 //   #/piano       じゆうにひこう（おんがくのへやから。/music on のときだけ）
 
 const HOME_TITLE = document.title;
-const SCREENS = ['homeScreen', 'musicScreen', 'pianoScreen', 'openingScreen', 'drillScreen', 'hundredgridScreen', 'keysScreen', 'keypadScreen', 'recordsScreen'];
+const SCREENS = ['homeScreen', 'musicScreen', 'pianoScreen', 'openingScreen', 'drillScreen', 'hundredgridScreen', 'keysScreen', 'rhythmScreen', 'keypadScreen', 'recordsScreen'];
 
 function showOnly(screenId) {
     SCREENS.forEach(id => {

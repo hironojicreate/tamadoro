@@ -63,7 +63,7 @@ async function answerAll(page) {
     await page.click('#homeMusic'); await page.waitForTimeout(300);
     ok(await page.evaluate(() => location.hash) === '#/music' && await page.isVisible('#musicScreen'), 'ボタンで おんがくのへやへ');
     ok(await page.evaluate(() => document.title) === 'タマの おんがくのへや', 'へやの タイトル');
-    ok((await page.$$('#musicScreen .music-lesson.coming:disabled')).length === 1, 'リズムは じゅんびちゅう（押せない）');
+    ok((await page.$$('#musicScreen .music-lesson.coming')).length === 0 && (await page.$$('#musicScreen .music-lesson')).length === 5, 'レッスンは 5こ（じゅんびちゅう なし）');
 
     // おと あり／なし
     ok((await page.textContent('#musicSound')).includes('あり'), 'さいしょは おと あり');
@@ -523,6 +523,148 @@ async function answerAll(page) {
       await page.waitForTimeout(1000);
     }
     ok(views.size === 1 && views.has('59'), 'おんぷよみの オニは けんばんの場所が かわらない（読むことに 集中）');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 20. リズム：おんがくのへやから。さいしょは ちょうせい だけ
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/music', MUSIC_ON);
+    await page.click('#musicRhythm'); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => location.hash) === '#/rhythm' && await page.isVisible('#openingScreen .title-rhythm'), 'おんがくのへやから リズムへ（タイトル）');
+    ok((await page.$$('.select-level-buttons button')).length === 7 && await page.isVisible('#level1') && !(await page.isVisible('#level2')), 'リズムは 7レベル。さいしょは ちょうせい だけ');
+    // しょうせつの つくりかた
+    const bad = await page.evaluate(() => {
+      const out = [];
+      MODES.rhythm.levels.forEach(def => {
+        for (let k = 0; k < 30; k++) {
+          const bars = rhythmMakeBars(def);
+          const n = def.fixed ? def.fixed.length : def.bars;
+          if (bars.length !== n) out.push(`${def.label}:数`);
+          bars.forEach(bar => {
+            const beats = bar.reduce((s, t) => s + RHYTHM_TOKENS[t].beats, 0);
+            if (beats !== 4) out.push(`${def.label}:${bar.join('')}`);
+            if (bar.every(t => t === 'r')) out.push(`${def.label}:ぜんぶ やすみ`);
+            if (def.tokens && bar.some(t => !def.tokens.includes(t))) out.push(`${def.label}:ちがう ことば`);
+          });
+          if ((def.required || []).some(t => !bars.flat().includes(t))) out.push(`${def.label}:${def.required}が ない`);
+        }
+      });
+      return [...new Set(out)];
+    });
+    ok(bad.length === 0, `しょうせつは いつも 4はく・ぜんぶ やすみ なし・かならず 入れる ことばが 入る ${bad.join(' ')}`);
+    ok(await page.evaluate(() => Math.abs(TamaSound.heardTime() - TamaSound.now()) < 0.5), 'たたいた 時刻を 音の時計に なおせる');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // テストを はやくするため、テンポを 240 に
+  const fastRhythm = page => page.evaluate(() => MODES.rhythm.levels.forEach(l => { l.bpm = 240; }));
+  // いまの レベルの 音符を ぜんぶ「ずれ（秒）」で たたいたことにする
+  const tapAll = (page, late, skip = () => false) => page.evaluate(([late, skipSrc]) => {
+    const run = rhythm.run;
+    const skip = new Function('n', 'i', `return (${skipSrc})(n, i);`);
+    run.timeline.notes.forEach((n, i) => { if (!skip(n, i)) rhythmJudge(run.start + n.beat * run.spb + late + (run.def.calibrate ? 0 : rhythmOffset())); });
+  }, [late, skip.toString()]);
+  const waitDone = page => page.waitForFunction(() => !rhythm.run || rhythm.run.phase === 'done' || rhythm.run.phase === 'ready', null, { timeout: 20000 });
+
+  // 21. リズムの ちょうせい：たたく ずれを はかって おぼえる
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/rhythm', MUSIC_ON);
+    await fastRhythm(page);
+    await page.click('#level1'); await page.waitForTimeout(300);
+    ok(await page.isVisible('#rhythmScreen') && !(await page.isVisible('#keypadScreen')) && !(await page.isVisible('#rhythmDemo')), 'ちょうせいの 画面（おてほん なし）');
+    ok((await page.$$('#rhythmLane .rh-note')).length === 8, 'ちょうせいは 8はく');
+    // 3かい しか たたかない → もういちど
+    await page.click('#rhythmStart'); await page.waitForTimeout(200);
+    await tapAll(page, 0.05, (n, i) => i >= 3);
+    await page.waitForFunction(() => rhythm.run.phase === 'ready', null, { timeout: 20000 });
+    ok((await page.textContent('#rhythmMessage')).includes('5かい'), 'たたいた 数が すくないと「5かい いじょう たたいてね」');
+    // 0.05びょう おそく たたく
+    await page.click('#rhythmStart'); await page.waitForTimeout(200);
+    await tapAll(page, 0.05);
+    await waitDone(page); await page.waitForTimeout(300);
+    ok(await page.textContent('#modalTitle') === 'ちょうせい できたよ！', 'ちょうせい できた');
+    const offset = await page.evaluate(() => rhythmOffset());
+    ok(Math.abs(offset - 0.05) < 0.002, `ずれを おぼえる（${offset}）`);
+    ok((await page.textContent('#clearTime')).includes('+50'), `ずれを 見せる（${await page.textContent('#clearTime')}）`);
+    const d = await page.evaluate(() => JSON.parse(localStorage.getItem('rhythm_coins_1')));
+    ok(d.length === 1 && d[0].image === '/img/Lmaru.png', 'ちょうせいの ドロップは そのレベルの色');
+    await page.click('#completionModal >> text=もんだいをえらぶ'); await page.waitForTimeout(300);
+    ok(await page.isVisible('#level2'), 'Lv1 タン が ひらく');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  const rhythmAll = { ...MUSIC_ON, 'tamadoro.rhythm.offset': '0.05' };
+  for (let l = 1; l <= 6; l++) rhythmAll[`rhythm_coins_${l}`] = JSON.stringify(Array(5).fill({ image: '/img/Lmaru.png' }));
+
+  // 22. リズム Lv1：ぴったり たたくと 金・しょうせつごとに ドロップ
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/rhythm', rhythmAll);
+    await fastRhythm(page);
+    await page.click('#level2'); await page.waitForTimeout(300);
+    ok((await page.$$('#rhythmLane .rh-note')).length === 16 && (await page.$$('#rhythmLane .rh-syllable')).length === 16, 'Lv1 は タン 16こ（ことばつき）');
+    // おてほん（たたかなくても ミスに ならない）
+    await page.click('#rhythmDemo'); await page.waitForTimeout(200);
+    ok(await page.evaluate(() => rhythm.run.phase) === 'demo' && !(await page.isVisible('#rhythmStartButtons')), 'おてほん ちゅう');
+    await page.waitForFunction(() => rhythm.run.phase === 'ready', null, { timeout: 20000 });
+    ok(await page.evaluate(() => problemState.levelMistakes) === 0 && await page.isVisible('#rhythmStart'), 'おてほんの あとは また えらべる（ミス なし）');
+    await page.click('#rhythmStart'); await page.waitForTimeout(200);
+    await tapAll(page, 0.01); // ずれ（0.05）を ひいて 0.01びょう おそい → ぴったり
+    await waitDone(page); await page.waitForTimeout(300);
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'Lv1 タン、クリア！', 'Lv1 クリア');
+    ok((await page.textContent('#clearTime')) === 'ぴったり 16こ・いいね 0こ・ミス 0こ', `けっか（${await page.textContent('#clearTime')}）`);
+    ok((await page.$$('#rhythmLane .rh-note.perfect')).length === 16, '音符が みどりに');
+    const d = await page.evaluate(() => JSON.parse(localStorage.getItem('rhythm_coins_2')));
+    ok(d[d.length - 1].image === '/img/Gmaru.png', 'ミスなしで 金のドロップ');
+    ok((await page.$$('.coin')).length >= 4, `しょうせつごとに ドロップが とぶ（${(await page.$$('.coin')).length}）`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 23. リズム：はやすぎ・おそすぎ・おやすみで たたく と ミス → ざんねん
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/rhythm', rhythmAll);
+    await page.evaluate(() => MODES.rhythm.levels.forEach(l => { l.bpm = 120; })); // ウンの まんなかが となりの 音符から はなれる テンポ
+    await page.click('#level3'); await page.waitForTimeout(300);
+    await page.click('#rhythmStart'); await page.waitForTimeout(200);
+    // 「いいね」の はんいを 1こ ためす
+    const good = await page.evaluate(() => {
+      const run = rhythm.run, n = run.timeline.notes[0];
+      rhythmJudge(run.start + n.beat * run.spb + rhythmOffset() + 0.12);
+      return n.result;
+    });
+    ok(good === 'good', `0.12びょう おそいと「いいね」（${good}）`);
+    // ウンで たたく・ほかは たたかない
+    const rests = await page.evaluate(() => {
+      const run = rhythm.run;
+      run.timeline.rests.forEach(r => rhythmJudge(run.start + (r.from + 0.5) * run.spb + rhythmOffset()));
+      return run.timeline.rests.length;
+    });
+    await waitDone(page); await page.waitForTimeout(300);
+    ok(await page.$eval('#mistakeModal', e => e.style.display) === 'flex', 'ミスが 4こ いじょうで ざんねん');
+    const items = await page.$$eval('#mistakeList li', l => l.map(x => x.textContent));
+    ok(items.some(t => /しょうせつめ：ウン（おやすみ）で たたいた/.test(t)) && items.some(t => /しょうせつめ：.+を たたけなかった/.test(t)), `ミスの いちらん（ウン ${rests}こ）：${items[0]}`);
+    ok((await page.$$('#rhythmLane .rh-note.miss')).length > 0, 'たたかなかった 音符は 赤');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 24. リズム：画面を たたくと ポン（ボタンでは たたいたことに ならない）・もどると とまる
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/rhythm', rhythmAll);
+    await fastRhythm(page);
+    await page.click('#level2'); await page.waitForTimeout(300);
+    await page.evaluate(() => { window.__taps = 0; const orig = rhythmJudge; window.rhythmJudge = (...a) => { window.__taps++; return orig(...a); }; });
+    await page.mouse.click(640, 400); await page.waitForTimeout(100);
+    ok(await page.$eval('#rhythmPad', e => e.classList.contains('hit')), 'たたくと たいこが へこむ');
+    ok(await page.evaluate(() => window.__taps) === 0, 'スタート まえは はんていしない');
+    await page.click('#rhythmStart'); await page.waitForTimeout(150);
+    await page.mouse.click(900, 650); await page.keyboard.press('Space'); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => window.__taps) === 2, '画面の どこでも・スペースキーでも たたける');
+    await page.click('#rhythmScreen .returnButton'); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => rhythm.run === null) && await page.isVisible('#openingScreen'), 'もどると リズムは とまる');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }

@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.38</span>
+                <span id="version">Ver.6.3.39</span>
             </p>
         </footer>
     </div>
@@ -461,6 +461,11 @@
                         <stop offset="0%" stop-color="#7ee8fa"/>
                         <stop offset="50%" stop-color="#3d8bfd"/>
                         <stop offset="100%" stop-color="#1e3799"/>
+                    </linearGradient>
+                    <linearGradient id="mu-grad-rhythm" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffe259"/>
+                        <stop offset="50%" stop-color="#ff9f43"/>
+                        <stop offset="100%" stop-color="#e74c3c"/>
                     </linearGradient>
                     <linearGradient id="mu-grad-keys" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="#ffb347"/>
@@ -597,7 +602,6 @@
                     </g>
                 </svg>
             </button>
-            <!-- リズム（じゅんびちゅう） -->
             <!-- おんぷよみ（五線の 音符を 読んで けんばんを おす） -->
             <button id="musicNotes" class="music-lesson" onclick="location.hash = '#/notes'" aria-label="おんぷよみ">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 150" width="100%" height="100%">
@@ -628,10 +632,27 @@
                     </g>
                 </svg>
             </button>
-            <button class="music-lesson coming" disabled aria-label="リズム（じゅんびちゅう）">
-                <span class="music-coming-icon">♩ ♫</span>
-                <span class="music-coming-name">リズム</span>
-                <span class="music-coming-note">じゅんびちゅう</span>
+            <!-- リズム（流れてくる リズムに 合わせて たたく） -->
+            <button id="musicRhythm" class="music-lesson" onclick="location.hash = '#/rhythm'" aria-label="リズム">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 150" width="100%" height="100%">
+                    <g filter="url(#mu-candy-shadow)">
+                        <!-- たいこ -->
+                        <ellipse cx="180" cy="66" rx="70" ry="20" fill="url(#mu-grad-rhythm)" stroke="#7b241c" stroke-width="4"/>
+                        <path d="M 110,40 L 110,66 A 70,20 0 0 0 250,66 L 250,40" fill="url(#mu-grad-rhythm)" stroke="#7b241c" stroke-width="4"/>
+                        <ellipse cx="180" cy="40" rx="70" ry="20" fill="#fff8e7" stroke="#7b241c" stroke-width="4"/>
+                        <ellipse cx="160" cy="34" rx="22" ry="5" fill="#ffffff" opacity="0.9"/>
+                        <!-- ばち -->
+                        <g stroke="#7b241c" stroke-width="6" stroke-linecap="round">
+                            <line x1="96" y1="6" x2="152" y2="34"/><line x1="266" y1="6" x2="210" y2="34"/>
+                        </g>
+                        <circle cx="96" cy="6" r="7" fill="#ffb347"/><circle cx="266" cy="6" r="7" fill="#ffb347"/>
+                        <g font-family="'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', sans-serif" font-weight="900" transform="translate(180, 136)" text-anchor="middle">
+                            <text x="0" y="0" font-size="54" letter-spacing="4" stroke="#7b241c" stroke-width="11" stroke-linejoin="round" fill="none">リズム</text>
+                            <text x="0" y="0" font-size="54" letter-spacing="4" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#mu-grad-rhythm)">リズム</text>
+                            <text x="0" y="-2" font-size="54" letter-spacing="4" fill="url(#mu-candy-gloss)">リズム</text>
+                        </g>
+                    </g>
+                </svg>
             </button>
         </div>
 
@@ -849,6 +870,12 @@
                         <stop offset="0%" stop-color="#7ee8fa"/>
                         <stop offset="50%" stop-color="#3d8bfd"/>
                         <stop offset="100%" stop-color="#1e3799"/>
+                    </linearGradient>
+                    <!-- きいろ〜あか（リズム） -->
+                    <linearGradient id="op-grad-rhythm" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffe259"/>
+                        <stop offset="50%" stop-color="#ff9f43"/>
+                        <stop offset="100%" stop-color="#e74c3c"/>
                     </linearGradient>
                     <!-- 百マスの「ドロップス」用（ラベンダー〜ピーチ） -->
                     <linearGradient id="op-grad-hyaku-drops" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1100,6 +1127,34 @@
                             <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#op-candy-gloss)">ドロップス</text>
                         </g>
                     </g>
+                    <!-- ⑧ リズムモードの文字 -->
+                    <g class="mode-title title-rhythm">
+                        <g transform="translate(55, 108) rotate(-12)">
+                            <text x="0" y="0" font-size="56" letter-spacing="0" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">タ</text>
+                            <text x="0" y="0" font-size="56" letter-spacing="0" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">タ</text>
+                            <text x="0" y="-2" font-size="56" letter-spacing="0" fill="url(#op-candy-gloss)">タ</text>
+                        </g>
+                        <g transform="translate(99, 85) rotate(-8)">
+                            <text x="0" y="0" font-size="52" letter-spacing="0" stroke="#5b2c6f" stroke-width="10" stroke-linejoin="round" fill="none">マ</text>
+                            <text x="0" y="0" font-size="52" letter-spacing="0" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">マ</text>
+                            <text x="0" y="-2" font-size="52" letter-spacing="0" fill="url(#op-candy-gloss)">マ</text>
+                        </g>
+                        <g transform="translate(141, 65)">
+                            <text x="0" y="0" font-size="48" letter-spacing="0" stroke="#5b2c6f" stroke-width="9" stroke-linejoin="round" fill="none">の</text>
+                            <text x="0" y="0" font-size="48" letter-spacing="0" stroke="#ffffff" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-tama)">の</text>
+                            <text x="0" y="-2" font-size="48" letter-spacing="0" fill="url(#op-candy-gloss)">の</text>
+                        </g>
+                        <g transform="translate(178, 108)">
+                            <text x="0" y="0" font-size="64" letter-spacing="0" stroke="#7b241c" stroke-width="11" stroke-linejoin="round" fill="none">リズム</text>
+                            <text x="0" y="0" font-size="64" letter-spacing="0" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-rhythm)">リズム</text>
+                            <text x="0" y="-2" font-size="64" letter-spacing="0" fill="url(#op-candy-gloss)">リズム</text>
+                        </g>
+                        <g transform="translate(715, 105)">
+                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#7b241c" stroke-width="11" stroke-linejoin="round" fill="none">ドロップス</text>
+                            <text x="0" y="0" font-size="62" letter-spacing="-2" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#op-grad-rhythm)">ドロップス</text>
+                            <text x="0" y="-2" font-size="62" letter-spacing="-2" fill="url(#op-candy-gloss)">ドロップス</text>
+                        </g>
+                    </g>
                 </g>
 
                 <!-- ===== タマ本体（中央 x=560 に配置。ここが id="touchArea"！） ===== -->
@@ -1297,6 +1352,32 @@
         </div>
     </div>
 
+    <!-- ================= 問題画面：リズム（js/engines/rhythm.js） ================= -->
+    <div id="rhythmScreen" class="question-screen unselectable" style="display: none;">
+        <div id="rhythmInfo" class="remaining-problems"></div>
+        <button class="returnButton" onclick="returnMenu()">はじめにもどる</button>
+        <h1 class="page-title"></h1>
+
+        <!-- 流れる がくふ（音符が 右から 左の ピンクの せんへ） -->
+        <div class="rhythm-stage">
+            <div id="rhythmLane" class="rhythm-lane"></div>
+            <div class="rhythm-hitline"></div>
+            <div id="rhythmCount" class="rhythm-count"></div>
+            <div id="rhythmPopup" class="rhythm-popup"></div>
+        </div>
+        <p id="rhythmMessage" class="keys-message rhythm-message"></p>
+        <p id="rhythmHint" class="keys-hint rhythm-hint"></p>
+
+        <!-- おてほん・スタート -->
+        <div id="rhythmStartButtons" class="rhythm-start-buttons">
+            <button type="button" id="rhythmDemo" class="rhythm-button demo">▶ おてほん</button>
+            <button type="button" id="rhythmStart" class="rhythm-button start">🥁 スタート</button>
+        </div>
+
+        <!-- たいこ（ここでなくても、画面の どこを たたいても いい） -->
+        <div id="rhythmPad" class="rhythm-pad" aria-hidden="true"><span>タン！</span></div>
+    </div>
+
     <!-- ================= じゆうにひこう（js/piano.js・js/keyboard.js） ================= -->
     <div id="pianoScreen" class="unselectable" style="display: none;">
         <!-- 音の名前の つや（js/piano.js の nameSVG が使う） -->
@@ -1461,6 +1542,7 @@
     <script src="js/modes/keys.js"></script>
     <script src="js/modes/black.js"></script>
     <script src="js/modes/notes.js"></script>
+    <script src="js/modes/rhythm.js"></script>
     <script src="js/state.js"></script>
     <script src="js/history.js"></script>
     <script src="js/drops.js"></script>
@@ -1472,6 +1554,7 @@
     <script src="js/engines/grid.js"></script>
     <script src="js/keyboard.js"></script>
     <script src="js/engines/keys.js"></script>
+    <script src="js/engines/rhythm.js"></script>
     <script src="js/keypad.js"></script>
     <script src="js/records.js"></script>
     <script src="js/drop-table.js"></script>

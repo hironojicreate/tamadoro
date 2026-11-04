@@ -144,7 +144,7 @@ if (commandInput) {
             event.target.value = '';
             closeDataModal();
             // おんがくの画面にいるときに OFF にしたら、さいしょの画面へ
-            if (!on && /^#\/?(music|keys|black|notes|piano)/.test(location.hash)) {
+            if (!on && /^#\/?(music|keys|black|notes|rhythm|piano)/.test(location.hash)) {
                 location.hash = '#/';
             }
             return;
