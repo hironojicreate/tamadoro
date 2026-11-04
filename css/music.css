@@ -245,7 +245,8 @@ html[data-mode="music"] body {
 /* ---------- けんばん：レベル選択 ---------- */
 
 html[data-mode="keys"] #openingScreen .title-keys,
-html[data-mode="black"] #openingScreen .title-black {
+html[data-mode="black"] #openingScreen .title-black,
+html[data-mode="notes"] #openingScreen .title-notes {
     display: inline;
 }
 
@@ -261,6 +262,12 @@ html[data-mode="keys"] .select-level-buttons button {
     background-color: #ecdcfa;
     border-color: #6c3483;
     color: #4a235a;
+}
+
+html[data-mode="notes"] .select-level-buttons button {
+    background-color: #dff3ff;
+    border-color: #1e3799;
+    color: #0b3c5d;
 }
 
 html[data-mode="black"] .select-level-buttons button {
@@ -375,6 +382,54 @@ html[data-mode="black"] .select-level-buttons button {
     text-align: center;
 }
 
+/* おんぷよみ：五線の 音符（js/staff.js） */
+.keys-card.staff-card {
+    width: auto;
+    height: min(36vh, 300px);
+    aspect-ratio: auto;
+    padding: 6px 10px;
+}
+
+.keys-cards.staff.phrase .keys-card {
+    width: auto;
+    opacity: 1;
+}
+
+.staff {
+    height: 100%;
+    max-width: 92vw;
+    display: block;
+    overflow: visible;
+}
+
+.staff-lines line,
+.staff-ledger {
+    stroke: #2d3436;
+    stroke-width: 2.5;
+}
+
+.staff-head {
+    fill: #2d3436;
+}
+
+.staff-stem {
+    stroke: #2d3436;
+    stroke-width: 3;
+}
+
+.staff-glow {
+    fill: none;
+}
+
+/* いま 読む 音符（メロディのとき） */
+.keys-cards.phrase .staff-note.current .staff-head { fill: #e84393; }
+.keys-cards.phrase .staff-note.current .staff-stem { stroke: #e84393; }
+.keys-cards.phrase .staff-note.current .staff-glow { fill: rgba(232, 67, 147, 0.15); }
+
+/* 読みおわった 音符 */
+.staff-note.done .staff-head { fill: #27ae60; }
+.staff-note.done .staff-stem { stroke: #27ae60; }
+
 /* くろいけんばん Lv4：「ド♯ ＝ ？♭」 */
 .keys-equal {
     font-family: 'M PLUS Rounded 1c', sans-serif;
@@ -460,7 +515,9 @@ html[data-mode="black"] .select-level-buttons button {
 html[data-mode="keys"] #completionModal,
 html[data-mode="keys"] #mistakeModal,
 html[data-mode="black"] #completionModal,
-html[data-mode="black"] #mistakeModal {
+html[data-mode="black"] #mistakeModal,
+html[data-mode="notes"] #completionModal,
+html[data-mode="notes"] #mistakeModal {
     z-index: 5;
     align-items: flex-start !important;
     padding-top: max(12px, 4vh);
@@ -469,7 +526,8 @@ html[data-mode="black"] #mistakeModal {
 }
 
 html[data-mode="keys"] .reward-coin,
-html[data-mode="black"] .reward-coin {
+html[data-mode="black"] .reward-coin,
+html[data-mode="notes"] .reward-coin {
     z-index: 6;
 }
 
