@@ -6,6 +6,7 @@
 //   TamaSound.chord(name)       正解したときの、小さな ばんそう（C・F・G・G7）
 //   TamaSound.loadSE(url)       効果音（mp3 など）を読みこむ → TamaSound.playSE(読みこんだもの)
 //   TamaSound.musicSession(on)  iPhone のマナーモードでも 音が出るようにする（おんがくの画面だけ）
+//   TamaSound.click・drum・heardTime  リズムの メトロノーム・たいこ・タップの 時刻（音の時計で）
 
 const TamaSound = {
     MUTE_KEY: 'tamadoro.sound.muted',
@@ -177,6 +178,72 @@ const TamaSound = {
                 osc.stop(Math.min(end, at + 1));
             },
         };
+    },
+
+    // ---------- リズム（js/engines/rhythm.js） ----------
+
+    // 音の時計の いま（秒）。「おと なし」でも 時計は すすむ（リズムの 拍は この時計で きめる）
+    now() {
+        const ctx = this.context();
+        return ctx ? ctx.currentTime : performance.now() / 1000;
+    },
+
+    // 画面に さわった しゅんかん（event.timeStamp）→ そのとき スピーカーから 出ていた 音の時計の 時刻
+    //   スピーカーから 音が出るまでの おくれ（outputLatency）も ふくめて、「聞こえた 音」と くらべられるように
+    heardTime(eventTimeStamp = performance.now()) {
+        const ctx = this.context();
+        if (!ctx) return eventTimeStamp / 1000;
+        const ts = ctx.getOutputTimestamp ? ctx.getOutputTimestamp() : null;
+        if (ts && ts.performanceTime > 0) {
+            return ts.contextTime + (eventTimeStamp - ts.performanceTime) / 1000;
+        }
+        const latency = ctx.outputLatency || ctx.baseLatency || 0;
+        return ctx.currentTime - latency - (performance.now() - eventTimeStamp) / 1000;
+    },
+
+    // とちゅうで やめたとき まとめて 止められる 音の みち（disconnect() で ぜんぶ きえる）
+    bus() {
+        const ctx = this.context();
+        if (!ctx) return null;
+        const gain = ctx.createGain();
+        gain.connect(this.master);
+        return gain;
+    },
+
+    // メトロノームの カチッ（accent：1拍め は 高く）。when は 音の時計の 時刻
+    click(when, accent = false, bus = null) {
+        const ctx = this.live();
+        if (!ctx) return;
+        const osc = ctx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.value = accent ? 1760 : 1175;
+        const amp = ctx.createGain();
+        amp.gain.setValueAtTime(0.0001, when);
+        amp.gain.linearRampToValueAtTime(accent ? 0.22 : 0.13, when + 0.002);
+        amp.gain.setTargetAtTime(0.0001, when + 0.004, 0.018);
+        osc.connect(amp);
+        amp.connect(bus || this.master);
+        osc.start(when);
+        osc.stop(when + 0.12);
+    },
+
+    // たいこの ポン（タップしたとき・おてほん）
+    drum(when = 0, bus = null) {
+        const ctx = this.live();
+        if (!ctx) return;
+        const t = when || ctx.currentTime;
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(260, t);
+        osc.frequency.exponentialRampToValueAtTime(110, t + 0.12);
+        const amp = ctx.createGain();
+        amp.gain.setValueAtTime(0.0001, t);
+        amp.gain.linearRampToValueAtTime(0.7, t + 0.004);
+        amp.gain.setTargetAtTime(0.0001, t + 0.01, 0.07);
+        osc.connect(amp);
+        amp.connect(bus || this.master);
+        osc.start(t);
+        osc.stop(t + 0.5);
     },
 
     // ばんそうの和音（ひくめの音で、やさしく）

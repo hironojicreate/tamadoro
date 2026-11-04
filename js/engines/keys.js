@@ -5,6 +5,7 @@
 //   ドロップ・まちがいの上限・まちがえた問題をさいごにもういちど は、計算と同じ
 //   くろいけんばん（js/modes/black.js）も このエンジン：
 //     ♯・♭ の名前で出す（'spell'）、「ド♯ ＝ ？♭」を ボタンで こたえる（'enharmonic'）、ひっかけ（ミ♯ など）
+//   おんぷよみ（js/modes/notes.js）も このエンジン：display: 'staff' で、カードの かわりに 五線の 音符（js/staff.js）
 
 // メロディ（Lv7・オニ）：和音ごとに、その和音に合う 3〜4おん
 //   出すときは C → F → G → C（さいごは ドで おわる）の じゅんばん
@@ -219,7 +220,7 @@ function keysStartLevel(level) {
         keysLesson.keyboard = new TamaKeyboard(document.getElementById('keysKeyboard'), { onPress: keysOnPress });
     }
     keysLesson.keyboard.glide = def.style === 'free';
-    keysRenderKeyboard(def.view || keysOniView(def));
+    keysRenderKeyboard(def.view || keysOniView());
 
     document.getElementById('keysHint').textContent = def.hint || '';
 
@@ -300,8 +301,8 @@ function keysNextProblem() {
     run.pos = 0;
     problemState.mistakeMade = false;
     problemState.problemStartedAt = Date.now();
-    if (run.def.style === 'oni') {
-        keysRenderKeyboard(keysOniView(run.def));
+    if (run.def.style === 'oni' && !run.def.view) {
+        keysRenderKeyboard(keysOniView()); // けんばんの オニは 毎回 けんばんの場所が かわる
     }
     keysUpdateRemaining();
     keysShowCards();
@@ -367,6 +368,14 @@ function keysShowCards() {
         return;
     }
 
+    if (currentMode.display === 'staff') {
+        // おんぷよみ：五線の 音符（メロディは 左から じゅんばんに。いま 読む音符が ピンク）
+        cards.className = `keys-cards staff ${notes.length > 1 ? 'phrase' : 'single'}`;
+        cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg(notes)}</div>`;
+        keysShowMessage(notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : 'この おんぷは どの けんばん？');
+        return;
+    }
+
     cards.className = `keys-cards ${notes.length > 1 ? 'phrase' : 'single'}`;
     cards.innerHTML = notes.map((midi, i) =>
         `<div class="keys-card${i === 0 ? ' current' : ''}" data-i="${i}">${keysNameSVG(midi, 'big', name(i), color(i))}</div>`).join('');
@@ -419,15 +428,19 @@ function keysOnPress(midi, inRange) {
     const expected = run.problem.notes[run.pos];
     if (midi === expected) {
         keyboard.mark(midi, 'ok');
-        const card = document.querySelector(`#keysCards .keys-card[data-i="${run.pos}"]`);
+        // カード（または 五線の 音符）を「読みおわり」に して、つぎを「いま」に
+        const card = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
         if (card) {
-            card.classList.remove('current');
+            card.classList.remove('current', 'next');
             card.classList.add('done');
         }
         run.pos++;
         if (run.pos < run.problem.notes.length) {
-            const next = document.querySelector(`#keysCards .keys-card[data-i="${run.pos}"]`);
-            if (next) next.classList.add('current');
+            const next = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
+            if (next) {
+                next.classList.remove('next');
+                next.classList.add('current');
+            }
             return;
         }
         keysShowBothNames(midi);
