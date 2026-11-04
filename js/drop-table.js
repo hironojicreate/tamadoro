@@ -4,6 +4,8 @@
 //   ガラスのかべ・口のふちには 当たり判定がある。口は あいているので、ドロップを びんの中に入れることもできる
 //   止まったあとは、指でつまんで動かせる（何本の指でも）。はじくと、すべって止まる
 //   「おかたづけ」で、びんが おきあがって きろくの定位置に もどり、ドロップが 口から すいこまれて 下から つもり、コルクで ふたをする
+//   指で ぜんぶの ドロップを びんに入れたときも、「おかたづけ」を おさずに 同じように もどる
+//   「おかたづけ」の ボタンは 粒の うしろ（粒が ボタンに かくれない）。ボタンの上の粒も つまめる
 //   ちらばった場所は保存しないので、ほかの画面へ行ったり読みこみなおしたりすると、びんにもどっている
 // びんの中身・形・絵は js/records.js の DropJar
 
@@ -34,6 +36,7 @@ const DropTable = {
     RISE_FRAMES: 48,    // おかたづけで、びんが おきあがって 定位置に もどる時間（このあいだに おく場所を きめる）
     FILL_FRAMES: 150,   // 粒が つぎつぎ 口に あつまってくる時間のはば（ながいほど、口から落ちる ながれが ほそい）
     FLY_FRAMES: 22,     // 1つぶが びんの口の上へ とんでいく時間
+    ALL_IN_FRAMES: 40,  // 指で ぜんぶの粒を びんに入れてから、ひとりでに おかたづけを はじめるまで（こま）
     LID_FRAMES: 30,     // さいごに コルクが とんできて ふたをする時間
 
     isOpen: false,
@@ -98,6 +101,9 @@ const DropTable = {
         this.t = 0;
         this.emptyT = 0;
         this.slowFrames = 0;
+        this.putBack = false;
+        this.allInT = 0;
+        this.skipClick = false;
         this.placeRigid();
         this.wake();
     },
@@ -122,6 +128,7 @@ const DropTable = {
     cleanUp() {
         if (!this.isOpen || ['rise', 'fill', 'lid'].includes(this.phase)) return;
         this.doneButton.disabled = true;
+        this.allInT = 0;
         this.holds.forEach(h => { h.ball.held = false; });
         this.holds.clear();
         this.extra = [];
@@ -150,23 +157,28 @@ const DropTable = {
         el.id = 'dropTable';
         el.className = 'drop-table';
         el.hidden = true;
+        // ボタンは 粒（canvas）の うしろ。canvas は 指を とおすので、ボタンも おせる（指は テーブル全体で うけとる）
         el.innerHTML = '<div class="drop-table-bg"></div>'
-            + '<canvas role="img" aria-label="テーブルに ちらばった ドロップ。ゆびで うごかせる"></canvas>'
-            + '<button type="button" class="drop-table-done">おかたづけ</button>';
+            + '<button type="button" class="drop-table-done">おかたづけ</button>'
+            + '<canvas role="img" aria-label="テーブルに ちらばった ドロップ。ゆびで うごかせる"></canvas>';
         document.body.appendChild(el);
         this.el = el;
         this.canvas = el.querySelector('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.doneButton = el.querySelector('.drop-table-done');
-        this.doneButton.addEventListener('click', () => this.cleanUp());
+        this.doneButton.addEventListener('click', e => {
+            // ボタンの上の粒を つまんだときは、おさなかったことにする（キーボードで おしたとき〈detail が 0〉は いつでも おせる）
+            if (e.detail && this.skipClick) return;
+            this.cleanUp();
+        });
 
-        const c = this.canvas;
-        c.addEventListener('pointerdown', e => this.onDown(e));
-        c.addEventListener('pointermove', e => this.onMove(e));
-        c.addEventListener('pointerup', e => this.onUp(e));
-        c.addEventListener('pointercancel', e => this.onUp(e));
-        c.addEventListener('lostpointercapture', e => this.onUp(e));
-        c.addEventListener('touchstart', e => e.preventDefault(), { passive: false }); // iPad のダブルタップ拡大を止める
+        el.addEventListener('pointerdown', e => this.onDown(e));
+        el.addEventListener('pointermove', e => this.onMove(e));
+        el.addEventListener('pointerup', e => this.onUp(e));
+        el.addEventListener('pointercancel', e => this.onUp(e));
+        el.addEventListener('lostpointercapture', e => this.onUp(e));
+        // iPad のダブルタップ拡大を止める（ボタンを おしたときは止めない。止めると ボタンが おせなくなる）
+        el.addEventListener('touchstart', e => { if (e.target !== this.doneButton || this.skipClick) e.preventDefault(); }, { passive: false });
         window.addEventListener('resize', () => { if (this.isOpen) this.resize(); });
         // ほかの画面へ行ったら、すぐ とじる
         window.addEventListener('hashchange', () => { if (this.isOpen) this.close(false); });
@@ -329,6 +341,7 @@ const DropTable = {
                 return;
             }
             b.inside = inside;
+            if (inside && this.phase === 'play') this.putBack = true; // テーブルの粒を びんに入れた
         }
         b.safeX = b.x;
         b.safeY = b.y;
@@ -541,7 +554,20 @@ const DropTable = {
         else if (this.phase === 'pour') this.stepPour();
         const corkMoving = this.stepCork();
         const moving = this.phase !== 'tip' && this.stepPhysics();
-        return this.phase !== 'play' || moving || corkMoving || this.holds.size > 0 || this.bump > 0;
+        if (this.phase === 'play' && this.watchAllIn()) {
+            this.cleanUp();
+            return true;
+        }
+        return this.phase !== 'play' || moving || corkMoving || this.holds.size > 0 || this.bump > 0 || this.allInT > 0;
+    },
+
+    // 指で ぜんぶの粒を びんに入れたら、「おかたづけ」を おさなくても おかたづけする（はじめるなら true）
+    //   つまんでいる粒が なく、ぜんぶの粒が ALL_IN_FRAMES こまの あいだ びんの中に いつづけたら（口から ころがり出たら、かぞえなおし）
+    //   テーブルの粒を 1つも 入れていないとき（ぶちまけても 出なかった粒だけの とき）は しない
+    watchAllIn() {
+        const all = this.putBack && this.holds.size === 0 && this.balls.every(b => b.inside);
+        this.allInT = all ? this.allInT + 1 : 0;
+        return this.allInT >= this.ALL_IN_FRAMES;
     },
 
     // コテン：だんだん速く たおれて、テーブルに当たって 少し はねかえる（中の粒も いっしょに）
@@ -1214,21 +1240,29 @@ const DropTable = {
 
     // ---------- 指 ----------
 
+    // ボタンの上では、粒に ちょくせつ さわったときだけ つまむ（粒の よこを おしたら、ボタンを おしたことになる）
     onDown(e) {
-        e.preventDefault();
+        const onButton = e.target === this.doneButton;
+        this.skipClick = false;
+        if (!onButton) e.preventDefault();
         if (!this.isOpen || ['tip', 'rise', 'fill', 'lid'].includes(this.phase) || this.holds.has(e.pointerId)) return;
         // 指の下（少し はなれていても）で、いちばん近い粒をつまむ
         let best = null, bestGap = Infinity;
+        const reach = b => (onButton ? 0 : Math.max(8, 24 - b.r));
         this.balls.forEach(b => {
             if (b.held) return;
             const gap = Math.hypot(b.x - e.clientX, b.y - e.clientY) - b.r;
-            if (gap < Math.max(8, 24 - b.r) && gap < bestGap) {
+            if (gap < reach(b) && gap < bestGap) {
                 best = b;
                 bestGap = gap;
             }
         });
         if (!best) return;
-        try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* 指が すでに はなれているとき */ }
+        if (onButton) {
+            e.preventDefault();
+            this.skipClick = true;
+        }
+        try { this.el.setPointerCapture(e.pointerId); } catch (err) { /* 指が すでに はなれているとき */ }
         best.held = true;
         best.vx = 0;
         best.vy = 0;
