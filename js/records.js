@@ -8,7 +8,7 @@ const Records = {
     returnTo: '#/',      // 「もどる」で戻る画面
 
     open(tab) {
-        this.tab = MODES[tab] ? tab : this.tab;
+        this.tab = MODES[tab] && MODES[tab].inRecords !== false ? tab : this.tab;
         if (!this.month) {
             const now = new Date();
             this.month = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -96,7 +96,7 @@ const Records = {
     renderTabs() {
         const tabs = document.getElementById('recordsTabs');
         tabs.innerHTML = '';
-        Object.values(MODES).forEach(mode => {
+        Object.values(MODES).filter(mode => mode.inRecords !== false).forEach(mode => {
             const button = document.createElement('button');
             button.textContent = mode.name;
             button.dataset.mode = mode.id; // モードごとの色（css/records.css）

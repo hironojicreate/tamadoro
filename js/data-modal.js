@@ -2,6 +2,10 @@
 // index.html と各計算ページの両方で使う
 
 function openDataModal() {
+    // さいしょの画面では、モードのコマンド（/rescue など）は使えない
+    document.getElementById('commandInput').placeholder = currentMode
+        ? '【⚠緊急復元⚠】ここに「/rescue」と入力。その後Lvを選択。'
+        : 'おとな用：ここにコマンドを入力';
     document.getElementById('dataModal').style.display = 'block';
     document.getElementById('dataModalOverlay').style.display = 'block';
 }
@@ -118,7 +122,11 @@ document.getElementById('fileInput').addEventListener('change', function (event)
 });
 
 
-// おとな用コマンド（計算ページのデータ管理モーダルにある入力欄）
+// おとな用コマンド（データ管理モーダルにある入力欄）
+//   どの画面でも：
+//   /music on    さいしょの画面に「おんがくのへや」を出す（ためしているあいだ。js/music.js）
+//   /music off   「おんがくのへや」をかくす
+//   計算・けんばんの画面だけ：
 //   /rescue      レベルを復元するモーダル
 //   /delete      このページのデータを消すモーダル
 //   /master on   マスターボタン（答えを自動入力）を表示
@@ -128,6 +136,22 @@ if (commandInput) {
     commandInput.addEventListener('input', function (event) {
         const command = event.target.value.trim();
         const masterButton = document.getElementById('masterButton');
+
+        if (command === '/music on' || command === '/music off') {
+            const on = command === '/music on';
+            TamaMusic.setEnabled(on);
+            showNotification(on ? 'おんがくのへやを ONにしました。' : 'おんがくのへやを OFFにしました。');
+            event.target.value = '';
+            closeDataModal();
+            // おんがくの画面にいるときに OFF にしたら、さいしょの画面へ
+            if (!on && /^#\/?(music|keys)/.test(location.hash)) {
+                location.hash = '#/';
+            }
+            return;
+        }
+        if (!currentMode) {
+            return; // さいしょの画面では、モードのコマンドは使えない
+        }
 
         switch (command) {
             case "/rescue":

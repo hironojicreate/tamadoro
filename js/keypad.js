@@ -12,30 +12,12 @@ window.addEventListener('load', adjustKeypadPosition);
 
 
 // ---------- 押したときの音 ----------
+// 鳴らすのは js/sound.js（「おとを けす」も そこで）
 
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-// スマホ・タブレットでは、最初にさわったときに音を使えるようにする
-document.body.addEventListener('touchend', function () {
-    audioContext.resume();
-}, { once: true });
-
-let soundBuffer = null;
-fetch('/se/seSelect.mp3')
-    .then(response => response.arrayBuffer())
-    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-    .then(decodedAudio => {
-        soundBuffer = decodedAudio;
-    });
+const keypadSE = TamaSound.loadSE('/se/seSelect.mp3');
 
 function playSound() {
-    if (!soundBuffer) {
-        return; // まだ読み込み中
-    }
-    const source = audioContext.createBufferSource();
-    source.buffer = soundBuffer;
-    source.connect(audioContext.destination);
-    source.start(0);
+    TamaSound.playSE(keypadSE);
 }
 
 
