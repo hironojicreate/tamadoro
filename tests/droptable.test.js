@@ -10,6 +10,8 @@
 //   ・「おかたづけ」：びんが おきあがって 定位置に もどってから、粒が 口の上の まんなかに あつまって 落ち、つもって
 //     （すきまなく。大きい玉の まわりにも すきまが ない。つもったら 動かない）、ふたが しまる
 //     そのあとの いつもの びんは、つもった ならびと まったく同じ。合体した玉も、合体の つづきも、たおす前のまま。ほかの画面へ行っても もどる
+//   ・指で ぜんぶの粒を びんに入れたら、「おかたづけ」を おさなくても おかたづけになる（つまんでいる あいだは まつ）
+//   ・「おかたづけ」の ボタンは 粒の うしろ（粒が かくれない）。ボタンの上の粒は つまめて、そのときは ボタンを おしたことに ならない
 const { chromium } = require('playwright');
 const BASE = process.env.BASE_URL || 'http://localhost:8765/';
 let failures = 0;
@@ -56,6 +58,24 @@ async function jarPoint(page, part) {
     const k = r.height / DropJar.canvas.height;
     return { x: r.left + r.width / 2, y: r.top + (part === 'lid' ? 25 : 250) * k };
   }, part);
+}
+
+// 「おかたづけ」を おす（粒は ボタンより 手前なので、粒が のっていない ところを おす。すきまが なければ キーボードで）
+async function pressDone(page) {
+  const at = await page.evaluate(() => {
+    const T = DropTable, r = T.doneButton.getBoundingClientRect();
+    for (let fy = 0.5; fy > 0.1; fy -= 0.1) {
+      for (const fy2 of [fy, 1 - fy]) {
+        for (let k = 0; k <= 20; k++) {
+          const x = r.left + r.width * (0.5 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.04), y = r.top + r.height * fy2;
+          if (T.balls.every(b => Math.hypot(b.x - x, b.y - y) > b.r + 1)) return { x, y };
+        }
+      }
+    }
+    return null;
+  });
+  if (at) await page.mouse.click(at.x, at.y);
+  else await page.focus('.drop-table-done').then(() => page.keyboard.press('Enter'));
 }
 
 // テーブルのようす
@@ -230,7 +250,7 @@ async function scenario(browser, { name, n, viewport, merges, expectAll }) {
   ok(blocked, `${name}：ガラスは すりぬけない`);
 
   // おかたづけ：まず びんが おきあがって 定位置に もどる（そのあいだ、テーブルの粒は まだ動かない）
-  await page.click('.drop-table-done');
+  await pressDone(page);
   const rise = await page.evaluate(() => {
     const T = DropTable;
     const before = T.balls.filter(b => !b.inside).map(b => [b, b.x, b.y]);
@@ -398,8 +418,92 @@ async function slowDevice(browser) {
   await page.close();
 }
 
+// 指で ぜんぶの粒を びんに入れると、ひとりでに おかたづけになる。ボタンは 粒の うしろ
+async function autoTidy(browser) {
+  const name = 'ぜんぶ びんに入れる';
+  const { page, errors } = await openRecords(browser, 12, { width: 1280, height: 720 });
+  await page.evaluate(() => { window.__before = DropJar.balls.slice(); });
+  const lid = await jarPoint(page, 'lid');
+  await page.mouse.click(lid.x, lid.y);
+  await settle(page);
+  ok(await page.evaluate(() => DropTable.phase === 'play' && DropTable.balls.some(b => !b.inside)), `${name}：ちらばる`);
+
+  // ボタンは 粒の うしろ。粒は ボタンの上でも 見えていて、つまめる（そのときは ボタンを おしたことに ならない）
+  const layer = await page.evaluate(() => {
+    const T = DropTable, btn = T.doneButton, r = btn.getBoundingClientRect();
+    const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    const b = T.balls.find(x => !x.inside);
+    Object.assign(b, { x: c.x, y: c.y, safeX: c.x, safeY: c.y, vx: 0, vy: 0 });
+    window.__onButton = b;
+    return {
+      above: !!(btn.compareDocumentPosition(T.canvas) & Node.DOCUMENT_POSITION_FOLLOWING),
+      through: getComputedStyle(T.canvas).pointerEvents === 'none',
+      hit: document.elementFromPoint(c.x, c.y) === btn, c,
+    };
+  });
+  ok(layer.above && layer.through && layer.hit, `${name}：粒は ボタンより 手前に描く（ボタンは 粒の うしろで、おせる）`);
+  await page.mouse.move(layer.c.x, layer.c.y);
+  await page.mouse.down();
+  const grabbed = await page.evaluate(() => window.__onButton.held);
+  await page.mouse.move(layer.c.x - 200, layer.c.y - 150, { steps: 10 });
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await pump(page, 5);
+  ok(grabbed && await page.evaluate(() => DropTable.phase === 'play' && !window.__onButton.held),
+    `${name}：ボタンの上の粒を つまめる（ボタンを おしたことに ならない）`);
+
+  // 1つぶずつ、口から びんの中へ入れる（止めてから はなす）
+  const dragIn = hold => page.evaluate(async hold => {
+    const T = DropTable, s = DropJar.jar;
+    const b = T.balls.find(x => !x.inside);
+    if (!b) return false;
+    const out = T.toWorld(T.pose, s.cx, s.rimTop - 60), inn = T.toWorld(T.pose, s.cx, s.rimTop + (s.bottom - s.rimTop) * 0.45);
+    Object.assign(b, { x: out.x, y: out.y, safeX: out.x, safeY: out.y, vx: 0, vy: 0 }); // まず 口の前へ
+    const send = (type, x, y) => T.el.dispatchEvent(new PointerEvent(type, { pointerId: 31, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    send('pointerdown', out.x, out.y);
+    for (let i = 1; i <= 30; i++) send('pointermove', out.x + (inn.x - out.x) * i / 30, out.y + (inn.y - out.y) * i / 30);
+    await new Promise(r => setTimeout(r, 120));
+    send('pointermove', inn.x, inn.y);
+    if (hold) return true;
+    send('pointerup', inn.x, inn.y);
+    window.__pump(30);
+    return true;
+  }, hold);
+  const count = () => page.evaluate(() => DropTable.balls.filter(b => !b.inside).length);
+  for (let i = 0; i < 40 && (await count()) > 1; i++) await dragIn(false);
+  ok(await count() === 1, `${name}：のこり 1つぶまで 入れる`);
+  await pump(page, 120);
+  ok(await page.evaluate(() => DropTable.phase === 'play' && !DropTable.doneButton.disabled), `${name}：1つぶでも テーブルに のこっていたら、おかたづけに ならない`);
+
+  // さいごの 1つぶ：つまんでいる あいだは まつ。はなしたら おかたづけになる
+  await dragIn(true);
+  await pump(page, 120);
+  ok(await page.evaluate(() => DropTable.phase === 'play' && DropTable.balls.every(b => b.inside)), `${name}：さいごの粒を つまんでいる あいだは、まつ`);
+  await page.evaluate(() => {
+    const T = DropTable, h = [...T.holds.values()][0].ball;
+    T.el.dispatchEvent(new PointerEvent('pointerup', { pointerId: 31, pointerType: 'touch', isPrimary: true, clientX: h.x, clientY: h.y, bubbles: true, cancelable: true }));
+  });
+  const waited = await page.evaluate(() => {
+    const T = DropTable;
+    let n = 0;
+    while (T.phase === 'play' && n < 300) { window.__pump(1); n++; }
+    return { n, phase: T.phase, disabled: T.doneButton.disabled, wait: T.ALL_IN_FRAMES };
+  });
+  ok(waited.phase === 'rise' && waited.disabled && waited.n >= waited.wait - 2 && waited.n <= waited.wait + 30,
+    `${name}：ぜんぶ入れたら、おさなくても おかたづけになる（${waited.n}こま あと）`);
+  const back = await page.evaluate(() => {
+    for (let i = 0; i < 3000 && DropTable.isOpen; i++) window.__pump(1);
+    const B = window.__before, J = DropJar.balls;
+    return { closed: !DropTable.isOpen, same: J.length === B.length && J.every(b => B.includes(b)), shown: DropJar.canvas.style.visibility === '' };
+  });
+  ok(back.closed && back.same && back.shown, `${name}：いつもの びんに もどる`);
+  ok(errors.length === 0, `${name}：エラーなし ${errors.join(' / ')}`);
+  await page.close();
+}
+
 (async () => {
   const browser = await chromium.launch();
+  await autoTidy(browser);
   await slowDevice(browser);
   await scenario(browser, { name: 'パソコン 600こ（100玉2こ合体してから）', n: 600, viewport: { width: 1280, height: 720 }, merges: 2, expectAll: true });
   await scenario(browser, { name: 'スマホ 600こ', n: 600, viewport: { width: 390, height: 844 }, merges: 0 });
