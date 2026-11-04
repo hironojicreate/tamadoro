@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.34</span>
+                <span id="version">Ver.6.3.35</span>
             </p>
         </footer>
     </div>
@@ -526,6 +526,36 @@
                             <text x="0" y="0" font-size="54" letter-spacing="2" stroke="#78281f" stroke-width="11" stroke-linejoin="round" fill="none">けんばん</text>
                             <text x="0" y="0" font-size="54" letter-spacing="2" stroke="#fff5eb" stroke-width="3.5" stroke-linejoin="round" fill="url(#mu-grad-keys)">けんばん</text>
                             <text x="0" y="-2" font-size="54" letter-spacing="2" fill="url(#mu-candy-gloss)">けんばん</text>
+                        </g>
+                    </g>
+                </svg>
+            </button>
+            <!-- じゆうにひこう（ドロップなし。すきなように ひいて あそぶ） -->
+            <button id="musicPiano" class="music-lesson" onclick="location.hash = '#/piano'" aria-label="じゆうにひこう">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 150" width="100%" height="100%">
+                    <g filter="url(#mu-candy-shadow)">
+                        <g transform="translate(120, 50) rotate(-12)">
+                            <path d="M 0,-30 L 0,10 M 0,-30 C 9,-25 18,-20 18,-7" stroke="#4a235a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <ellipse cx="-9" cy="12" rx="13" ry="9" transform="rotate(-20 -9 12)" fill="#4a235a"/>
+                            <path d="M 0,-30 L 0,10 M 0,-30 C 9,-25 18,-20 18,-7" stroke="#ffb8e0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <ellipse cx="-9" cy="12" rx="9" ry="5.5" transform="rotate(-20 -9 12)" fill="url(#mu-grad-music)"/>
+                        </g>
+                        <g transform="translate(180, 40) rotate(6)">
+                            <path d="M 0,-30 L 0,10 M 0,-30 C 9,-25 18,-20 18,-7" stroke="#4a235a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <ellipse cx="-9" cy="12" rx="13" ry="9" transform="rotate(-20 -9 12)" fill="#4a235a"/>
+                            <path d="M 0,-30 L 0,10 M 0,-30 C 9,-25 18,-20 18,-7" stroke="#ffb8e0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <ellipse cx="-9" cy="12" rx="9" ry="5.5" transform="rotate(-20 -9 12)" fill="url(#mu-grad-music)"/>
+                        </g>
+                        <g transform="translate(240, 50) rotate(16)">
+                            <path d="M 0,-30 L 0,10 M 0,-30 C 9,-25 18,-20 18,-7" stroke="#4a235a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <ellipse cx="-9" cy="12" rx="13" ry="9" transform="rotate(-20 -9 12)" fill="#4a235a"/>
+                            <path d="M 0,-30 L 0,10 M 0,-30 C 9,-25 18,-20 18,-7" stroke="#ffb8e0" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            <ellipse cx="-9" cy="12" rx="9" ry="5.5" transform="rotate(-20 -9 12)" fill="url(#mu-grad-music)"/>
+                        </g>
+                        <g font-family="'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', sans-serif" font-weight="900" transform="translate(180, 136)" text-anchor="middle">
+                            <text x="0" y="0" font-size="50" letter-spacing="1" stroke="#4a235a" stroke-width="11" stroke-linejoin="round" fill="none">じゆうにひこう</text>
+                            <text x="0" y="0" font-size="50" letter-spacing="1" stroke="#fdf2ff" stroke-width="3.5" stroke-linejoin="round" fill="url(#mu-grad-music)">じゆうにひこう</text>
+                            <text x="0" y="-2" font-size="50" letter-spacing="1" fill="url(#mu-candy-gloss)">じゆうにひこう</text>
                         </g>
                     </g>
                 </svg>
@@ -1137,6 +1167,29 @@
         </div>
     </div>
 
+    <!-- ================= じゆうにひこう（js/piano.js・js/keyboard.js） ================= -->
+    <div id="pianoScreen" class="unselectable" style="display: none;">
+        <!-- 音の名前の つや（js/piano.js の nameSVG が使う） -->
+        <svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+            <defs>
+                <linearGradient id="piano-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+                    <stop offset="35%" stop-color="#ffffff" stop-opacity="0.3"/>
+                    <stop offset="50%" stop-color="#ffffff" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+        </svg>
+        <h1 class="page-title">じゆうにひこう</h1>
+        <div class="piano-nav">
+            <button id="pianoNames" aria-pressed="false">音名かくにん：OFF</button>
+            <button id="pianoBack" onclick="location.hash = '#/music'">もどる</button>
+        </div>
+        <div class="piano-stage">
+            <div id="pianoName" class="piano-name"></div>
+        </div>
+        <div id="pianoKeyboard" class="piano-keyboard"></div>
+    </div>
+
     <!-- ================= 問題画面：けんばん（js/engines/keys.js・js/keyboard.js） ================= -->
     <div id="keysScreen" class="question-screen unselectable" style="display: none;">
         <!-- 音の名前のカードの つや（js/engines/keys.js の keysNameSVG が使う） -->
@@ -1286,6 +1339,7 @@
     <script src="js/drop-table.js"></script>
     <script src="js/home.js"></script>
     <script src="js/music.js"></script>
+    <script src="js/piano.js"></script>
     <script src="js/app.js"></script>
 
 </body>

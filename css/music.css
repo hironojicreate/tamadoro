@@ -101,6 +101,7 @@ html[data-mode="music"] body {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     column-gap: clamp(12px, 3vw, 40px);
+    row-gap: clamp(10px, 3vh, 30px);
     justify-items: center;
     align-items: start;
     z-index: 3;
@@ -370,6 +371,12 @@ html[data-mode="keys"] .reward-coin {
     z-index: 4;
 }
 
+/* けんばんの上に つもる ドロップ（指で けんばんの上に うごかしても 見えるように、けんばんより手前） */
+.coin.keys-pile {
+    z-index: 3;
+    touch-action: none;
+}
+
 
 /* ---------- けんばんの部品（js/keyboard.js） ---------- */
 
@@ -534,5 +541,108 @@ html[data-mode="keys"] .reward-coin {
 @media (max-width: 600px) {
     #keysScreen {
         --keys-height: clamp(120px, 30vh, 220px);
+    }
+}
+
+
+/* ---------- じゆうにひこう（#/piano） ---------- */
+
+#pianoScreen {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #fff;
+    --piano-height: clamp(150px, 52vh, 420px);
+}
+
+/* 右上：音名かくにん・もどる（おんがくのへやと同じ カプセル） */
+#pianoScreen .piano-nav {
+    position: fixed;
+    top: 10px;
+    right: 14px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+}
+
+#pianoScreen .piano-nav button {
+    padding: 6px 14px;
+    font-size: 15px;
+    font-weight: 900;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+#pianoBack {
+    background: linear-gradient(135deg, #26c6da, #0097a7);
+}
+
+#pianoNames {
+    background: linear-gradient(135deg, #b2bec3, #636e72);
+}
+
+#pianoNames.on {
+    background: linear-gradient(135deg, #c56cf0, #6c5ce7);
+}
+
+#pianoScreen .piano-nav button:hover {
+    transform: scale(1.06);
+    filter: brightness(1.08);
+}
+
+#pianoScreen .piano-nav button:active {
+    transform: scale(0.95);
+}
+
+/* さわった音の 名前（音名かくにん ON のとき） */
+#pianoScreen .piano-stage {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--piano-height) + 44px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.piano-name {
+    height: min(28vh, 100%);
+    max-width: 90vw;
+}
+
+.piano-name-svg {
+    height: 100%;
+    max-width: 90vw;
+    display: block;
+    overflow: visible;
+    animation: keys-card-pop 0.35s ease;
+}
+
+/* けんばん：画面の 左はしから 右はしまで */
+#pianoScreen .piano-keyboard {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    height: var(--piano-height);
+}
+
+@media (max-width: 600px) {
+    #pianoScreen {
+        --piano-height: clamp(140px, 40vh, 300px);
+    }
+
+    /* せまい画面では、ボタンを タイトルの下へ（かさならないように） */
+    #pianoScreen .piano-nav {
+        top: 40px;
     }
 }

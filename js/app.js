@@ -3,9 +3,10 @@
 //   #/add など    そのモードのレベル選択画面（MODES のキー）
 //   #/records     タマのきろく（#/records/add のように、はじめに見るモードも指定できる）
 //   #/music       おんがくのへや（/music on のときだけ。#/keys などの おんがくのモードも同じ）
+//   #/piano       じゆうにひこう（おんがくのへやから。/music on のときだけ）
 
 const HOME_TITLE = document.title;
-const SCREENS = ['homeScreen', 'musicScreen', 'openingScreen', 'drillScreen', 'hundredgridScreen', 'keysScreen', 'keypadScreen', 'recordsScreen'];
+const SCREENS = ['homeScreen', 'musicScreen', 'pianoScreen', 'openingScreen', 'drillScreen', 'hundredgridScreen', 'keysScreen', 'keypadScreen', 'recordsScreen'];
 
 function showOnly(screenId) {
     SCREENS.forEach(id => {
@@ -22,6 +23,7 @@ function closeEverything() {
     if (currentMode && currentEngine().stop) {
         currentEngine().stop(); // けんばんなど：鳴っている音・タイマーを止める
     }
+    TamaPiano.stop();
 
     document.querySelectorAll('.coin, .reward-coin').forEach(coin => coin.remove());
     ['completionModal', 'mistakeModal', 'deleteModal', 'rescueModal', 'congrats-panel', 'masterButton'].forEach(id => {
@@ -70,6 +72,16 @@ function openMusic() {
     showOnly('musicScreen');
 }
 
+function openPiano() {
+    closeEverything();
+    currentMode = null;
+    problemState = createProblemState();
+    document.documentElement.setAttribute('data-mode', 'piano');
+    document.title = 'タマの じゆうにひこう';
+    showOnly('pianoScreen');
+    TamaPiano.open(); // 画面が見えてから（けんばんの数は 画面の はばで きまる）
+}
+
 function openRecords(tab) {
     const from = currentMode ? `#/${currentMode.id}` : (document.documentElement.dataset.mode === 'records' ? Records.returnTo : '#/');
     closeEverything();
@@ -85,7 +97,7 @@ function openRecords(tab) {
 function route() {
     const [id, sub] = location.hash.replace(/^#\/?/, '').split('/');
     // おんがくの画面は、ためしているあいだ「/music on」のときだけ開ける
-    const music = id === 'music' || (MODES[id] && MODES[id].music);
+    const music = id === 'music' || id === 'piano' || (MODES[id] && MODES[id].music);
     if (music && !TamaMusic.enabled()) {
         openHome();
         return;
@@ -93,6 +105,8 @@ function route() {
     TamaSound.musicSession(music); // おんがくの画面では、iPhone のマナーモードでも 音を出す
     if (id === 'music') {
         openMusic();
+    } else if (id === 'piano') {
+        openPiano();
     } else if (MODES[id]) {
         openMode(id);
     } else if (id === 'records') {

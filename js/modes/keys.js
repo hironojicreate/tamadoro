@@ -3,7 +3,7 @@
 //   ためしているあいだは、設定の入力欄に「/music on」と入れたときだけ 出てくる（js/music.js）
 (function () {
     const C4 = 60, D4 = 62, E4 = 64, F4 = 65, G4 = 67, A4 = 69, B4 = 71, C5 = 72;
-    const F3 = 53, G3 = 55, E5 = 76;
+    const F3 = 53, E5 = 76;
 
     // 黒いけんばんで 場所を見つけるための ヒント
     const HINT_DO = 'くろい けんばんが 2つ ならんでいる ところの、ひだりどなりが ド';
@@ -36,6 +36,8 @@
 
         // style:   'free'（おとあそび）／'single'（1おんずつ）／'phrase'（メロディ）／'oni'（ぜんぶ まぜる）
         // view:    見せる けんばん [from, to]（左はしが ドに ならないように、すこし よぶんに見せる）
+        //          はしは、黒いけんばんの かたまり（3こ・2こ）が かけないところ（ファ〜シ、ファ〜ミ など）にする
+        //          （かたまりが かけると、3この かたまりが 2こに見えて、ドの場所を まちがえる）
         // active:  あかるく見せる けんばん [from, to]（こたえは この中だけ）
         // notes:   出す音、repeat: それぞれ何回 出すか
         // guide:   けんばんに 名前を書く（'all'）／書かない（'none'）
@@ -54,12 +56,12 @@
               style: 'single', notes: [C4, D4, E4, F4, G4], repeat: 3, view: [F3, B4], active: [C4, G4], guide: 'none',
               hint: HINT_DO },
             { label: 'Lv5 ファ〜ド', comment: 'ファから たかいドまで', drop: 'K',
-              style: 'single', notes: [F4, G4, A4, B4, C5], repeat: 3, view: [G3, E5], active: [F4, C5], guide: 'all',
+              style: 'single', notes: [F4, G4, A4, B4, C5], repeat: 3, view: [F3, E5], active: [F4, C5], guide: 'all',
               hint: HINT_FA },
             { label: 'Lv6 ド〜ド', comment: 'もじなしで たかいドまで', drop: 'P',
-              style: 'single', notes: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 2, view: [G3, E5], active: [C4, C5], guide: 'none' },
+              style: 'single', notes: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 2, view: [F3, E5], active: [C4, C5], guide: 'none' },
             { label: 'Lv7 メロディ', comment: '3〜4おんの メロディ', drop: 'Y',
-              style: 'phrase', count: 8, view: [G3, E5], active: [C4, C5], guide: 'none' },
+              style: 'phrase', count: 8, view: [F3, E5], active: [C4, C5], guide: 'none' },
             { label: 'Lvオニ', comment: 'ぜんぶ まぜて・ばしょも かわる', drop: 'S',
               style: 'oni', singles: 12, phrases: 4, active: [C4, C5], guide: 'none' },
         ],

@@ -223,7 +223,99 @@ async function answerAll(page) {
     }
     ok([...starts].every(m => m % 12 !== 0), `左はしは いつも ドではない（${[...starts].join(',')}）`);
     ok(starts.size >= 2, 'けんばんの場所が かわる');
+    const blacks = await page.$$eval('#keysKeyboard .tk-black-key', l => l.length);
+    ok(blacks === 10, `オニの 黒いけんばんは いつも 10こ（${blacks}）`);
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 7b. 見せる けんばんの はしで、黒いけんばんの かたまり（3こ・2こ）が かけない（3この かたまりが 2こに見えない）
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/', MUSIC_ON);
+    const bad = await page.evaluate(() => {
+      const complete = ([from, to]) => {
+        for (let m = from + 1; m < to; m++) {
+          if (!TamaNotes.isBlack(m)) continue;
+          const pc = m % 12, base = m - pc;
+          const group = pc <= 3 ? [base + 1, base + 3] : [base + 6, base + 8, base + 10];
+          if (!group.every(g => g > from && g < to)) return false;
+        }
+        return true;
+      };
+      const views = [...MODES.keys.levels.filter(l => l.view).map(l => [l.label, l.view]), ...KEYS_ONI_VIEWS.map(v => ['オニ', v])];
+      return views.filter(([, v]) => !complete(v) || v[0] % 12 === 0).map(([label, v]) => `${label}:${v}`);
+    });
+    ok(bad.length === 0, `どのレベルも かたまりが かけない・左はしが ドでない ${bad.join(' ')}`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 7c. ごほうびのドロップは けんばんの上に 左から ならび、2だんめは あいだに はまる。指で うごかせる
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/keys', unlockAll);
+    await page.click('#level2'); await page.waitForTimeout(300);
+    for (let i = 0; i < 3; i++) {
+      await pressKey(page, await expected(page));
+      await page.waitForTimeout(1000);
+    }
+    const kbTop = await page.$eval('#keysKeyboard', e => e.getBoundingClientRect().top);
+    const pile = await page.$$eval('.coin.keys-pile', l => l.map(c => ({ left: parseFloat(c.style.left), top: parseFloat(c.style.top) })));
+    ok(pile.length === 3, `正解ごとに 1こ つもる（${pile.length}）`);
+    ok(pile.every((c, i) => c.left === i * 50 && Math.abs(c.top - (kbTop - 50)) < 0.5), `けんばんの上に 左から ならぶ ${JSON.stringify(pile)}`);
+    const slots = await page.evaluate(() => [keysPileSlot(25, 1280, 500), keysPileSlot(26, 1280, 500), keysPileSlot(25 + 25, 1280, 500)]);
+    ok(slots[0].left === 25 && Math.abs(slots[0].top - (450 - 50 * Math.sqrt(3) / 2)) < 0.01 && slots[1].left === 75,
+      `画面の はしまで ならんだら 2だんめは あいだに はまる ${JSON.stringify(slots)}`);
+    ok(slots[2].left === 0 && slots[2].top < slots[0].top, '3だんめは また 左はしから');
+    // 指（マウス）で うごかす
+    await page.mouse.move(25, kbTop - 25); await page.mouse.down(); await page.mouse.move(300, 200, { steps: 5 }); await page.mouse.up();
+    const moved = await page.$eval('.coin.keys-pile', c => ({ left: parseFloat(c.style.left), top: parseFloat(c.style.top) }));
+    ok(Math.abs(moved.left - 275) < 3 && Math.abs(moved.top - 175) < 3, `つもった ドロップを うごかせる ${JSON.stringify(moved)}`);
+    // けんばんは ふさがれない（つぎの問題も こたえられる）
+    const before = await page.evaluate(() => keysLesson.run.index);
+    await pressKey(page, await expected(page)); await page.waitForTimeout(1000);
+    ok(await page.evaluate(() => keysLesson.run.index) === before + 1, 'ドロップが つもっても けんばんを おせる');
+    // レベル選択へ もどると とびちる
+    await page.click('#keysScreen .returnButton'); await page.waitForTimeout(2900);
+    ok((await page.$$('.coin.keys-pile')).length === 0, 'もどると とびちって なくなる');
+
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 7d. じゆうにひこう：画面の はしから はしまで。音名かくにん
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/music', MUSIC_ON);
+    await page.click('#musicPiano'); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => location.hash) === '#/piano' && await page.isVisible('#pianoScreen'), 'おんがくのへやから じゆうにひこうへ');
+    const kb = await page.$eval('#pianoKeyboard', e => { const r = e.getBoundingClientRect(); return { left: r.left, width: r.width }; });
+    ok(kb.left === 0 && kb.width === 1280, `けんばんは 画面の 左はしから 右はしまで ${JSON.stringify(kb)}`);
+    const whites = await page.$$eval('#pianoKeyboard .tk-white-key', l => l.map(e => Number(e.dataset.midi)));
+    ok(whites.length === 23 && whites.includes(60), `パソコンの はばでは 白いけんばん 23こ（まんなかの ドを ふくむ）（${whites.length}）`);
+    ok((await page.$$('#pianoKeyboard .tk-dim')).length === 0 && (await page.$$('#pianoKeyboard .tk-label')).length === 0, 'うすい けんばん・名前は なし');
+    ok((await page.textContent('#pianoNames')) === '音名かくにん：OFF', 'さいしょは 音名かくにん OFF');
+    await page.click('#pianoKeyboard .tk-key[data-midi="60"]'); await page.waitForTimeout(100);
+    ok((await page.$$('#pianoKeyboard .tk-balloon')).length === 0 && await page.$eval('#pianoName', e => e.innerHTML === ''), 'OFF のときは 名前を出さない');
+    await page.click('#pianoNames'); await page.waitForTimeout(100);
+    ok((await page.textContent('#pianoNames')) === '音名かくにん：ON', '押すと ON');
+    await page.click('#pianoKeyboard .tk-key[data-midi="64"]'); await page.waitForTimeout(100);
+    ok((await page.textContent('#pianoKeyboard .tk-balloon')) === 'ミ' && await page.$eval('#pianoName svg', e => e.getAttribute('aria-label')) === 'ミ', 'ON のときは さわった音の名前（ミ）');
+    await page.click('#pianoKeyboard .tk-key[data-midi="70"]'); await page.waitForTimeout(100);
+    ok(await page.$eval('#pianoName svg', e => e.getAttribute('aria-label')) === 'ラ♯／シ♭', '黒いけんばんは 2つの名前');
+    ok(await page.evaluate(() => (keysLesson.run === null) && !document.querySelector('.coin')), 'ドロップは もらえない');
+    await page.reload(); await page.waitForTimeout(500);
+    ok((await page.textContent('#pianoNames')) === '音名かくにん：ON', 'ON は おぼえている');
+    // 画面の はばで けんばんの数が かわる
+    await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
+    const phone = await page.$$eval('#pianoKeyboard .tk-white-key', l => l.map(e => Number(e.dataset.midi)));
+    ok(phone.length === 10 && phone.includes(60), `スマホの はばでは 10こ（${phone.length}）`);
+    await page.click('#pianoBack'); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => location.hash) === '#/music', '「もどる」で おんがくのへやへ');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+  {
+    const { page } = await openPage(browser, 'index.html#/piano');
+    ok(await page.isVisible('#homeScreen') && !(await page.isVisible('#pianoScreen')), 'OFF のときは #/piano を開いても さいしょの画面');
     await page.close();
   }
 

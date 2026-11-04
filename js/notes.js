@@ -49,7 +49,7 @@ const TamaNotes = {
 
     color(midi) {
         const step = this.stepOf(midi);
-        return step >= 0 ? this.COLORS[step] : '#2d3436';
+        return step >= 0 ? this.COLORS[step] : '#5f27cd'; // 黒いけんばんの名前は こい むらさき
     },
 
     // from〜to の白いけんばん

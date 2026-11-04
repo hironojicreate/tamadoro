@@ -98,12 +98,20 @@ function keysBuildDeck(def) {
     return keysShuffleNoRepeat(deck);
 }
 
-// オニ：見せる けんばんの はしを 毎回ずらす（ドが 左はしに こないように）
-function keysOniView(def) {
-    const starts = [52, 53, 55, 57, 59]; // ミ・ファ・ソ・ラ・シ（まんなかのドの 下）
-    const from = starts[Math.floor(Math.random() * starts.length)];
-    const whites = TamaNotes.whiteKeys(from, 96);
-    return [from, whites[12]]; // 白いけんばん 13こ
+// オニ：見せる けんばんの はしを 毎回ずらす
+//   どれも 黒いけんばんは 10こ（かたまりが 3・2・3・2 か 2・3・2・3 で、はしで かけない）。
+//   ドが 左はしに こないように、ドからは はじめない
+const KEYS_ONI_VIEWS = [
+    [53, 76], // ファ〜ミ（白14こ）
+    [52, 76], // ミ〜ミ（白15こ）
+    [53, 77], // ファ〜ファ（白15こ）
+    [59, 83], // シ〜シ（白15こ）
+];
+
+function keysOniView() {
+    const previous = keysLesson.run && keysLesson.run.view;
+    const choices = KEYS_ONI_VIEWS.filter(v => !previous || v[0] !== previous[0] || v[1] !== previous[1]);
+    return choices[Math.floor(Math.random() * choices.length)];
 }
 
 
@@ -176,6 +184,7 @@ function keysStartLevel(level) {
 
 function keysRenderKeyboard(view) {
     const def = keysLesson.run.def;
+    keysLesson.run.view = view;
     const vanished = keysLesson.run.vanished ? def.vanish || [] : [];
     keysLesson.keyboard.render({
         from: view[0],
@@ -348,7 +357,7 @@ function keysSolved() {
 
     if (!problemState.mistakeMade) {
         problemState.correctStreak++;
-        throwCoin(problemState.level, problemState.correctStreak % 5 === 0, 50, 1); // 5問ごとに金のドロップ
+        keysPileCoin(problemState.correctStreak % 5 === 0); // 5問ごとに金のドロップ
     }
     keysLesson.later(keysNextProblem, 900);
 }
@@ -369,6 +378,60 @@ function keysMistake(pressed, expected) {
         run.finished = true;
         keysShowMistakeModal();
     }
+}
+
+
+// ---------- ごほうびのドロップ：けんばんの上に つもる ----------
+//   上の ばらばらな場所から おちてきて、けんばんの上に 左から ならぶ。
+//   画面の はしまで ならんだら、2だんめは 1だんめの ドロップと ドロップの あいだに はまって つもる（3だんめ からも同じ）。
+//   つもった ドロップは、指で うごかせる（js/drops.js の enableDrag）。ほかの画面へ行くと とびちる（scatterCoins）
+
+const KEYS_PILE_SIZE = 50; // ドロップの大きさ（計算の画面で投げるドロップと同じ）
+
+// n こめ（0から）の ドロップを おく場所（画面の左上からの px）
+function keysPileSlot(n, width, floor, size = KEYS_PILE_SIZE) {
+    const evenCount = Math.max(1, Math.floor(width / size));              // 1・3・5 … だんめ
+    const oddCount = Math.max(1, Math.floor((width - size / 2) / size));  // 2・4・6 … だんめ（半分ずれる）
+    let row = 0;
+    let rest = n;
+    while (rest >= (row % 2 === 0 ? evenCount : oddCount)) {
+        rest -= row % 2 === 0 ? evenCount : oddCount;
+        row++;
+    }
+    return {
+        left: (row % 2 === 0 ? 0 : size / 2) + rest * size,
+        top: floor - size - row * size * Math.sqrt(3) / 2, // 下の2つの あいだに はまる 高さ
+    };
+}
+
+function keysPileCoin(special) {
+    const keyboard = document.getElementById('keysKeyboard');
+    const floor = keyboard.getBoundingClientRect().top;
+    const size = KEYS_PILE_SIZE;
+    const n = document.querySelectorAll('.coin.keys-pile').length;
+    const slot = keysPileSlot(n, window.innerWidth, floor, size);
+
+    const coin = document.createElement('img');
+    coin.src = dropSrc(special ? '/img/Gmaru.png' : problemState.levelToImage[problemState.level]);
+    coin.className = 'coin keys-pile';
+    coin.style.width = `${size}px`;
+    coin.style.height = `${size}px`;
+    coin.style.left = `${slot.left}px`;
+    coin.style.top = `${slot.top}px`;
+    document.body.appendChild(coin);
+
+    // 上の ばらばらな場所から、つもる場所へ おちる（さいごに ちょっと はねる）
+    const startX = Math.random() * (window.innerWidth - size) - slot.left;
+    const startY = -size - slot.top;
+    const turn = Math.round(Math.random() * 360 - 180);
+    coin.animate([
+        { transform: `translate(${startX}px, ${startY}px) rotate(${turn}deg)`, easing: 'cubic-bezier(0.55, 0, 1, 0.45)' },
+        { transform: 'translate(0, 0) rotate(0deg)', offset: 0.78, easing: 'ease-out' },
+        { transform: 'translate(0, -10px) rotate(0deg)', offset: 0.89, easing: 'ease-in' },
+        { transform: 'translate(0, 0) rotate(0deg)' },
+    ], { duration: 750 });
+    enableDrag(coin);
+    return coin;
 }
 
 
