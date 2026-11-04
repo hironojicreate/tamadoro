@@ -386,7 +386,7 @@ function keysMistake(pressed, expected) {
 //   画面の はしまで ならんだら、2だんめは 1だんめの ドロップと ドロップの あいだに はまって つもる（3だんめ からも同じ）。
 //   つもった ドロップは、指で うごかせる（js/drops.js の enableDrag）。ほかの画面へ行くと とびちる（scatterCoins）
 
-const KEYS_PILE_SIZE = 50; // ドロップの大きさ（計算の画面で投げるドロップと同じ）
+const KEYS_PILE_SIZE = 32; // ドロップの大きさ（計算の画面の 50px より 小さく。ならんでも めだちすぎないように）
 
 // n こめ（0から）の ドロップを おく場所（画面の左上からの px）
 function keysPileSlot(n, width, floor, size = KEYS_PILE_SIZE) {

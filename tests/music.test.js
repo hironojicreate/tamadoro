@@ -132,6 +132,8 @@ async function answerAll(page) {
     await page.waitForTimeout(400);
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv1 クリア');
     ok(await page.textContent('#modalTitle') === 'Lv1 ドレミ、クリア！', 'クリアのタイトル');
+    ok(await page.$eval('#completionModal > div', e => e.getBoundingClientRect().bottom) < await page.$eval('#keysKeyboard', e => e.getBoundingClientRect().top) - 32 * 2,
+      'クリアの カードは 上のほう（けんばんの上に つもった ドロップと かさならない）');
     const d = await drops(page, 2);
     ok(d[d.length - 1].image === '/img/Gmaru.png', 'ノーミスなら 金のドロップ');
     const stats = await page.evaluate(() => History.getStats('keys'));
@@ -261,15 +263,15 @@ async function answerAll(page) {
     const kbTop = await page.$eval('#keysKeyboard', e => e.getBoundingClientRect().top);
     const pile = await page.$$eval('.coin.keys-pile', l => l.map(c => ({ left: parseFloat(c.style.left), top: parseFloat(c.style.top) })));
     ok(pile.length === 3, `正解ごとに 1こ つもる（${pile.length}）`);
-    ok(pile.every((c, i) => c.left === i * 50 && Math.abs(c.top - (kbTop - 50)) < 0.5), `けんばんの上に 左から ならぶ ${JSON.stringify(pile)}`);
-    const slots = await page.evaluate(() => [keysPileSlot(25, 1280, 500), keysPileSlot(26, 1280, 500), keysPileSlot(25 + 25, 1280, 500)]);
+    ok(pile.every((c, i) => c.left === i * 32 && Math.abs(c.top - (kbTop - 32)) < 0.5), `けんばんの上に 左から ならぶ（32px）${JSON.stringify(pile)}`);
+    const slots = await page.evaluate(() => [keysPileSlot(25, 1280, 500, 50), keysPileSlot(26, 1280, 500, 50), keysPileSlot(25 + 25, 1280, 500, 50)]);
     ok(slots[0].left === 25 && Math.abs(slots[0].top - (450 - 50 * Math.sqrt(3) / 2)) < 0.01 && slots[1].left === 75,
       `画面の はしまで ならんだら 2だんめは あいだに はまる ${JSON.stringify(slots)}`);
     ok(slots[2].left === 0 && slots[2].top < slots[0].top, '3だんめは また 左はしから');
     // 指（マウス）で うごかす
-    await page.mouse.move(25, kbTop - 25); await page.mouse.down(); await page.mouse.move(300, 200, { steps: 5 }); await page.mouse.up();
+    await page.mouse.move(16, kbTop - 16); await page.mouse.down(); await page.mouse.move(300, 200, { steps: 5 }); await page.mouse.up();
     const moved = await page.$eval('.coin.keys-pile', c => ({ left: parseFloat(c.style.left), top: parseFloat(c.style.top) }));
-    ok(Math.abs(moved.left - 275) < 3 && Math.abs(moved.top - 175) < 3, `つもった ドロップを うごかせる ${JSON.stringify(moved)}`);
+    ok(Math.abs(moved.left - 284) < 3 && Math.abs(moved.top - 184) < 3, `つもった ドロップを うごかせる ${JSON.stringify(moved)}`);
     // けんばんは ふさがれない（つぎの問題も こたえられる）
     const before = await page.evaluate(() => keysLesson.run.index);
     await pressKey(page, await expected(page)); await page.waitForTimeout(1000);
@@ -308,6 +310,16 @@ async function answerAll(page) {
     await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300);
     const phone = await page.$$eval('#pianoKeyboard .tk-white-key', l => l.map(e => Number(e.dataset.midi)));
     ok(phone.length === 10 && phone.includes(60), `スマホの はばでは 10こ（${phone.length}）`);
+    // けんばんの はばの スライダー
+    ok(await page.isVisible('#pianoWidth') && Number(await page.$eval('#pianoWidth', e => e.value)) === 40, 'スライダーは いまの はば（スマホ 40px）');
+    await page.setViewportSize({ width: 1280, height: 800 }); await page.waitForTimeout(300);
+    await page.$eval('#pianoWidth', e => { e.value = 80; e.dispatchEvent(new Event('input')); }); await page.waitForTimeout(100);
+    const wide = await page.$$eval('#pianoKeyboard .tk-white-key', l => l.map(e => e.getBoundingClientRect().width));
+    ok(wide.length === 16 && Math.abs(wide[0] - 80) < 1, `はばを 80px に すると 白いけんばん 16こ（${wide.length}・${Math.round(wide[0])}px）`);
+    await page.$eval('#pianoWidth', e => { e.value = 28; e.dispatchEvent(new Event('input')); }); await page.waitForTimeout(100);
+    ok((await page.$$('#pianoKeyboard .tk-white-key')).length === 46, 'はばを 28px に すると 46こ');
+    await page.reload(); await page.waitForTimeout(500);
+    ok((await page.$$('#pianoKeyboard .tk-white-key')).length === 46 && Number(await page.$eval('#pianoWidth', e => e.value)) === 28, 'はばは おぼえている');
     await page.click('#pianoBack'); await page.waitForTimeout(300);
     ok(await page.evaluate(() => location.hash) === '#/music', '「もどる」で おんがくのへやへ');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);

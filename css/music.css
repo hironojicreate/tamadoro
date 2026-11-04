@@ -361,14 +361,19 @@ html[data-mode="keys"] .select-level-buttons button {
 }
 
 
-/* クリア・ざんねんの画面は けんばんより手前に。もらったドロップは さらに手前（計算と同じ見え方） */
+/* クリア・ざんねんの画面は けんばん・つもった ドロップより手前に。もらったドロップは さらに手前（計算と同じ見え方）
+   カードは 上のほうに（けんばんの上に つもった ドロップと かさならないように） */
 html[data-mode="keys"] #completionModal,
 html[data-mode="keys"] #mistakeModal {
-    z-index: 3;
+    z-index: 5;
+    align-items: flex-start !important;
+    padding-top: max(12px, 4vh);
+    box-sizing: border-box;
+    overflow-y: auto;
 }
 
 html[data-mode="keys"] .reward-coin {
-    z-index: 4;
+    z-index: 6;
 }
 
 /* けんばんの上に つもる ドロップ（指で けんばんの上に うごかしても 見えるように、けんばんより手前） */
@@ -584,6 +589,28 @@ html[data-mode="keys"] .reward-coin {
     background: linear-gradient(135deg, #26c6da, #0097a7);
 }
 
+/* けんばんの はばの スライダー */
+#pianoScreen .piano-width {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 12px;
+    font-size: 13px;
+    font-weight: 900;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: #4a235a;
+    background: #f3e8fd;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+    white-space: nowrap;
+}
+
+#pianoWidth {
+    width: clamp(80px, 14vw, 160px);
+    accent-color: #c56cf0;
+}
+
 #pianoNames {
     background: linear-gradient(135deg, #b2bec3, #636e72);
 }
@@ -641,8 +668,26 @@ html[data-mode="keys"] .reward-coin {
         --piano-height: clamp(140px, 40vh, 300px);
     }
 
-    /* せまい画面では、ボタンを タイトルの下へ（かさならないように） */
+    /* せまい画面では、ボタンを タイトルの下へ（かさならないように）。スライダーは その下の だん */
     #pianoScreen .piano-nav {
         top: 40px;
+        left: 10px;
+        right: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    #pianoScreen .piano-width {
+        order: 1;
+        flex-basis: 100%;
+        justify-content: center;
+    }
+
+    #pianoWidth {
+        width: 160px;
+    }
+
+    #pianoScreen .piano-stage {
+        top: 120px;
     }
 }

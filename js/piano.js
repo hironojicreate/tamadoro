@@ -1,13 +1,22 @@
 // じゆうにひこう（#/piano）：音が鳴る けんばんで、すきなように ひいて あそぶ（ドロップは なし）
 //   けんばんは 画面の 左はしから 右はしまで。画面の はばに合わせて 数がかわる（まんなかの ドの あたりを 中心に）
 //   「音名かくにん」を ON にすると、さわった けんばんの 名前が出る（ON／OFF は この端末に おぼえておく）
+//   「けんばんの はば」の スライダーで、白いけんばん 1この はばを かえられる（この端末に おぼえておく。
+//   うごかすまでは 画面の はばに合わせた めやす）
 
 const TamaPiano = {
     NAMES_KEY: 'tamadoro.piano.names',
+    WIDTH_KEY: 'tamadoro.piano.keyWidth',
     keyboard: null,
 
-    // 白いけんばん 1この はば（px）の めやす。指で おしやすい はば
+    // 白いけんばん 1この はば（px）。スライダーで えらんだ はば、なければ 指で おしやすい めやす
     keyWidth(width) {
+        const chosen = TamaStore.readJSON(this.WIDTH_KEY, null);
+        if (typeof chosen === 'number' && chosen > 0) return chosen;
+        return this.autoKeyWidth(width);
+    },
+
+    autoKeyWidth(width) {
         if (width < 600) return 40;
         if (width < 1000) return 50;
         return 56;
@@ -16,7 +25,7 @@ const TamaPiano = {
     // 画面の はば → 見せる けんばん [from, to]（ピアノの 88けん の中で、まんなかの ドの あたりを 中心に）
     range(width) {
         const whites = TamaNotes.whiteKeys(21, 108); // ラ〜ド（ピアノ 88けん の 白いけんばん 52こ）
-        const count = Math.max(7, Math.min(whites.length, Math.round(width / this.keyWidth(width))));
+        const count = Math.max(5, Math.min(whites.length, Math.round(width / this.keyWidth(width))));
         const center = whites.indexOf(65); // ファ（まんなかの ド〜たかいドの まんなか あたり）
         const start = Math.max(0, Math.min(whites.length - count, center - Math.floor(count / 2)));
         return [whites[start], whites[start + count - 1]];
@@ -38,8 +47,18 @@ const TamaPiano = {
         this.render();
     },
 
+    width() {
+        return document.getElementById('pianoKeyboard').clientWidth || window.innerWidth;
+    },
+
+    setKeyWidth(px) {
+        TamaStore.writeJSON(this.WIDTH_KEY, px);
+        this.render();
+    },
+
     render() {
-        const [from, to] = this.range(document.getElementById('pianoKeyboard').clientWidth || window.innerWidth);
+        const [from, to] = this.range(this.width());
+        document.getElementById('pianoWidth').value = this.keyWidth(this.width()); // スライダーも いまの はばに
         this.keyboard.render({ from, to });
     },
 
@@ -86,6 +105,7 @@ const TamaPiano = {
 };
 
 document.getElementById('pianoNames').addEventListener('click', () => TamaPiano.toggleNames());
+document.getElementById('pianoWidth').addEventListener('input', event => TamaPiano.setKeyWidth(Number(event.target.value)));
 
 // 画面の むき・大きさが かわったら、けんばんの数を つくりなおす
 window.addEventListener('resize', () => {

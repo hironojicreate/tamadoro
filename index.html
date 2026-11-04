@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.35</span>
+                <span id="version">Ver.6.3.36</span>
             </p>
         </footer>
     </div>
@@ -1181,6 +1181,10 @@
         </svg>
         <h1 class="page-title">じゆうにひこう</h1>
         <div class="piano-nav">
+            <!-- けんばんの はば（白いけんばん 1この はば。js/piano.js） -->
+            <label class="piano-width">けんばんの はば
+                <input type="range" id="pianoWidth" min="28" max="100" step="2" aria-label="けんばんの はば">
+            </label>
             <button id="pianoNames" aria-pressed="false">音名かくにん：OFF</button>
             <button id="pianoBack" onclick="location.hash = '#/music'">もどる</button>
         </div>
