@@ -930,7 +930,9 @@ async function captureScreenshot() {
     try {
         // 音声を再生（タップの直後に鳴らさないと、iPad などでは鳴らないことがある）
         audio.currentTime = 0; // 再生位置をリセット
-        audio.play();
+        if (!TamaSound.muted) {
+            audio.play(); // 「おとを けす」にしているときは鳴らさない（js/sound.js）
+        }
         await loadHtml2canvas();
         // キャプチャ対象（画面全体の場合はbodyを指定）
         const targetElement = document.body;

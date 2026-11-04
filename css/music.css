@@ -1,0 +1,814 @@
+/* =========================================================
+   おんがく：おんがくのへや（#/music）・けんばん（#/keys）
+   見た目は さいしょの画面・レベル選択・問題の画面に そろえる
+   ========================================================= */
+
+/* ---------- さいしょの画面の「おんがくのへや」ボタン（ほかのボタンと同じ） ---------- */
+
+#homeScreen #homeMusic {
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 360 / 110;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s;
+    align-items: center;
+    justify-content: center;
+}
+
+#homeScreen #homeMusic svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    display: block;
+}
+
+#homeScreen #homeMusic:hover {
+    transform: scale(1.1) translateY(-3px);
+    filter: brightness(1.06) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.15));
+}
+
+#homeScreen #homeMusic:active {
+    transform: scale(0.95);
+}
+
+
+/* ---------- おんがくのへや ---------- */
+
+html[data-mode="music"] body {
+    /* さいしょの画面と同じ 宇宙のキラキラ背景 */
+    background-image: url('../img/bg_space.svg');
+    background-size: cover;
+    background-position: center;
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    color: #333;
+}
+
+#musicScreen {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* 水色の枠と水面ボード（さいしょの画面と同じ） */
+#musicScreen .music-board {
+    position: absolute;
+    top: 14vh;
+    left: 1.5vw;
+    right: 1.5vw;
+    bottom: 2.5vh;
+    border: 14px solid #57c1e8;
+    background-image: url('../img/board_water.svg');
+    background-size: 100% 100%;
+    box-sizing: border-box;
+    z-index: 0;
+}
+
+/* タマとタイトル（レベル選択の画面と同じ置きかた） */
+#musicScreen .music-header-logo {
+    position: absolute;
+    top: calc(14vh - clamp(52px, 8.2vw, 96px));
+    left: 48%;
+    transform: translateX(-50%);
+    width: clamp(540px, 86vw, 1020px);
+    z-index: 2;
+    pointer-events: none;
+}
+
+#musicScreen .music-header-logo svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+}
+
+/* レッスンのボタン（3列） */
+#musicScreen .music-menu {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(86vw, 1000px);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: clamp(12px, 3vw, 40px);
+    row-gap: clamp(10px, 3vh, 30px);
+    justify-items: center;
+    align-items: start;
+    z-index: 3;
+}
+
+#musicScreen .music-lesson {
+    width: 100%;
+    max-width: 300px;
+    aspect-ratio: 360 / 150;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s;
+}
+
+#musicScreen .music-lesson svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    display: block;
+}
+
+#musicScreen .music-lesson:not(:disabled):hover {
+    transform: scale(1.08) translateY(-3px);
+    filter: brightness(1.06) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.15));
+}
+
+#musicScreen .music-lesson:not(:disabled):active {
+    transform: scale(0.95);
+}
+
+/* まだ ひらいていない レッスン（くろいけんばん） */
+#musicScreen .music-lesson {
+    position: relative;
+}
+
+.music-lock {
+    display: none;
+}
+
+#musicScreen .music-lesson.locked svg {
+    filter: grayscale(1);
+    opacity: 0.45;
+}
+
+#musicScreen .music-lesson.locked .music-lock {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 34%;
+    transform: translateX(-50%);
+    width: 90%;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(10px, 1.4vw, 14px);
+    color: #57606f;
+}
+
+/* じゅんびちゅうのレッスン（おんぷよみ・リズム） */
+#musicScreen .music-lesson.coming {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 3px dashed #a9cce3;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.55);
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    color: #8395a7;
+    cursor: default;
+}
+
+.music-coming-icon {
+    font-size: clamp(18px, 3vw, 30px);
+}
+
+.music-coming-name {
+    font-size: clamp(16px, 2.6vw, 28px);
+}
+
+.music-coming-note {
+    font-size: clamp(11px, 1.4vw, 14px);
+    padding: 1px 10px;
+    border-radius: 999px;
+    background: #dfe6e9;
+    color: #636e72;
+}
+
+/* 右上：おと あり／なし・もどる（レベル選択の「もどる」と同じ カプセル） */
+#musicScreen .music-nav {
+    position: fixed;
+    top: 10px;
+    right: 14px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+}
+
+#musicScreen .music-nav button {
+    padding: 5px 14px;
+    font-size: 14px;
+    font-weight: 900;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+#musicBack {
+    background: linear-gradient(135deg, #26c6da, #0097a7);
+}
+
+#musicSound {
+    background: linear-gradient(135deg, #c56cf0, #6c5ce7);
+}
+
+#musicSound.off {
+    background: linear-gradient(135deg, #b2bec3, #636e72);
+}
+
+#musicScreen .music-nav button:hover {
+    transform: scale(1.06);
+    filter: brightness(1.08);
+}
+
+#musicScreen .music-nav button:active {
+    transform: scale(0.95);
+}
+
+
+/* ---------- けんばん：レベル選択 ---------- */
+
+html[data-mode="keys"] #openingScreen .title-keys,
+html[data-mode="black"] #openingScreen .title-black {
+    display: inline;
+}
+
+html[data-mode="keys"] #openingScreen .opening-board {
+    border-color: #c39bd3; /* けんばんは ラベンダーの枠 */
+}
+
+html[data-mode="black"] #openingScreen .opening-board {
+    border-color: #57606f; /* くろいけんばんは グレーの枠 */
+}
+
+html[data-mode="keys"] .select-level-buttons button {
+    background-color: #ecdcfa;
+    border-color: #6c3483;
+    color: #4a235a;
+}
+
+html[data-mode="black"] .select-level-buttons button {
+    background-color: #2f3640;
+    border-color: #a29bfe;
+    color: #ffffff;
+}
+
+
+/* ---------- けんばん：問題の画面 ---------- */
+
+#keysScreen {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #fff;
+}
+
+/* カード・メッセージ（けんばんの上の あいたところの まんなか） */
+#keysScreen .keys-stage {
+    position: absolute;
+    top: 6vh;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--keys-height) + 64px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1vh;
+    pointer-events: none;
+}
+
+#keysScreen {
+    --keys-height: clamp(130px, 40vh, 320px);
+}
+
+.keys-cards {
+    display: flex;
+    gap: clamp(6px, 1.6vw, 18px);
+    align-items: center;
+    justify-content: center;
+}
+
+/* 音の名前のカード（計算の「？」カードと同じ 白いカード） */
+.keys-card {
+    width: min(26vh, 30vw);
+    aspect-ratio: 160 / 130;
+    background: #fff;
+    border: 1px solid grey;
+    border-radius: 10px;
+    padding: 4px;
+    box-sizing: border-box;
+    transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+
+.keys-cards.phrase .keys-card {
+    width: min(17vh, 21vw);
+    opacity: 0.55;
+}
+
+.keys-cards.phrase .keys-card.current {
+    opacity: 1;
+    transform: scale(1.08);
+    border: 3px solid #c56cf0;
+    box-shadow: 0 0 14px rgba(197, 108, 240, 0.45);
+}
+
+.keys-cards.phrase .keys-card.done {
+    opacity: 1;
+    background: #eafaf1;
+    border-color: #27ae60;
+}
+
+.keys-name {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+}
+
+/* 正解：カードが ぽんと はねる */
+.keys-cards.solved .keys-card {
+    animation: keys-card-pop 0.6s ease;
+}
+
+@keyframes keys-card-pop {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.18) rotate(-3deg); }
+    100% { transform: scale(1); }
+}
+
+.keys-message {
+    margin: 0;
+    min-height: 1.4em;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(16px, 2.6vh, 24px);
+    color: #6c5ce7;
+    text-align: center;
+}
+
+.keys-hint {
+    margin: 0;
+    min-height: 1.2em;
+    padding: 0 12px;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 700;
+    font-size: clamp(12px, 1.9vh, 16px);
+    color: #636e72;
+    text-align: center;
+}
+
+/* くろいけんばん Lv4：「ド♯ ＝ ？♭」 */
+.keys-equal {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(28px, 6vh, 56px);
+    color: #636e72;
+}
+
+.keys-cards.enharmonic .keys-card {
+    width: min(20vh, 26vw);
+}
+
+/* こたえの ボタン（ド♭〜シ♭ など） */
+.keys-answers {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(4px, 1vw, 10px);
+    pointer-events: auto;
+}
+
+.keys-answers:empty {
+    display: none;
+}
+
+.keys-answer {
+    min-width: clamp(52px, 9vw, 84px);
+    padding: 6px 10px;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(18px, 3vh, 28px);
+    background: #fff;
+    border: 3px solid #d9d2fb;
+    border-radius: 16px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.keys-answer:active {
+    transform: scale(0.92);
+}
+
+.keys-answer.ok {
+    background: #a3e4b8;
+    border-color: #27ae60;
+}
+
+.keys-answer.ng {
+    animation: tk-ng 0.45s ease;
+    border-color: #ff7675;
+}
+
+/* おとあそび：10この ♪ が ひとつずつ ともる */
+.keys-free-notes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(2px, 1vw, 10px);
+    font-size: clamp(28px, 7vh, 60px);
+    color: #dfe6e9;
+}
+
+.keys-free-note.on {
+    color: #c56cf0;
+    animation: keys-card-pop 0.4s ease;
+}
+
+/* けんばんの場所（下に「はじめにもどる」のぶん あける） */
+#keysScreen .keys-keyboard {
+    position: absolute;
+    z-index: 2; /* 投げたドロップ（.coin、z-index 1）は けんばんの うしろに おちる（けんばんを ふさがない） */
+    left: 50%;
+    bottom: 56px;
+    transform: translateX(-50%);
+    width: min(96vw, 1100px);
+    height: var(--keys-height);
+}
+
+
+/* クリア・ざんねんの画面は けんばん・つもった ドロップより手前に。もらったドロップは さらに手前（計算と同じ見え方）
+   カードは 上のほうに（けんばんの上に つもった ドロップと かさならないように） */
+html[data-mode="keys"] #completionModal,
+html[data-mode="keys"] #mistakeModal,
+html[data-mode="black"] #completionModal,
+html[data-mode="black"] #mistakeModal {
+    z-index: 5;
+    align-items: flex-start !important;
+    padding-top: max(12px, 4vh);
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+html[data-mode="keys"] .reward-coin,
+html[data-mode="black"] .reward-coin {
+    z-index: 6;
+}
+
+/* けんばんの上に つもる ドロップ（指で けんばんの上に うごかしても 見えるように、けんばんより手前） */
+.coin.keys-pile {
+    z-index: 3;
+    touch-action: none;
+}
+
+
+/* ---------- けんばんの部品（js/keyboard.js） ---------- */
+
+.tk {
+    position: relative;
+    touch-action: none;             /* 指で おしても、スクロール・ズームしない */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tk-key {
+    position: absolute;
+    top: 0;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+/* 白いけんばん：つやのある ぷっくり */
+.tk-white-key {
+    height: 100%;
+    border: 2px solid #4a235a;
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #ffffff 75%, #eef2f7 100%);
+    box-shadow: inset 0 -6px 0 rgba(74, 35, 90, 0.12), 0 3px 4px rgba(0, 0, 0, 0.15);
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 10%;
+}
+
+.tk-white-key + .tk-white-key {
+    border-left-width: 1px;
+}
+
+/* 黒いけんばん */
+.tk-black-key {
+    height: 60%;
+    border-radius: 0 0 8px 8px;
+    background: linear-gradient(180deg, #2d3436 0%, #1e272e 80%, #485460 100%);
+    box-shadow: inset 0 -5px 0 rgba(255, 255, 255, 0.12), 0 3px 4px rgba(0, 0, 0, 0.35);
+    z-index: 2;
+}
+
+/* おしているあいだ */
+.tk-white-key.tk-down {
+    background: linear-gradient(180deg, #f1f2f6 0%, #e4e8ef 100%);
+    box-shadow: inset 0 -2px 0 rgba(74, 35, 90, 0.12);
+}
+
+.tk-black-key.tk-down {
+    background: linear-gradient(180deg, #1e272e 0%, #2d3436 100%);
+    box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* そのレベルで使わない けんばん（おせば鳴るけれど、こたえには ならない） */
+.tk-white-key.tk-dim {
+    background: linear-gradient(180deg, #d5dbe3 0%, #c8cfd9 100%);
+}
+
+.tk-black-key.tk-dim {
+    background: linear-gradient(180deg, #57606f 0%, #485460 100%);
+}
+
+/* 正解・まちがい */
+.tk-white-key.tk-ok {
+    animation: tk-ok-white 0.45s ease;
+}
+
+.tk-black-key.tk-ok {
+    animation: tk-ok-black 0.45s ease;
+}
+
+.tk-key.tk-ng {
+    animation: tk-ng 0.45s ease;
+}
+
+@keyframes tk-ok-white {
+    0%, 60% { background: #a3e4b8; }
+    100% { background: #fff; }
+}
+
+@keyframes tk-ok-black {
+    0%, 60% { background: #27ae60; }
+    100% { background: #2d3436; }
+}
+
+@keyframes tk-ng {
+    0%, 60% { background: #ffb3b3; }
+    20% { transform: translateX(-3px); }
+    40% { transform: translateX(3px); }
+    100% { transform: translateX(0); }
+}
+
+/* けんばんの 名前（ド・レ・ミ …） */
+.tk-label {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(13px, 2.4vw, 26px);
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+}
+
+/* ♯・♭ の ガイド：もとの音を 光らせて 矢印 */
+.tk-white-key.tk-guide {
+    background: linear-gradient(180deg, #fff9c4 0%, #ffe082 100%);
+    box-shadow: inset 0 0 0 3px #ffb300, 0 3px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tk-arrow {
+    position: absolute;
+    top: 64%;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(22px, 3.6vw, 40px);
+    line-height: 1;
+    color: #e67e22;
+    text-shadow: 0 0 4px #fff, 0 0 4px #fff;
+    pointer-events: none;
+    animation: tk-arrow 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes tk-arrow {
+    from { transform: translateX(-4px); }
+    to { transform: translateX(4px); }
+}
+
+/* まほうで 名前が きえる */
+.tk-label.tk-vanish {
+    animation: tk-vanish 0.9s ease forwards;
+}
+
+@keyframes tk-vanish {
+    0% { transform: scale(1); opacity: 1; filter: blur(0); }
+    40% { transform: scale(1.5) rotate(-10deg); opacity: 1; }
+    100% { transform: scale(0.2) translateY(-40px); opacity: 0; filter: blur(4px); }
+}
+
+.tk-sparkle {
+    position: absolute;
+    bottom: 12%;
+    font-size: clamp(16px, 3vw, 30px);
+    pointer-events: none;
+    animation: tk-sparkle 1s ease forwards;
+}
+
+@keyframes tk-sparkle {
+    0% { transform: scale(0.3); opacity: 0; }
+    30% { transform: scale(1.4) rotate(20deg); opacity: 1; }
+    100% { transform: scale(0.8) translateY(-50px) rotate(60deg); opacity: 0; }
+}
+
+/* けんばんの上の ふきだし（おした音の名前） */
+.tk-balloon {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    transform: translateX(-50%);
+    padding: 0.35em 0.9em;
+    background: #fffcd2;
+    border: 3px solid #d9d2fb;
+    border-radius: 1.2em;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(14px, 2.6vh, 24px);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
+    filter: drop-shadow(3px 3px 4px rgba(0, 0, 0, 0.25));
+    animation: tk-balloon 1.1s ease forwards;
+}
+
+@keyframes tk-balloon {
+    0% { opacity: 0; transform: translate(-50%, 10px) scale(0.7); }
+    15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    75% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -12px); }
+}
+
+/* スマホのたて画面：けんばんを すこし ひくく */
+@media (max-width: 600px) {
+    #keysScreen {
+        --keys-height: clamp(120px, 30vh, 220px);
+    }
+}
+
+
+/* ---------- じゆうにひこう（#/piano） ---------- */
+
+#pianoScreen {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #fff;
+    --piano-height: clamp(150px, 52vh, 420px);
+}
+
+/* 右上：音名かくにん・もどる（おんがくのへやと同じ カプセル） */
+#pianoScreen .piano-nav {
+    position: fixed;
+    top: 10px;
+    right: 14px;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+}
+
+#pianoScreen .piano-nav button {
+    padding: 6px 14px;
+    font-size: 15px;
+    font-weight: 900;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+#pianoBack {
+    background: linear-gradient(135deg, #26c6da, #0097a7);
+}
+
+/* けんばんの はばの スライダー */
+#pianoScreen .piano-width {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 12px;
+    font-size: 13px;
+    font-weight: 900;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: #4a235a;
+    background: #f3e8fd;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+    white-space: nowrap;
+}
+
+#pianoWidth {
+    width: clamp(80px, 14vw, 160px);
+    accent-color: #c56cf0;
+}
+
+#pianoNames {
+    background: linear-gradient(135deg, #b2bec3, #636e72);
+}
+
+#pianoNames.on {
+    background: linear-gradient(135deg, #c56cf0, #6c5ce7);
+}
+
+#pianoScreen .piano-nav button:hover {
+    transform: scale(1.06);
+    filter: brightness(1.08);
+}
+
+#pianoScreen .piano-nav button:active {
+    transform: scale(0.95);
+}
+
+/* さわった音の 名前（音名かくにん ON のとき） */
+#pianoScreen .piano-stage {
+    position: absolute;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--piano-height) + 44px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.piano-name {
+    height: min(28vh, 100%);
+    max-width: 90vw;
+}
+
+.piano-name-svg {
+    height: 100%;
+    max-width: 90vw;
+    display: block;
+    overflow: visible;
+    animation: keys-card-pop 0.35s ease;
+}
+
+/* けんばん：画面の 左はしから 右はしまで */
+#pianoScreen .piano-keyboard {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    height: var(--piano-height);
+}
+
+@media (max-width: 600px) {
+    #pianoScreen {
+        --piano-height: clamp(140px, 40vh, 300px);
+    }
+
+    /* せまい画面では、ボタンを タイトルの下へ（かさならないように）。スライダーは その下の だん */
+    #pianoScreen .piano-nav {
+        top: 40px;
+        left: 10px;
+        right: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    #pianoScreen .piano-width {
+        order: 1;
+        flex-basis: 100%;
+        justify-content: center;
+    }
+
+    #pianoWidth {
+        width: 160px;
+    }
+
+    #pianoScreen .piano-stage {
+        top: 120px;
+    }
+}

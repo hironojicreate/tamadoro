@@ -7,7 +7,8 @@ function switchLevel(level, title) {
     }
     // 指定されたレベルで問題を開始
     currentEngine().start(level);
-    document.getElementById('keypadScreen').style.display = 'block';
+    // テンキーを使わないエンジン（けんばん）では、テンキーを出さない
+    document.getElementById('keypadScreen').style.display = currentEngine().keypad === false ? 'none' : 'block';
     document.getElementById(currentEngine().screenId).style.display = 'block';
     document.getElementById('openingScreen').style.display = 'none';
     document.querySelector(`#${currentEngine().screenId} .page-title`).textContent = title;
@@ -16,6 +17,9 @@ function switchLevel(level, title) {
 function returnMenu() {
     if (currentMode.onReturnMenu) {
         currentMode.onReturnMenu();
+    }
+    if (currentEngine().stop) {
+        currentEngine().stop();
     }
     scatterCoins(); // 問題画面のコインを散らばせる
     clearCoinsOnDOM();
