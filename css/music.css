@@ -800,12 +800,17 @@ html[data-mode="rhythm"] .reward-coin {
     accent-color: #c56cf0;
 }
 
-#pianoNames {
+#pianoNames,
+#pianoSing {
     background: linear-gradient(135deg, #b2bec3, #636e72);
 }
 
 #pianoNames.on {
     background: linear-gradient(135deg, #c56cf0, #6c5ce7);
+}
+
+#pianoSing.on {
+    background: linear-gradient(135deg, #ff9ff3, #f368e0);
 }
 
 #pianoScreen .piano-nav button:hover {
@@ -864,6 +869,12 @@ html[data-mode="rhythm"] .reward-coin {
         right: 10px;
         flex-wrap: wrap;
         justify-content: flex-end;
+    }
+
+    /* ボタン 3つが 1だんに ならぶように、すこし 小さく */
+    #pianoScreen .piano-nav button {
+        padding: 5px 10px;
+        font-size: 13px;
     }
 
     #pianoScreen .piano-width {

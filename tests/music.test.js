@@ -325,6 +325,43 @@ async function answerAll(page) {
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
+  // 7e. じゆうにひこう：うたう（ドを ひくと「どー」。js/sing.js）
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/piano', MUSIC_ON);
+    ok((await page.textContent('#pianoSing')) === 'うたう：OFF', 'さいしょは うたう OFF');
+    await page.evaluate(() => {
+      window.sung = [];
+      const voice = TamaSing.voice.bind(TamaSing);
+      TamaSing.voice = (midi, o) => { window.sung.push(midi); return voice(midi, o); };
+    });
+    await page.click('#pianoKeyboard .tk-key[data-midi="60"]'); await page.waitForTimeout(100);
+    ok((await page.evaluate(() => window.sung.length)) === 0, 'OFF のときは うたわない');
+    await page.click('#pianoSing'); await page.waitForTimeout(100);
+    ok((await page.textContent('#pianoSing')) === 'うたう：ON', '押すと ON');
+    for (const midi of [60, 62, 64, 65, 67, 69, 71, 72, 61]) { await page.click(`#pianoKeyboard .tk-key[data-midi="${midi}"]`); await page.waitForTimeout(40); }
+    ok(JSON.stringify(await page.evaluate(() => window.sung)) === '[60,62,64,65,67,69,71,72]', '白いけんばんで うたう（黒いけんばんは ピアノだけ）');
+    ok(JSON.stringify(await page.evaluate(() => [60, 62, 64, 65, 67, 69, 71, 61].map(m => TamaSing.syllableOf(m)))) === '["ど","れ","み","ふぁ","そ","ら","し",null]', 'ことばは ど・れ・み・ふぁ・そ・ら・し');
+    // 声の高さは けんばんと 同じ（のばしている ところの 周期を はかる）
+    const cents = await page.evaluate(() => [48, 60, 67, 72, 84].map(midi => {
+      const rate = TamaSing.RATE;
+      const b = TamaSing.render(midi, rate);
+      const from = Math.round(rate * 0.3), len = 2048;
+      const r = []; let e0 = 0; for (let i = from; i < from + len; i++) e0 += b[i] * b[i];
+      for (let lag = 0; lag < 1200; lag++) { let s = 0; for (let i = from; i < from + len; i++) s += b[i] * b[i + lag]; r[lag] = s / e0; }
+      let lag = 5; while (r[lag] > 0.3) lag++;
+      for (; lag < 1199; lag++) if (r[lag] > 0.8 && r[lag] >= r[lag - 1] && r[lag] >= r[lag + 1]) break;
+      const exact = lag + (r[lag - 1] - r[lag + 1]) / (2 * (r[lag - 1] - 2 * r[lag] + r[lag + 1]));
+      const want = 440 * Math.pow(2, (midi - 69) / 12);
+      return Math.round(1200 * Math.log2(rate / exact / want));
+    }));
+    ok(cents.every(c => Math.abs(c) <= 5), `声の高さは けんばんと 同じ（ずれ ${cents.join('・')} セント）`);
+    await page.waitForTimeout(800);
+    ok((await page.evaluate(() => TamaSing.cache.size)) >= 20, '見えている 白いけんばんの 声は さきに つくっておく');
+    await page.reload(); await page.waitForTimeout(500);
+    ok((await page.textContent('#pianoSing')) === 'うたう：ON', 'ON は おぼえている');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
   {
     const { page } = await openPage(browser, 'index.html#/piano');
     ok(await page.isVisible('#homeScreen') && !(await page.isVisible('#pianoScreen')), 'OFF のときは #/piano を開いても さいしょの画面');
