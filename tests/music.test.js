@@ -332,19 +332,19 @@ async function answerAll(page) {
     await page.evaluate(() => {
       window.sung = [];
       const voice = TamaSing.voice.bind(TamaSing);
-      TamaSing.voice = (midi, o) => { window.sung.push(midi); return voice(midi, o); };
+      TamaSing.voice = (midi, o) => { window.sung.push(o && o.kind === 'cat' ? `cat${midi}` : midi); return voice(midi, o); };
     });
     await page.click('#pianoKeyboard .tk-key[data-midi="60"]'); await page.waitForTimeout(100);
     ok((await page.evaluate(() => window.sung.length)) === 0, 'OFF のときは うたわない');
     await page.click('#pianoSing'); await page.waitForTimeout(100);
-    ok((await page.textContent('#pianoSing')) === 'うたう：ON', '押すと ON');
+    ok((await page.textContent('#pianoSing')) === 'うたう：ドレミ', '押すと ドレミ');
     for (const midi of [60, 62, 64, 65, 67, 69, 71, 72, 61]) { await page.click(`#pianoKeyboard .tk-key[data-midi="${midi}"]`); await page.waitForTimeout(40); }
     ok(JSON.stringify(await page.evaluate(() => window.sung)) === '[60,62,64,65,67,69,71,72]', '白いけんばんで うたう（黒いけんばんは ピアノだけ）');
     ok(JSON.stringify(await page.evaluate(() => [60, 62, 64, 65, 67, 69, 71, 61].map(m => TamaSing.syllableOf(m)))) === '["ど","れ","み","ふぁ","そ","ら","し",null]', 'ことばは ど・れ・み・ふぁ・そ・ら・し');
     // 声の高さは けんばんと 同じ（のばしている ところの 周期を はかる）
-    const cents = await page.evaluate(() => [48, 60, 67, 72, 84].map(midi => {
+    const pitchCents = kind => page.evaluate(kind => [48, 60, 67, 72, 84].map(midi => {
       const rate = TamaSing.RATE;
-      const b = TamaSing.render(midi, rate);
+      const b = TamaSing.render(midi, rate, kind);
       const from = Math.round(rate * 0.3), len = 2048;
       const r = []; let e0 = 0; for (let i = from; i < from + len; i++) e0 += b[i] * b[i];
       for (let lag = 0; lag < 1200; lag++) { let s = 0; for (let i = from; i < from + len; i++) s += b[i] * b[i + lag]; r[lag] = s / e0; }
@@ -353,12 +353,30 @@ async function answerAll(page) {
       const exact = lag + (r[lag - 1] - r[lag + 1]) / (2 * (r[lag - 1] - 2 * r[lag] + r[lag + 1]));
       const want = 440 * Math.pow(2, (midi - 69) / 12);
       return Math.round(1200 * Math.log2(rate / exact / want));
-    }));
+    }), kind);
+    const cents = await pitchCents('doremi');
     ok(cents.every(c => Math.abs(c) <= 5), `声の高さは けんばんと 同じ（ずれ ${cents.join('・')} セント）`);
     await page.waitForTimeout(800);
     ok((await page.evaluate(() => TamaSing.cache.size)) >= 20, '見えている 白いけんばんの 声は さきに つくっておく');
     await page.reload(); await page.waitForTimeout(500);
-    ok((await page.textContent('#pianoSing')) === 'うたう：ON', 'ON は おぼえている');
+    ok((await page.textContent('#pianoSing')) === 'うたう：ドレミ', 'ドレミ は おぼえている');
+    // ネコの「ニャー」
+    await page.click('#pianoSing'); await page.waitForTimeout(100);
+    ok((await page.textContent('#pianoSing')) === 'うたう：ニャー' && await page.$eval('#pianoSing', e => e.classList.contains('cat')), 'もう1回 押すと ニャー');
+    await page.evaluate(() => {
+      window.sung = [];
+      const voice = TamaSing.voice.bind(TamaSing);
+      TamaSing.voice = (midi, o) => { window.sung.push(o && o.kind === 'cat' ? `cat${midi}` : midi); return voice(midi, o); };
+    });
+    for (const midi of [60, 61, 62]) { await page.click(`#pianoKeyboard .tk-key[data-midi="${midi}"]`); await page.waitForTimeout(40); }
+    ok(JSON.stringify(await page.evaluate(() => window.sung)) === '["cat60","cat61","cat62"]', 'ネコは 黒いけんばんでも なく');
+    const catCents = await pitchCents('cat');
+    ok(catCents.every(c => Math.abs(c) <= 5), `ニャーの 高さも けんばんと 同じ（ずれ ${catCents.join('・')} セント）`);
+    ok(await page.evaluate(() => { const a = TamaSing.render(60, 24000, 'doremi'), b = TamaSing.render(60, 24000, 'cat'); return a.some((x, i) => x !== b[i]); }), 'ドレミ と ニャー は ちがう声');
+    await page.reload(); await page.waitForTimeout(500);
+    ok((await page.textContent('#pianoSing')) === 'うたう：ニャー', 'ニャー も おぼえている');
+    await page.click('#pianoSing'); await page.waitForTimeout(100);
+    ok((await page.textContent('#pianoSing')) === 'うたう：OFF', 'もう1回 押すと OFF にもどる');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }

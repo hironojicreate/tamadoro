@@ -1,16 +1,22 @@
 // うたう けんばん（ためしに つくったもの）：ドを ひくと「どー」と、その高さで うたう
+//   声は 2しゅるい
+//     'doremi'：ドを ひくと「どー」、レなら「れー」…（黒いけんばんは うたわない）
+//     'cat'   ：ネコの タマが「ニャー」と、ひいた 高さで なく（黒いけんばんでも なく）
 //   声は 録音ではなく、その場で つくる（フォルマント合成）
 //     ・のどの音（ブザーのような音）を、ひいた けんばんの 高さで つくる → 音程は ピアノと ぴったり同じ
 //     ・それを「口の形」のフィルター（フォルマント）に通すと「お」「え」「い」「あ」の声になる
 //     ・「ど」「れ」「み」「ふぁ」「そ」「ら」「し」の はじめの音（子音）は、
 //       息の音（ノイズ）と、口の形の すばやい うつりかわりで つくる
 //       （「ふぁ」「そ」「し」の かすれる 息の音は、ごく わずかに。大きいと 耳ざわり）
-//   黒いけんばんは うたわない（ピアノの音だけ）
+//     ・ネコは 小さな口の形（フォルマントを 高めに）で、はなに かかった「ン」→「ニャ」→「アー」。
+//       なきはじめに 下から すこし すくい上げ、のばすうちに すこし 口を すぼめる（ほんのり「ニャーォ」）。
+//       のばしている ところの 音程は ピアノと 同じ
 //
-//   TamaSing.voice(midi)            うたう。返り値の release() で はなす（すこし のこって 消える）
-//   TamaSing.prepare([60, 62, …])   声を さきに つくっておく（はじめて おしたときに おくれないように）
-//   TamaSing.render(midi, rate)     声の波形（Float32Array）をつくるだけ（鳴らさない）
-//   TamaSing.syllableOf(midi)       うたう ことば（'ど' など。黒いけんばんは null）
+//   TamaSing.voice(midi, { kind })          うたう。返り値の release() で はなす（すこし のこって 消える）
+//   TamaSing.prepare([60, 62, …], kind)     声を さきに つくっておく（はじめて おしたときに おくれないように）
+//   TamaSing.render(midi, rate, kind)       声の波形（Float32Array）をつくるだけ（鳴らさない）
+//   TamaSing.canSing(midi, kind)            その けんばんで うたうか
+//   TamaSing.syllableOf(midi)               うたう ことば（'ど' など。黒いけんばんは null）
 
 const TamaSing = {
     LENGTH: 2.6,    // 1回の声の ながさ（秒）。おしつづけても ここで おわる
@@ -30,6 +36,22 @@ const TamaSing = {
         o: { f1: 520, f2: 880, f3: 2850, f4: 4000 },
     },
 
+    // ネコの 口の形（小さな口なので、ひとの「あ」より 高め）
+    CAT_A: { f1: 1150, f2: 1950, f3: 3700, f4: 5000 },
+
+    // 声の しゅるいごとの ちがい
+    //   breath：声に まぜる 息の音（ネコは すこし 多めで やわらかく）
+    //   vibrato：[はじまる 秒, ゆれの 大きさ（半音）, 1秒に ゆれる 回数]
+    KINDS: {
+        doremi: { breath: 0.06, vibrato: [0.45, 0.15, 5.3] },
+        cat: { breath: 0.13, vibrato: [0.35, 0.12, 6.2] },
+    },
+
+    canSing(midi, kind = 'doremi') {
+        if (kind === 'cat') return true;
+        return !!this.syllableOf(midi);
+    },
+
     // ド〜シ（step 0〜6）の ことば
     SYLLABLES: ['ど', 'れ', 'み', 'ふぁ', 'そ', 'ら', 'し'],
 
@@ -41,6 +63,7 @@ const TamaSing = {
     // ことば → 時間ごとの 声の ようす（キーフレーム）。あいだは なめらかに つなぐ
     //   t：秒　av：声の大きさ　an：息の音の大きさ　nf・nb：息の音の 高さ・はば（Hz）
     //   f1〜f4：口の形　b1〜b3：口の形の ぼやけぐあい（大きいほど こもった音）
+    //   pt：音の高さの ずれ（半音。ネコの すくい上げ。かかないときは 0）
     script(syllable) {
         const V = this.VOWELS;
         const open = { av: 1, an: 0, b1: 80, b2: 100, b3: 150 };
@@ -113,10 +136,30 @@ const TamaSing = {
         }
     },
 
+    // ネコの「ニャー」
+    catScript() {
+        const A = this.CAT_A;
+        return [
+            // はなに かかった「ン」（口は とじぎみ）。音は すこし 下から
+            { t: 0, av: 0, an: 0, pt: -2.5, f1: 300, f2: 2200, f3: 3300, f4: 4600, b1: 120, b2: 500, b3: 800, nf: 3000, nb: 2000 },
+            { t: 0.012, av: 0.35 },
+            { t: 0.055, av: 0.35, pt: -1.8 },
+            // 「ニャ」：舌を 上あごに ちかづけた「イ」の 口から、ゆっくり「ア」へ
+            { t: 0.075, av: 0.85, pt: -1.2, f1: 450, f2: 2900, f3: 3600, b1: 80, b2: 110, b3: 160 },
+            { t: 0.17, av: 1, pt: 0, ...A, b1: 90, b2: 110, b3: 160 },
+            // 「アー」：のばすうちに すこし 口を すぼめる（ほんのり「ニャーォ」）
+            { t: 0.5, ...A },
+            { t: 1.3, f1: 850, f2: 1500, f3: 3400, f4: 4800 },
+            // おわりは すこし 音を 下げて 小さく
+            { t: this.FADE_FROM, pt: 0 },
+            { t: this.LENGTH, pt: -0.8 },
+        ];
+    },
+
     // キーフレームの すきまを うめて、どの時刻でも ぜんぶの値が わかるように
     fillScript(frames) {
         const full = [];
-        let last = {};
+        let last = { pt: 0 };
         frames.forEach(frame => {
             last = { ...last, ...frame };
             full.push(last);
@@ -125,16 +168,17 @@ const TamaSing = {
     },
 
     // 声の波形を つくる（Web Audio を使わない 計算だけ。Node でも うごく）
-    render(midi, sampleRate = 44100) {
-        const syllable = this.syllableOf(midi);
-        const frames = syllable && this.fillScript(this.script(syllable));
-        if (!frames) return null;
+    render(midi, sampleRate = 44100, kind = 'doremi') {
+        if (!this.canSing(midi, kind)) return null;
+        const script = kind === 'cat' ? this.catScript() : this.script(this.syllableOf(midi));
+        const frames = this.fillScript(script);
+        const { breath, vibrato: [vibratoFrom, vibratoDepth, vibratoRate] } = this.KINDS[kind];
 
         const f0 = 440 * Math.pow(2, (midi - 69) / 12);
         const length = Math.round(this.LENGTH * sampleRate);
         const out = new Float32Array(length);
         const T = 1 / sampleRate;
-        const keys = ['av', 'an', 'nf', 'nb', 'f1', 'f2', 'f3', 'f4', 'b1', 'b2', 'b3'];
+        const keys = ['av', 'an', 'nf', 'nb', 'f1', 'f2', 'f3', 'f4', 'b1', 'b2', 'b3', 'pt'];
 
         // 2極の 共鳴フィルター（口の形 1つぶん）。DC で 1倍
         const resonator = () => ({ a: 1, b: 0, c: 0, y1: 0, y2: 0 });
@@ -203,8 +247,8 @@ const TamaSing = {
             }
 
             // ビブラート：のばしているうちに すこしだけ ゆらす（±0.15 半音ほど）
-            const depth = Math.max(0, Math.min(1, (t - 0.45) / 0.5)) * 0.15;
-            const freq = f0 * Math.pow(2, depth * Math.sin(2 * Math.PI * 5.3 * t) / 12);
+            const depth = Math.max(0, Math.min(1, (t - vibratoFrom) / 0.5)) * vibratoDepth;
+            const freq = f0 * Math.pow(2, (p.pt + depth * Math.sin(2 * Math.PI * vibratoRate * t)) / 12);
             const dt = freq * T;
             phase += dt;
             if (phase >= 1) phase -= 1;
@@ -215,7 +259,7 @@ const TamaSing = {
             // のどの音（のこぎり波 ＋ すこしの 息）→ 口の形
             const n = noise();
             let voice = (2 * phase - 1 - blep(phase, dt)) * av;
-            voice += n * 0.06 * av * (phase < 0.5 ? 1 : 0.4);
+            voice += n * breath * av * (phase < 0.5 ? 1 : 0.4);
             for (let j = 0; j < 4; j++) voice = step(formants[j], voice);
 
             // 子音の 息の音
@@ -237,39 +281,40 @@ const TamaSing = {
     },
 
     // 声を AudioBuffer に（いちど つくったら おぼえておく）
-    buffer(ctx, midi) {
-        if (this.cache.has(midi)) return this.cache.get(midi);
-        const data = this.render(midi, this.RATE);
+    buffer(ctx, midi, kind = 'doremi') {
+        const key = `${kind}:${midi}`;
+        if (this.cache.has(key)) return this.cache.get(key);
+        const data = this.render(midi, this.RATE, kind);
         if (!data) return null;
         const buffer = ctx.createBuffer(1, data.length, this.RATE);
         buffer.getChannelData(0).set(data);
-        this.cache.set(midi, buffer);
+        this.cache.set(key, buffer);
         if (this.cache.size > this.CACHE_SIZE) this.cache.delete(this.cache.keys().next().value);
         return buffer;
     },
 
     // 声を さきに つくっておく（1つずつ、すきまの 時間に。画面が かたまらないように）
-    prepare(midis) {
+    prepare(midis, kind = 'doremi') {
         const ctx = TamaSound.context();
         if (!ctx) return;
-        const queue = midis.filter(midi => this.syllableOf(midi) && !this.cache.has(midi)).slice(0, this.CACHE_SIZE);
+        const queue = midis.filter(midi => this.canSing(midi, kind) && !this.cache.has(`${kind}:${midi}`)).slice(0, this.CACHE_SIZE);
         if (this.preparing) clearTimeout(this.preparing);
         const next = () => {
             this.preparing = null;
             const midi = queue.shift();
             if (midi === undefined) return;
-            this.buffer(ctx, midi);
+            this.buffer(ctx, midi, kind);
             this.preparing = setTimeout(next, 0);
         };
         this.preparing = setTimeout(next, 0);
     },
 
     // うたう。release() で はなす（「どー」の「ど」は かならず 聞こえるくらい のこす）
-    voice(midi, { gain = 0.55 } = {}) {
+    voice(midi, { gain = 0.55, kind = 'doremi' } = {}) {
         const silent = { release() {} };
         const ctx = TamaSound.live();
         if (!ctx) return silent;
-        const buffer = this.buffer(ctx, midi);
+        const buffer = this.buffer(ctx, midi, kind);
         if (!buffer) return silent;
 
         const t = ctx.currentTime;

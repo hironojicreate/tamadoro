@@ -813,6 +813,10 @@ html[data-mode="rhythm"] .reward-coin {
     background: linear-gradient(135deg, #ff9ff3, #f368e0);
 }
 
+#pianoSing.on.cat {
+    background: linear-gradient(135deg, #ffc371, #ff8c42);
+}
+
 #pianoScreen .piano-nav button:hover {
     transform: scale(1.06);
     filter: brightness(1.08);
