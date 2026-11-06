@@ -1,6 +1,7 @@
 // じゆうにひこう（#/piano）：音が鳴る けんばんで、すきなように ひいて あそぶ（ドロップは なし）
 //   けんばんは 画面の 左はしから 右はしまで。画面の はばに合わせて 数がかわる（まんなかの ドの あたりを 中心に）
-//   「音名かくにん」を ON にすると、さわった けんばんの 名前が出る（ON／OFF は この端末に おぼえておく）
+//   「音名かくにん」を ON にすると、さわった けんばんの 名前が出る（ON／OFF は この端末に おぼえておく。
+//   おとが ニャーの ときは、名前も ぜんぶ「ニャー」）
 //   「おと」ボタンで ピアノ ⇄ ニャー を えらぶ（この端末に おぼえておく）
 //     ピアノ：ふつうの ピアノの音
 //     ニャー：ネコの タマが「ニャー」と その高さで なく（js/sing.js。ピアノの音は 鳴らさない。黒いけんばんでも なく）
@@ -127,7 +128,8 @@ const TamaPiano = {
 
     onPress(midi) {
         if (!this.namesOn()) return;
-        const name = TamaNotes.namesOf(midi).join('／');
+        // ニャーの ときは、名前も ぜんぶ「ニャー」
+        const name = this.isCat() ? 'ニャー' : TamaNotes.namesOf(midi).join('／');
         this.keyboard.balloon(midi, name);
         document.getElementById('pianoName').innerHTML = this.nameSVG(name, TamaNotes.color(midi));
     },
