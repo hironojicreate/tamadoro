@@ -29,8 +29,13 @@ async function answerAll(page) {
   for (let guard = 0; guard < 600; guard++) {
     const done = await page.evaluate(() => !keysLesson.run || keysLesson.run.finished);
     if (done) return;
-    const midi = await expected(page);
-    const accepting = await page.evaluate(() => keysLesson.run.accepting);
+    // つぎの 音と「うけつけ中か」は いっしょに よむ（べつべつに よむと、問題の きりかわりの あいだに ずれて
+    // 「おわった 問題の つぎの 音（ない音）」を おしてしまう ことが あった）
+    const { midi, accepting } = await page.evaluate(() => {
+      const run = keysLesson.run;
+      const m = run && run.problem ? run.problem.notes[run.pos] : undefined;
+      return { midi: m === undefined ? null : m, accepting: !!(run && run.accepting) };
+    });
     if (midi === null || !accepting) { await page.waitForTimeout(150); continue; }
     await pressKey(page, midi);
     await page.waitForTimeout(40);
@@ -562,6 +567,7 @@ async function answerAll(page) {
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'Lv1 せんの おだんご、クリア！', 'おんぷよみ Lv1 クリア');
     const stats = await page.evaluate(() => History.getStats('notes'));
     ok(stats['ド'] && stats['ド'].n >= 3, 'おんぷよみの きろく（ド）');
+    ok(await page.evaluate(() => { const def = MODES.notes.levels[2]; return keysDangoDeck(def).every(p => p.chord === 'Dm'); }), 'Lv2 は 1おんの 問題も 和音は Dm だけ');
     // Lv2 あいだの おだんご：レ・ファ・ラ（和音は Dm）
     const lv2 = await page.evaluate(() => { const d = MODES.notes.levels[2]; return { notes: d.notes.join(','), chord: d.chord, dm: TamaSound.CHORDS.Dm.join(','), hint: d.hint, space: d.notes.every(m => !TamaStaff.onLine(m)), line: MODES.notes.levels[1].notes.every(m => TamaStaff.onLine(m)) }; });
     ok(lv2.notes === '62,65,69' && lv2.chord === 'Dm' && lv2.dm === '50,53,57' && lv2.hint.startsWith('せんの あいだの おだんご') && lv2.space && lv2.line,

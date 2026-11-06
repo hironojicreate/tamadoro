@@ -9,7 +9,8 @@
 //     さいしょの「しくみ」（style: 'tour'）は、せつめいしながら すすむ（まちがえても しっぱいに ならない）。
 //     sing: true の レベルは、けんばんを おすと その音の 名前を うたう（js/sing.js の「どー・れー・みー」）
 //     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
-//       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる
+//       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる。
+//       正解の 和音は、1おんの 問題も おだんごの 和音だけ（Lv1 は C、Lv2 は Dm）
 
 // メロディ（Lv7・オニ）：和音ごとに、その和音に合う 3〜4おん
 //   出すときは C → F → G → C（さいごは ドで おわる）の じゅんばん
@@ -69,7 +70,8 @@ function keysDangoDeck(def) {
         ...more,
     });
     const items = [];
-    for (let r = 0; r < def.repeat; r++) def.notes.forEach(midi => items.push(keysSingle(midi)));
+    // 1おんの 問題も、正解の 和音は おだんごの 和音だけ（Lv2 は Dm だけ。その レベルの 音だけを おぼえる）
+    for (let r = 0; r < def.repeat; r++) def.notes.forEach(midi => items.push({ ...keysSingle(midi), chord: def.chord }));
     for (let i = 0; i < def.dangos; i++) items.push(dango());
     const intro = dango({
         showNames: true,
