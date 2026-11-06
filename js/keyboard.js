@@ -11,6 +11,7 @@
 //   kb.balloon(midi, 'ミ')       けんばんの上に ふきだし
 //   kb.vanishLabels([60, 67])    名前が まほうで きえる
 //   kb.guide(60, '→')           その けんばんを 光らせて 矢印（くろいけんばんの ♯・♭）。kb.clearGuide() で けす
+//   kb.beckon(60)               その けんばんに ポワンポワン 光る わっか（「ここを おしてね」）。kb.clearGuide() で けす
 
 class TamaKeyboard {
     constructor(container, { onPress = () => {}, glide = false, sound = midi => TamaSound.note(midi) } = {}) {
@@ -170,9 +171,20 @@ class TamaKeyboard {
         key.appendChild(mark);
     }
 
+    beckon(midi) {
+        this.clearGuide();
+        const key = this.keys.get(midi);
+        if (!key) return;
+        key.classList.add('tk-beckon');
+        const ring = document.createElement('span');
+        ring.className = 'tk-ring';
+        key.appendChild(ring);
+    }
+
     clearGuide() {
         this.container.querySelectorAll('.tk-guide').forEach(key => key.classList.remove('tk-guide'));
-        this.container.querySelectorAll('.tk-arrow').forEach(mark => mark.remove());
+        this.container.querySelectorAll('.tk-beckon').forEach(key => key.classList.remove('tk-beckon'));
+        this.container.querySelectorAll('.tk-arrow, .tk-ring').forEach(mark => mark.remove());
     }
 
     vanishLabels(midis) {

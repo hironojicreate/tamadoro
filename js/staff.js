@@ -6,7 +6,9 @@
 //     reveal：まだ 読まない 音符は かくしておく（1つずつ あらわれる）
 //     tags：音符の 下に「せん」「あいだ」の ふだ
 //     focusLedger：ドの みじかい せん（加線）を 光らせる
-//     countLines：五線の せんを 下から かぞえる（タッチできる。counted 本めまで 光って 番号が 出る）
+//     countLines：五線の せんを 下から かぞえる（タッチできる。counted 本めまで 光って 番号が 出る。
+//                 まだ 1本も かぞえていない ときは、1ぽんめが やさしく 点滅して「おしてね」）
+//   正解した 音符は、class に sparkle を つけると キラリンと 光る（★ が はじける）
 
 const TamaStaff = {
     GAP: 20,           // 線と線の あいだ
@@ -30,6 +32,9 @@ const TamaStaff = {
         for (let ly = this.TOP - this.GAP; ly >= y; ly -= this.GAP) lines.push(ly);
         return lines;
     },
+
+    // 1ぽんめ・2ほんめ・3ぼんめ・4ほんめ・5ほんめ（下から）
+    LINE_COUNTS: ['1ぽんめ', '2ほんめ', '3ぼんめ', '4ほんめ', '5ほんめ'],
 
     // せんの上の 音か（ド・ミ・ソ・シ・たかいレ …）。そうでなければ せんの あいだ（レは ドの みじかい せんと 1ばん下の せんの あいだ）
     onLine(midi) {
@@ -58,8 +63,10 @@ const TamaStaff = {
             const y = this.TOP + i * this.GAP;
             const number = 5 - i;
             const counted = countLines !== null && number <= countLines;
-            return `<line class="${counted ? 'counted' : ''}" x1="8" y1="${y}" x2="${width - 8}" y2="${y}"/>`
-                + (counted ? `<text class="staff-line-number" x="${width - 10}" y="${y - 3}">${number}</text>` : '');
+            const beckon = countLines === 0 && number === 1;
+            return `<line class="${counted ? 'counted' : ''}${beckon ? ' beckon' : ''}" x1="8" y1="${y}" x2="${width - 8}" y2="${y}"/>`
+                + (counted ? `<text class="staff-line-number" x="${width - 10}" y="${y - 3}">${this.LINE_COUNTS[number - 1]}</text>` : '')
+                + (beckon ? `<text class="staff-line-push" x="${width - 10}" y="${y - 5}">おしてね</text>` : '');
         }).join('');
         // せんを かぞえるときの、タッチする ところ（せんの 上下 すこし ひろめ）
         const hits = countLines === null ? '' : [0, 1, 2, 3, 4].map(i =>
@@ -84,6 +91,9 @@ const TamaStaff = {
                 ${ledgers}
                 <ellipse class="staff-head" cx="${x}" cy="${y}" rx="12.5" ry="9" transform="rotate(-22 ${x} ${y})"/>
                 ${stem}
+                <text class="staff-star a" x="${x - 26}" y="${y - 14}">★</text>
+                <text class="staff-star b" x="${x + 22}" y="${y - 20}">★</text>
+                <text class="staff-star c" x="${x + 26}" y="${y + 18}">★</text>
                 ${tag}
             </g>`;
         }).join('');

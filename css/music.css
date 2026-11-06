@@ -442,6 +442,50 @@ html[data-mode="black"] .select-level-buttons button {
 .keys-cards.tour .staff-note.current .staff-stem { stroke: #e84393; }
 .keys-cards.tour .staff-note.current .staff-glow { fill: rgba(232, 67, 147, 0.15); }
 
+/* 正解の キラリン：音符が ふくらんで 光り、★ が はじける */
+.staff-star {
+    font-size: 16px;
+    fill: #fdcb6e;
+    stroke: #e17055;
+    stroke-width: 0.6;
+    text-anchor: middle;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.staff-note.sparkle .staff-head {
+    animation: staff-sparkle-head 0.5s ease-out; /* transform は つかわない（音符の かたむき rotate が ずれる） */
+}
+
+.staff-note.sparkle .staff-glow {
+    animation: staff-sparkle-glow 0.55s ease-out;
+}
+
+.staff-note.sparkle .staff-star {
+    animation: staff-sparkle-star 0.6s ease-out;
+}
+
+.staff-note.sparkle .staff-star.b { animation-delay: 0.06s; }
+.staff-note.sparkle .staff-star.c { animation-delay: 0.12s; }
+
+@keyframes staff-sparkle-head {
+    0% { filter: none; }
+    35% { filter: drop-shadow(0 0 6px #ffd700) brightness(1.3); }
+    100% { filter: none; }
+}
+
+@keyframes staff-sparkle-glow {
+    0% { fill: rgba(255, 215, 0, 0); }
+    30% { fill: rgba(255, 215, 0, 0.55); }
+    100% { fill: rgba(255, 215, 0, 0); }
+}
+
+@keyframes staff-sparkle-star {
+    0% { opacity: 0; }
+    25% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
 /* まだ 読まない 音符は かくしておく（1つずつ あらわれる） */
 .staff-note {
     transition: opacity 0.25s ease;
@@ -486,11 +530,35 @@ html[data-mode="black"] .select-level-buttons button {
     stroke-width: 5;
 }
 
+/* 1ぽんめ：やさしく 点滅して「おしてね」 */
+.staff-lines line.beckon {
+    stroke: #e84393;
+    stroke-width: 5;
+    animation: staff-beckon 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes staff-beckon {
+    from { opacity: 1; }
+    to { opacity: 0.3; }
+}
+
+.staff-line-push {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 16px;
+    fill: #e84393;
+    text-anchor: end;
+    animation: staff-beckon 1.1s ease-in-out infinite alternate;
+}
+
 .staff-line-number {
     font-family: 'M PLUS Rounded 1c', sans-serif;
     font-weight: 900;
-    font-size: 18px;
+    font-size: 15px;
     fill: #0984e3;
+    stroke: #ffffff;
+    stroke-width: 3px;
+    paint-order: stroke; /* せんに かさなっても 読めるように 白い ふち */
     text-anchor: end;
 }
 
@@ -730,6 +798,29 @@ html[data-mode="rhythm"] .reward-coin {
     text-shadow: 0 0 4px #fff, 0 0 4px #fff;
     pointer-events: none;
     animation: tk-arrow 0.9s ease-in-out infinite alternate;
+}
+
+/* 「ここを おしてね」：ポワンポワン 光る わっか（おんぷよみ しくみの さいしょの ド） */
+.tk-white-key.tk-beckon {
+    background: linear-gradient(180deg, #fff0f6 0%, #ffd6e8 100%);
+}
+
+.tk-ring {
+    position: absolute;
+    left: 50%;
+    bottom: 3%;
+    width: 78%;
+    aspect-ratio: 1;
+    border: 4px solid #e84393;
+    border-radius: 50%;
+    box-shadow: 0 0 12px rgba(232, 67, 147, 0.6);
+    pointer-events: none;
+    animation: tk-ring 1s ease-in-out infinite;
+}
+
+@keyframes tk-ring {
+    0% { transform: translateX(-50%) scale(0.75); opacity: 1; }
+    100% { transform: translateX(-50%) scale(1.25); opacity: 0.15; }
 }
 
 @keyframes tk-arrow {

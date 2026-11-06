@@ -41,8 +41,8 @@ function keysTourDeck() {
     });
     return [
         { type: 'lines', notes: [], key: 'せんは5ほん', chord: 'C', pause: 1800 },
-        run([60], 'ドは、五線の 下に みじかい せんを 1本 たした ところ。ここから スタート！',
-            { tags: true, focusLedger: true, pause: 1300 }),
+        run([60], 'ドは、五線の 下に みじかい せんを 1本 たした ところ。ここから スタート！ ひかっている けんばんを おしてね',
+            { tags: true, focusLedger: true, beckon: true, pause: 1300 }),
         run(up, 'のぼるよ！ せん → あいだ → せん → あいだ … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
         run(down, 'くだるよ！ あいだ → せん → あいだ → せん … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
         run(up, 'ド・レ・ミ・ファ・ソ・ラ・シ・ド！ つづけて 読もう'),
@@ -51,6 +51,9 @@ function keysTourDeck() {
         run(pick(KEYS_TOUR_RUNS.down), 'とちゅうからでも、1つずつ くだるよ'),
     ];
 }
+
+// 1つずつ あらわれる 音符：正解の キラリンの あと、つぎが 出るまで（ミリ秒）
+const KEYS_REVEAL_DELAY = 550;
 
 // sing: true の レベル：ピアノの音を すこし 小さくして、名前を うたう（白いけんばん）
 function keysSingingSound(midi) {
@@ -365,6 +368,10 @@ function keysNextProblem() {
     if (run.def.arrow && run.problem.guide) {
         keysLesson.keyboard.guide(run.problem.guide.base, run.problem.guide.dir === 'right' ? '→' : '←');
     }
+    // しくみの さいしょの ド：おす けんばんに ポワンポワン 光る わっか（どこを おせば いいか まよわない）
+    if (run.problem.beckon) {
+        keysLesson.keyboard.beckon(run.problem.notes[0]);
+    }
     run.accepting = true;
 }
 
@@ -424,7 +431,7 @@ function keysShowCards() {
 
     if (problem.type === 'lines') {
         keysShowLines();
-        keysShowMessage('せんは なんぼん？ いちばん下の せんから じゅんばんに タッチして かぞえよう');
+        keysShowMessage('せんは なんぼん？ 1ぽんめ（いちばん下の せん）から じゅんばんに タッチして かぞえよう');
         return;
     }
 
@@ -459,24 +466,25 @@ function keysShowLines() {
 
 // せんの 音（下から ミ・ソ・シ・たかいレ・たかいファ）
 const KEYS_LINE_NOTES = [64, 67, 71, 74, 77];
+const KEYS_LINE_COUNTS = TamaStaff.LINE_COUNTS; // 1ぽんめ・2ほんめ・3ぼんめ・4ほんめ・5ほんめ
 
 function keysOnLine(number) {
     const run = keysLesson.run;
     if (!run || !run.accepting || run.problem.type !== 'lines') return;
     if (number !== run.pos + 1) {
         keysShowMessage(number <= run.pos
-            ? 'そこは もう かぞえたよ。つぎは その上の せん'
-            : 'いちばん下の せんから じゅんばんに かぞえよう');
+            ? `そこは もう かぞえたよ。つぎは ${KEYS_LINE_COUNTS[run.pos]}（その上の せん）`
+            : `${KEYS_LINE_COUNTS[run.pos]}は ${run.pos === 0 ? 'いちばん下の せん' : 'その上の せん'}だよ`);
         return;
     }
     run.pos++;
     TamaSound.note(KEYS_LINE_NOTES[number - 1]).release();
     keysShowLines();
     if (run.pos < 5) {
-        keysShowMessage(`${run.pos}ほん！ つぎは その上の せん`);
+        keysShowMessage(`${KEYS_LINE_COUNTS[run.pos - 1]}！ つぎは その上の せん`);
         return;
     }
-    keysShowMessage('せんは 5ほん！ この 5ほんの せんを 五線（ごせん）と いうよ');
+    keysShowMessage('5ほんめ！ せんは 5ほん。この 5ほんの せんを 五線（ごせん）と いうよ');
     keysSolved();
 }
 
@@ -527,18 +535,31 @@ function keysOnPress(midi, inRange) {
     const expected = run.problem.notes[run.pos];
     if (midi === expected) {
         keyboard.mark(midi, 'ok');
-        // カード（または 五線の 音符）を「読みおわり」に して、つぎを「いま」に
+        if (run.problem.beckon) keyboard.clearGuide(); // 「ここを おしてね」の わっかを けす
+        // カード（または 五線の 音符）を「読みおわり」に して、つぎを「いま」に。五線の 音符は キラリンと 光る
         const card = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
         if (card) {
             card.classList.remove('current', 'next');
-            card.classList.add('done');
+            card.classList.add('done', 'sparkle');
         }
         run.pos++;
         if (run.pos < run.problem.notes.length) {
-            const next = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
-            if (next) {
-                next.classList.remove('next', 'hidden'); // かくしていた 音符も あらわれる
-                next.classList.add('current');
+            const showNext = () => {
+                const next = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
+                if (next) {
+                    next.classList.remove('next', 'hidden'); // かくしていた 音符も あらわれる
+                    next.classList.add('current');
+                }
+            };
+            if (run.problem.reveal) {
+                // 1つずつ あらわれる ときは、キラリンを 見てから つぎの 音符（おした音が つぎの 音符だと まちがえない）
+                run.accepting = false;
+                keysLesson.later(() => {
+                    showNext();
+                    run.accepting = true;
+                }, KEYS_REVEAL_DELAY);
+            } else {
+                showNext();
             }
             return;
         }

@@ -564,26 +564,41 @@ async function answerAll(page) {
     ok(deck.length === 8 && deck[0] === 'lines' && deck[1] === '60' && deck[2] === '60,62,64,65,67,69,71,72' && deck[3] === '72,71,69,67,65,64,62,60', `しくみの ながれ ${JSON.stringify(deck)}`);
     // せんは 5ほん：下から じゅんばんに タッチ
     ok((await page.$$('#keysCards .staff-line-hit')).length === 5 && (await page.$$('#keysCards .staff-note')).length === 0, 'さいしょは せんだけ（タッチできる せん 5ほん）');
+    ok((await page.$$('#keysCards .staff-lines line.beckon')).length === 1 && (await page.textContent('#keysCards .staff-line-push')) === 'おしてね', '1ぽんめが 点滅して「おしてね」');
     await page.click('#keysCards .staff-line-hit[data-line="3"]'); await page.waitForTimeout(80);
-    ok((await page.$$('#keysCards .staff-lines line.counted')).length === 0 && (await page.textContent('#keysMessage')).includes('いちばん下'), '下から じゅんばんで ないと かぞえない');
-    for (const l of [1, 2, 3, 4, 5]) { await page.click(`#keysCards .staff-line-hit[data-line="${l}"]`); await page.waitForTimeout(80); }
-    ok((await page.$$('#keysCards .staff-lines line.counted')).length === 5 && (await page.textContent('#keysMessage')).includes('5ほん'), 'せんは 5ほん');
+    ok((await page.$$('#keysCards .staff-lines line.counted')).length === 0 && (await page.textContent('#keysMessage')).includes('1ぽんめは いちばん下'), '下から じゅんばんで ないと かぞえない');
+    const counts = [];
+    for (const l of [1, 2, 3, 4, 5]) {
+      await page.click(`#keysCards .staff-line-hit[data-line="${l}"]`); await page.waitForTimeout(80);
+      counts.push((await page.textContent('#keysMessage')).split('！')[0]);
+      if (l === 1) ok((await page.$$('#keysCards .staff-lines line.beckon')).length === 0, 'かぞえはじめたら 点滅は おわり');
+    }
+    ok(counts.join('・') === '1ぽんめ・2ほんめ・3ぼんめ・4ほんめ・5ほんめ', `1ぽんめ・2ほんめ・3ぼんめ・4ほんめ・5ほんめ（${counts.join('・')}）`);
+    ok((await page.$$eval('#keysCards .staff-line-number', l => l.map(e => e.textContent).join('・'))) === '5ほんめ・4ほんめ・3ぼんめ・2ほんめ・1ぽんめ', 'せんの よこにも 1ぽんめ〜5ほんめ');
+    ok((await page.$$('#keysCards .staff-lines line.counted')).length === 5 && (await page.textContent('#keysMessage')).includes('せんは 5ほん'), 'せんは 5ほん');
     await page.waitForTimeout(2000);
     // ドの ばしょ：みじかい せんが 光る、ふだは「せん」
     const d = await page.evaluate(() => ({ focus: document.querySelectorAll('#keysCards .staff-ledger.focus').length, tag: document.querySelector('#keysCards .staff-tag').textContent, msg: document.getElementById('keysMessage').textContent }));
     ok(d.focus === 1 && d.tag === 'せん' && d.msg.startsWith('ドは'), `ドは 下の みじかい せん ${JSON.stringify(d)}`);
+    ok(await page.$eval('#keysKeyboard .tk-key[data-midi="60"]', e => e.classList.contains('tk-beckon') && !!e.querySelector('.tk-ring')) && (await page.$$('#keysKeyboard .tk-ring')).length === 1, 'ドの けんばんに ポワンポワンの わっか');
     // まちがえても しっぱいに ならない
     for (let i = 0; i < 6; i++) { await pressKey(page, 64); await page.waitForTimeout(30); }
     ok(await page.$eval('#mistakeModal', e => e.style.display) !== 'flex' && (await page.textContent('#keysMessage')).includes('ざんねん'), 'まちがえても しっぱいに ならない');
-    await pressKey(page, 60); await page.waitForTimeout(1500);
+    await pressKey(page, 60); await page.waitForTimeout(60);
+    ok((await page.$$('#keysKeyboard .tk-ring')).length === 0 && await page.$eval('#keysCards .staff-note[data-i="0"]', e => e.classList.contains('sparkle')), 'おすと わっかは きえて、音符が キラリン');
+    await page.waitForTimeout(1500);
     // のぼる：1つずつ あらわれる。ふだは せん・あいだ を くりかえす
     const up = await page.evaluate(() => ({
       hidden: document.querySelectorAll('#keysCards .staff-note.hidden').length,
       tags: [...document.querySelectorAll('#keysCards .staff-tag')].map(t => t.textContent).join(''),
     }));
     ok(up.hidden === 7 && up.tags === 'せんあいだせんあいだせんあいだせんあいだ', `のぼる：音符は 1つずつ、せん・あいだ ${JSON.stringify(up)}`);
-    await pressKey(page, 60); await page.waitForTimeout(60);
-    ok((await page.$$('#keysCards .staff-note.hidden')).length === 6, '読むと つぎの 音符が あらわれる');
+    await pressKey(page, 60); await page.waitForTimeout(80);
+    ok((await page.$$('#keysCards .staff-note.hidden')).length === 7 && await page.$eval('#keysCards .staff-note[data-i="0"]', e => e.classList.contains('sparkle')), 'おした 直後は、読んだ 音符が キラリン（つぎは まだ 出ない）');
+    await pressKey(page, 62); await page.waitForTimeout(80);
+    ok(await page.evaluate(() => keysLesson.run.pos) === 1, 'キラリンの あいだに おしても すすまない');
+    await page.waitForTimeout(600);
+    ok((await page.$$('#keysCards .staff-note.hidden')).length === 6, 'キラリンの あと、つぎの 音符が あらわれる');
     ok(await page.evaluate(() => TamaStaff.onLine(60) && !TamaStaff.onLine(62) && TamaStaff.onLine(64) && !TamaStaff.onLine(72) && TamaStaff.onLine(71)), 'ド・ミ・シ は せん、レ・たかいド は あいだ');
     ok((await page.evaluate(() => window.sung)).includes('doremi60'), 'けんばんを おすと 名前を うたう');
     await answerAll(page);
