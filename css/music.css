@@ -808,6 +808,15 @@ html[data-mode="rhythm"] .reward-coin {
     background: linear-gradient(135deg, #c56cf0, #6c5ce7);
 }
 
+/* おと：ピアノ（みずいろ）⇄ ニャー（オレンジ） */
+#pianoSound {
+    background: linear-gradient(135deg, #74b9ff, #0984e3);
+}
+
+#pianoSound.cat {
+    background: linear-gradient(135deg, #ffc371, #ff8c42);
+}
+
 #pianoScreen .piano-nav button:hover {
     transform: scale(1.06);
     filter: brightness(1.08);
@@ -864,6 +873,12 @@ html[data-mode="rhythm"] .reward-coin {
         right: 10px;
         flex-wrap: wrap;
         justify-content: flex-end;
+    }
+
+    /* ボタン 3つが 1だんに ならぶように、すこし 小さく */
+    #pianoScreen .piano-nav button {
+        padding: 5px 10px;
+        font-size: 13px;
     }
 
     #pianoScreen .piano-width {

@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.39</span>
+                <span id="version">Ver.6.3.48</span>
             </p>
         </footer>
     </div>
@@ -1378,7 +1378,7 @@
         <div id="rhythmPad" class="rhythm-pad" aria-hidden="true"><span>タン！</span></div>
     </div>
 
-    <!-- ================= じゆうにひこう（js/piano.js・js/keyboard.js） ================= -->
+    <!-- ================= じゆうにひこう（js/piano.js・js/keyboard.js・js/sing.js） ================= -->
     <div id="pianoScreen" class="unselectable" style="display: none;">
         <!-- 音の名前の つや（js/piano.js の nameSVG が使う） -->
         <svg width="0" height="0" style="position: absolute;" aria-hidden="true">
@@ -1396,6 +1396,7 @@
             <label class="piano-width">けんばんの はば
                 <input type="range" id="pianoWidth" min="28" max="100" step="2" aria-label="けんばんの はば">
             </label>
+            <button id="pianoSound" aria-pressed="false">おと：ピアノ</button>
             <button id="pianoNames" aria-pressed="false">音名かくにん：OFF</button>
             <button id="pianoBack" onclick="location.hash = '#/music'">もどる</button>
         </div>
@@ -1553,6 +1554,7 @@
     <script src="js/engines/drill.js"></script>
     <script src="js/engines/grid.js"></script>
     <script src="js/keyboard.js"></script>
+    <script src="js/sing.js"></script>
     <script src="js/engines/keys.js"></script>
     <script src="js/engines/rhythm.js"></script>
     <script src="js/keypad.js"></script>

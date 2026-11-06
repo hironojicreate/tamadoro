@@ -1,7 +1,8 @@
 // 画面のけんばん（おんがくの画面で使う部品）
 //   さわった しゅんかん（pointerdown）に 音を鳴らす。何本の指でも おせる
 //
-//   const kb = new TamaKeyboard(要素, { onPress(midi, inRange) {...}, glide: true })
+//   const kb = new TamaKeyboard(要素, { onPress(midi, inRange) {...}, glide: true, sound(midi) {...} })
+//     sound(midi)    おしたときに 鳴らす音（返り値の release() で はなす）。ないときは ピアノの音
 //   kb.render({ from, to, activeFrom, activeTo, label(midi) })
 //     from〜to       見せる けんばん（白いけんばんで はじまり、白いけんばんで おわる）
 //     activeFrom〜To あかるく見せる けんばん（そのレベルで使う けんばん）。そとがわは うすく見せる（おせば鳴る）
@@ -12,9 +13,10 @@
 //   kb.guide(60, '→')           その けんばんを 光らせて 矢印（くろいけんばんの ♯・♭）。kb.clearGuide() で けす
 
 class TamaKeyboard {
-    constructor(container, { onPress = () => {}, glide = false } = {}) {
+    constructor(container, { onPress = () => {}, glide = false, sound = midi => TamaSound.note(midi) } = {}) {
         this.container = container;
         this.onPress = onPress;
+        this.sound = sound;
         this.glide = glide;          // 指を すべらせると となりの けんばんも鳴る（おとあそび）
         this.keys = new Map();       // midi → 要素
         this.pointers = new Map();   // pointerId → { midi, voice }
@@ -94,7 +96,7 @@ class TamaKeyboard {
     }
 
     start(pointerId, midi) {
-        const voice = TamaSound.note(midi);
+        const voice = this.sound(midi);
         this.pointers.set(pointerId, { midi, voice });
         const key = this.keys.get(midi);
         if (key) key.classList.add('tk-down');
