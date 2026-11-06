@@ -442,6 +442,44 @@ html[data-mode="black"] .select-level-buttons button {
 .keys-cards.tour .staff-note.current .staff-stem { stroke: #e84393; }
 .keys-cards.tour .staff-note.current .staff-glow { fill: rgba(232, 67, 147, 0.15); }
 
+/* おだんご（おんぷよみ Lv1・Lv2）：1本の くしに 三色だんご（下から みどり・しろ・ピンク） */
+.staff-skewer {
+    stroke: #c68e52;
+    stroke-width: 5;
+    stroke-linecap: round;
+}
+
+.keys-cards .staff-note.dango .staff-head {
+    stroke: #7a5c3e;
+    stroke-width: 2;
+}
+
+.keys-cards .staff-note.dango.d0 .staff-head { fill: #8bc34a; }
+.keys-cards .staff-note.dango.d1 .staff-head { fill: #fffaf0; }
+.keys-cards .staff-note.dango.d2 .staff-head { fill: #ff9ecb; }
+
+/* いま おす おだんご：ピンクの わっかが ポワンポワン */
+.keys-cards .staff-note.dango.current .staff-glow {
+    fill: rgba(232, 67, 147, 0.12);
+    stroke: #e84393;
+    stroke-width: 3;
+    animation: staff-dango-now 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes staff-dango-now {
+    from { stroke-opacity: 1; }
+    to { stroke-opacity: 0.25; }
+}
+
+.staff-dango-name {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 18px;
+    stroke: #ffffff;
+    stroke-width: 4px;
+    paint-order: stroke;
+}
+
 /* 正解の キラリン：音符が ふくらんで 光り、★ が はじける */
 .staff-star {
     font-size: 16px;

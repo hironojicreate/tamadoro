@@ -8,6 +8,8 @@
 //   おんぷよみ（js/modes/notes.js）も このエンジン：display: 'staff' で、カードの かわりに 五線の 音符（js/staff.js）
 //     さいしょの「しくみ」（style: 'tour'）は、せつめいしながら すすむ（まちがえても しっぱいに ならない）。
 //     sing: true の レベルは、けんばんを おすと その音の 名前を うたう（js/sing.js の「どー・れー・みー」）
+//     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
+//       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる
 
 // メロディ（Lv7・オニ）：和音ごとに、その和音に合う 3〜4おん
 //   出すときは C → F → G → C（さいごは ドで おわる）の じゅんばん
@@ -54,6 +56,29 @@ function keysTourDeck() {
 
 // 1つずつ あらわれる 音符：正解の キラリンの あと、つぎが 出るまで（ミリ秒）
 const KEYS_REVEAL_DELAY = 550;
+
+// おだんご：お手本（名前つき・わっか）→ 1おん（notes を repeat 回）と おだんご（dangos 回）を まぜる
+function keysDangoDeck(def) {
+    const names = def.notes.map(m => TamaNotes.lessonName(m)).join('・');
+    const dango = (more = {}) => ({
+        notes: def.notes,
+        dango: true,
+        chord: def.chord,
+        key: `おだんご ${names}`,
+        say: 'おだんごを 下から じゅんばんに おしてね',
+        ...more,
+    });
+    const items = [];
+    for (let r = 0; r < def.repeat; r++) def.notes.forEach(midi => items.push(keysSingle(midi)));
+    for (let i = 0; i < def.dangos; i++) items.push(dango());
+    const intro = dango({
+        showNames: true,
+        beckon: true,
+        say: `${def.dangoName}！ 下から ${names}。ひかっている けんばんを じゅんばんに おしてね`,
+        pause: 1300,
+    });
+    return [intro, ...keysShuffleNoRepeat(items)];
+}
 
 // sing: true の レベル：ピアノの音を すこし 小さくして、名前を うたう（白いけんばん）
 function keysSingingSound(midi) {
@@ -186,6 +211,7 @@ function keysPhraseDeck(count) {
 function keysBuildDeck(def) {
     if (def.style === 'free') return [];
     if (def.style === 'tour') return keysTourDeck();
+    if (def.style === 'dango') return keysDangoDeck(def);
     const pools = { sharp: KEYS_SHARPS, flat: KEYS_FLATS, both: [...KEYS_SHARPS, ...KEYS_FLATS] };
     if (def.style === 'spell') return keysShuffleNoRepeat(keysSpelledDeck(pools[def.pool], def));
     if (def.style === 'enharmonic') return keysShuffleNoRepeat(keysSpelledDeck(pools[def.pool], { ...def, make: keysEnharmonic }));
@@ -438,7 +464,7 @@ function keysShowCards() {
     if (currentMode.display === 'staff') {
         // おんぷよみ：五線の 音符（メロディは 左から じゅんばんに。いま 読む音符が ピンク）
         cards.className = `keys-cards staff ${notes.length > 1 ? 'phrase' : 'single'}${run.def.style === 'tour' ? ' tour' : ''}`;
-        const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger };
+        const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger, dango: problem.dango, names: problem.showNames };
         cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg(notes, options)}</div>`;
         keysShowMessage(problem.say || (notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : 'この おんぷは どの けんばん？'));
         return;
@@ -550,6 +576,8 @@ function keysOnPress(midi, inRange) {
                     next.classList.remove('next', 'hidden'); // かくしていた 音符も あらわれる
                     next.classList.add('current');
                 }
+                // お手本：わっかも つぎの けんばんへ
+                if (run.problem.beckon) keyboard.beckon(run.problem.notes[run.pos]);
             };
             if (run.problem.reveal) {
                 // 1つずつ あらわれる ときは、キラリンを 見てから つぎの 音符（おした音が つぎの 音符だと まちがえない）

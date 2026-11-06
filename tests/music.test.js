@@ -536,17 +536,36 @@ async function answerAll(page) {
     await page.reload(); await page.waitForTimeout(500);
     ok(await page.isVisible('#level2'), 'しくみで ドロップを 1こ もらうと Lv1 が ひらく');
     await page.click('#level2'); await page.waitForTimeout(300);
+    // Lv1 せんの おだんご：さいしょは 名前つきの お手本（ド・ミ・ソ を 1本の くしに）
+    const deck = await page.evaluate(() => keysLesson.run.deck.map(p => (p.dango ? 'D' : '') + p.notes.join(',')));
+    ok(deck.length === 13 && deck[0] === 'D60,64,67' && deck.filter(x => x === 'D60,64,67').length === 4
+      && ['60', '64', '67'].every(n => deck.filter(x => x === n).length === 3), `お手本 ＋ 1おん 9もん ＋ おだんご 3もん ${JSON.stringify(deck)}`);
     const s = await page.evaluate(() => {
       const heads = [...document.querySelectorAll('#keysCards .staff-note .staff-head')];
-      return { count: heads.length, y: heads[0] && Number(heads[0].getAttribute('cy')), want: TamaStaff.y(keysLesson.run.problem.notes[0]), clef: !!document.querySelector('#keysCards .staff-clef'), lines: document.querySelectorAll('#keysCards .staff-lines line').length };
+      return {
+        count: heads.length, ys: heads.map(h => Number(h.getAttribute('cy'))).join(','), want: [60, 64, 67].map(m => TamaStaff.y(m)).join(','),
+        xs: new Set(heads.map(h => h.getAttribute('cx'))).size, skewer: document.querySelectorAll('#keysCards .staff-skewer').length,
+        names: [...document.querySelectorAll('#keysCards .staff-dango-name')].map(t => t.textContent).join(''),
+        clef: !!document.querySelector('#keysCards .staff-clef'), lines: document.querySelectorAll('#keysCards .staff-lines line').length,
+      };
     });
-    ok(s.count === 1 && s.clef && s.lines === 5 && s.y === s.want, `五線（5本）・ト音記号・音符 1こ ${JSON.stringify(s)}`);
-    ok(await page.$$eval('#keysKeyboard .tk-label', l => l.map(e => e.textContent).join('')) === 'ドレミ', 'Lv1 は けんばんに 名前あり');
+    ok(s.count === 3 && s.xs === 1 && s.skewer === 1 && s.ys === s.want && s.names === 'ドミソ' && s.clef && s.lines === 5, `おだんご：1本の くしに ド・ミ・ソ（名前つき）${JSON.stringify(s)}`);
+    ok(await page.$$eval('#keysKeyboard .tk-label', l => l.map(e => e.textContent).join('')) === 'ドレミファソ', 'Lv1 は けんばんに 名前あり');
+    const ring = () => page.evaluate(() => { const r = document.querySelector('#keysKeyboard .tk-ring'); return r ? Number(r.parentElement.dataset.midi) : null; });
+    ok((await ring()) === 60, 'お手本：ドの けんばんに わっか');
+    await pressKey(page, 60); await page.waitForTimeout(80);
+    ok((await ring()) === 64 && await page.$eval('#keysCards .staff-note[data-i="1"]', e => e.classList.contains('current')), 'ドを おすと わっかは ミへ（つぎの おだんご）');
+    await pressKey(page, 67); await page.waitForTimeout(80);
+    ok(await page.evaluate(() => keysLesson.run.pos) === 1, 'おだんごは 下から じゅんばん（とばすと まちがい）');
     await answerAll(page);
     await page.waitForTimeout(400);
-    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'Lv1 ドレミ、クリア！', 'おんぷよみ Lv1 クリア');
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'Lv1 せんの おだんご、クリア！', 'おんぷよみ Lv1 クリア');
     const stats = await page.evaluate(() => History.getStats('notes'));
-    ok(stats['ド'] && stats['ド'].n === 4, 'おんぷよみの きろく（ド 4かい）');
+    ok(stats['ド'] && stats['ド'].n >= 3, 'おんぷよみの きろく（ド）');
+    // Lv2 あいだの おだんご：レ・ファ・ラ（和音は Dm）
+    const lv2 = await page.evaluate(() => { const d = MODES.notes.levels[2]; return { notes: d.notes.join(','), chord: d.chord, dm: TamaSound.CHORDS.Dm.join(','), hint: d.hint, space: d.notes.every(m => !TamaStaff.onLine(m)), line: MODES.notes.levels[1].notes.every(m => TamaStaff.onLine(m)) }; });
+    ok(lv2.notes === '62,65,69' && lv2.chord === 'Dm' && lv2.dm === '50,53,57' && lv2.hint.startsWith('せんの あいだの おだんご') && lv2.space && lv2.line,
+      `Lv2 は せんの あいだの おだんご（レ・ファ・ラ）、Lv1 は ぜんぶ せんの上 ${JSON.stringify(lv2)}`);
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
