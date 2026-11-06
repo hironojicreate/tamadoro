@@ -8,7 +8,7 @@
 //     ・「ど」「れ」「み」「ふぁ」「そ」「ら」「し」の はじめの音（子音）は、
 //       息の音（ノイズ）と、口の形の すばやい うつりかわりで つくる
 //       （「ふぁ」「そ」「し」の かすれる 息の音は、ごく わずかに。大きいと 耳ざわり）
-//     ・ネコは 小さな口の形（フォルマントを 高めに）で、みじかい「ン」→ すばやく「ニャ」→「アー」。
+//     ・ネコは 小さな口の形（フォルマントを 高めに）で、こもった「ン」→ ぱっと「ニャ」→「アー」。
 //       息は まぜず、はっきりした 声。のばすうちに すこし 口を すぼめ（ほんのり「ニャーォ」）、
 //       消える 直前に 2半音 下げる（とちゅうで はなしたときも 消えながら 下げる）。
 //       のばしている ところの 音程は ピアノと 同じ
@@ -44,9 +44,11 @@ const TamaSing = {
     //   breath：声に まぜる 息の音（ネコは なし。はっきりした 声に）
     //   vibrato：[はじまる 秒, ゆれの 大きさ（半音）, 1秒に ゆれる 回数]
     //   releaseDrop：とちゅうで はなしたとき、消えながら 音を 下げる（半音。0 は 下げない）
+    //   level：のばしている ところ（0.3〜0.5秒）の 大きさを そろえる めやす。null は いちばん大きいところを そろえる
+    //     （ネコは 口の形が かわるので、いちばん大きいところで そろえると けんばんごとに 大きさが ばらつく）
     KINDS: {
-        doremi: { breath: 0.06, vibrato: [0.45, 0.15, 5.3], releaseDrop: 0 },
-        cat: { breath: 0, vibrato: [0.35, 0.12, 6.2], releaseDrop: 2 },
+        doremi: { breath: 0.06, vibrato: [0.45, 0.15, 5.3], releaseDrop: 0, level: null },
+        cat: { breath: 0, vibrato: [0.35, 0.12, 6.2], releaseDrop: 2, level: 0.22 },
     },
 
     canSing(midi, kind = 'doremi') {
@@ -142,13 +144,14 @@ const TamaSing = {
     catScript() {
         const A = this.CAT_A;
         return [
-            // 「ン」：口を とじて みじかく はっきり（最初から 正しい 高さ。下から すくい上げると 甘えた 感じになる）
-            { t: 0, av: 0, an: 0, f1: 280, f2: 2000, f3: 3200, f4: 4600, b1: 110, b2: 450, b3: 700, nf: 3000, nb: 2000 },
+            // 「ン」：口を とじて、はなに ぬける こもった 声（ひくい ところだけ ひびかせる）。最初から 正しい 高さ
+            //   （下から すくい上げると 甘えた 感じ。「ン」が みじかい・こもっていないと「ヤ」に 聞こえる）
+            { t: 0, av: 0, an: 0, f1: 250, f2: 1000, f3: 2200, f4: 3500, b1: 60, b2: 1500, b3: 1500, nf: 3000, nb: 2000 },
             { t: 0.008, av: 0.5 },
-            { t: 0.045, av: 0.5 },
-            // 「ニャ」：ぱっと 口を ひらいて「イ」の 口から すばやく「ア」へ（ゆっくりだと 甘えた 感じ）
-            { t: 0.052, av: 1, f1: 420, f2: 2800, f3: 3600, b1: 80, b2: 110, b3: 160 },
-            { t: 0.11, ...A, b1: 90, b2: 110, b3: 160 },
+            { t: 0.07, av: 0.5 },
+            // 「ニャ」：ぱっと 口を ひらいて（こもった 声から いっきに）「イ」の 口から すばやく「ア」へ
+            { t: 0.078, av: 1, f1: 420, f2: 2700, f3: 3500, f4: 4600, b1: 80, b2: 110, b3: 160 },
+            { t: 0.13, ...A, b1: 90, b2: 110, b3: 160 },
             // 「アー」：のばすうちに すこし 口を すぼめる（ほんのり「ニャーォ」）
             { t: 0.5, ...A },
             { t: 1.3, f1: 850, f2: 1500, f3: 3400, f4: 4800 },
@@ -174,7 +177,7 @@ const TamaSing = {
         if (!this.canSing(midi, kind)) return null;
         const script = kind === 'cat' ? this.catScript() : this.script(this.syllableOf(midi));
         const frames = this.fillScript(script);
-        const { breath, vibrato: [vibratoFrom, vibratoDepth, vibratoRate] } = this.KINDS[kind];
+        const { breath, vibrato: [vibratoFrom, vibratoDepth, vibratoRate], level } = this.KINDS[kind];
 
         const f0 = 440 * Math.pow(2, (midi - 69) / 12);
         const length = Math.round(this.LENGTH * sampleRate);
@@ -272,11 +275,19 @@ const TamaSing = {
             out[i] = (voice + hiss) * fade;
         }
 
-        // 大きさを そろえる（いちばん大きいところを 0.9 に）
+        // 大きさを そろえる（いちばん大きいところを 0.9 に。level が あるときは のばしている ところを level に）
         let peak = 0;
         for (let i = 0; i < length; i++) peak = Math.max(peak, Math.abs(out[i]));
         if (peak > 0) {
-            const scale = 0.9 / peak;
+            let scale = 0.9 / peak;
+            if (level) {
+                const from = Math.round(0.3 * sampleRate);
+                const to = Math.round(0.5 * sampleRate);
+                let sum = 0;
+                for (let i = from; i < to; i++) sum += out[i] * out[i];
+                const rms = Math.sqrt(sum / (to - from));
+                if (rms > 0) scale = Math.min(level / rms, 0.98 / peak); // われない ように
+            }
             for (let i = 0; i < length; i++) out[i] *= scale;
         }
         return out;
