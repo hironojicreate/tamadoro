@@ -2,6 +2,11 @@
 //   TamaStaff.svg([60, 62, 64], { current: 1 })  → 五線に 音符を ならべた SVG（文字列）
 //   音符は 白いけんばん（ド〜シ）だけ。下第1線の ド から、上第1線の ラ くらいまで
 //   current：いま 読む音符（ピンクに 光る）。それより前の 音符は 読みおわり（みどり）
+//   おんぷの しくみ（おんぷよみの さいしょの レベル）で 使う もの：
+//     reveal：まだ 読まない 音符は かくしておく（1つずつ あらわれる）
+//     tags：音符の 下に「せん」「あいだ」の ふだ
+//     focusLedger：ドの みじかい せん（加線）を 光らせる
+//     countLines：五線の せんを 下から かぞえる（タッチできる。counted 本めまで 光って 番号が 出る）
 
 const TamaStaff = {
     GAP: 20,           // 線と線の あいだ
@@ -26,6 +31,13 @@ const TamaStaff = {
         return lines;
     },
 
+    // せんの上の 音か（ド・ミ・ソ・シ・たかいレ …）。そうでなければ せんの あいだ（レは ドの みじかい せんと 1ばん下の せんの あいだ）
+    onLine(midi) {
+        const step = TamaNotes.stepOf(midi);
+        const octave = Math.floor(midi / 12) - 1;
+        return (octave * 7 + step - 30) % 2 === 0;
+    },
+
     // ト音記号（うずまきの まんなかが ソの線）
     clef() {
         const g = this.TOP + 3 * this.GAP; // ソの線
@@ -38,16 +50,30 @@ const TamaStaff = {
         </g>`;
     },
 
-    svg(notes, { current = 0 } = {}) {
-        const width = this.LEFT + this.STEP_X * (notes.length - 1) + 56;
-        const lines = [0, 1, 2, 3, 4].map(i =>
-            `<line x1="8" y1="${this.TOP + i * this.GAP}" x2="${width - 8}" y2="${this.TOP + i * this.GAP}"/>`).join('');
+    svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null } = {}) {
+        // 音符が ないとき（せんを かぞえる）は、音符 4こぶんの はば
+        const width = this.LEFT + this.STEP_X * (notes.length ? notes.length - 1 : 3) + 56;
+        // せんは 下から 1・2・3・4・5（i は 上から 0〜4）
+        const lines = [0, 1, 2, 3, 4].map(i => {
+            const y = this.TOP + i * this.GAP;
+            const number = 5 - i;
+            const counted = countLines !== null && number <= countLines;
+            return `<line class="${counted ? 'counted' : ''}" x1="8" y1="${y}" x2="${width - 8}" y2="${y}"/>`
+                + (counted ? `<text class="staff-line-number" x="${width - 10}" y="${y - 3}">${number}</text>` : '');
+        }).join('');
+        // せんを かぞえるときの、タッチする ところ（せんの 上下 すこし ひろめ）
+        const hits = countLines === null ? '' : [0, 1, 2, 3, 4].map(i =>
+            `<rect class="staff-line-hit" data-line="${5 - i}" x="0" y="${this.TOP + i * this.GAP - this.GAP / 2}" width="${width}" height="${this.GAP}"/>`).join('');
         const heads = notes.map((midi, i) => {
             const x = this.LEFT + i * this.STEP_X;
             const y = this.y(midi);
-            const state = i < current ? 'done' : i === current ? 'current' : 'next';
+            const state = i < current ? 'done' : i === current ? 'current' : `next${reveal ? ' hidden' : ''}`;
             const ledgers = this.ledgers(y).map(ly =>
-                `<line class="staff-ledger" x1="${x - 20}" y1="${ly}" x2="${x + 20}" y2="${ly}"/>`).join('');
+                `<line class="staff-ledger${focusLedger ? ' focus' : ''}" x1="${x - 20}" y1="${ly}" x2="${x + 20}" y2="${ly}"/>`).join('');
+            const onLine = this.onLine(midi);
+            const tag = tags
+                ? `<text class="staff-tag ${onLine ? 'line' : 'space'}" x="${x}" y="252">${onLine ? 'せん' : 'あいだ'}</text>`
+                : '';
             // ぼう：シより 上は 左に 下むき、それより 下は 右に 上むき
             const up = y > this.TOP + 2 * this.GAP;
             const stem = up
@@ -58,12 +84,14 @@ const TamaStaff = {
                 ${ledgers}
                 <ellipse class="staff-head" cx="${x}" cy="${y}" rx="12.5" ry="9" transform="rotate(-22 ${x} ${y})"/>
                 ${stem}
+                ${tag}
             </g>`;
         }).join('');
         return `<svg class="staff" viewBox="0 0 ${width} 260" role="img" aria-label="ト音記号の 五線の 音符">
             <g class="staff-lines">${lines}</g>
             ${this.clef()}
             ${heads}
+            ${hits}
         </svg>`;
     },
 };

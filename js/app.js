@@ -122,6 +122,22 @@ function route() {
     }
 }
 
+// レベルの ならびを かえた モード（dataVersion）は、まえの ドロップ・ベストタイム・きろくを 消す（かわったときに 1回だけ）
+function resetChangedModes() {
+    Object.values(MODES).forEach(mode => {
+        if (!mode.dataVersion) return;
+        const key = `tamadoro.${mode.id}.dataVersion`;
+        if (TamaStore.readJSON(key, 1) === mode.dataVersion) return;
+        Object.keys(localStorage)
+            .filter(k => k.startsWith(`${mode.storagePrefix}_coins_`)
+                || (k.startsWith(`${mode.bestTimePrefix}_level_`) && k.endsWith('_best_time')))
+            .forEach(k => localStorage.removeItem(k));
+        History.removeMode(mode.id);
+        TamaStore.writeJSON(key, mode.dataVersion);
+    });
+}
+
+resetChangedModes();
 History.migrate(); // 記録をはじめる前のドロップを取りこむ（1回だけ）
 window.addEventListener('hashchange', route);
 route();

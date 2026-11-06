@@ -437,6 +437,63 @@ html[data-mode="black"] .select-level-buttons button {
 .staff-note.done .staff-head { fill: #27ae60; }
 .staff-note.done .staff-stem { stroke: #27ae60; }
 
+/* おんぷの しくみ（おんぷよみの さいしょ）：1つでも いま 読む 音符は ピンク */
+.keys-cards.tour .staff-note.current .staff-head { fill: #e84393; }
+.keys-cards.tour .staff-note.current .staff-stem { stroke: #e84393; }
+.keys-cards.tour .staff-note.current .staff-glow { fill: rgba(232, 67, 147, 0.15); }
+
+/* まだ 読まない 音符は かくしておく（1つずつ あらわれる） */
+.staff-note {
+    transition: opacity 0.25s ease;
+}
+
+.staff-note.hidden {
+    opacity: 0;
+}
+
+/* 音符の 下の「せん」「あいだ」の ふだ */
+.staff-tag {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 19px;
+    text-anchor: middle;
+}
+
+.staff-tag.line { fill: #0984e3; }
+.staff-tag.space { fill: #e17055; }
+
+/* ドの みじかい せん（加線）を 光らせる */
+.staff-ledger.focus {
+    stroke: #e84393;
+    stroke-width: 5;
+    animation: staff-ledger-pulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes staff-ledger-pulse {
+    from { opacity: 1; }
+    to { opacity: 0.35; }
+}
+
+/* せんを かぞえる：タッチする ところ・かぞえた せん・番号 */
+.staff-line-hit {
+    fill: transparent;
+    cursor: pointer;
+    pointer-events: all; /* うしろの .keys-stage は さわれないので、ここだけ さわれるように */
+}
+
+.staff-lines line.counted {
+    stroke: #0984e3;
+    stroke-width: 5;
+}
+
+.staff-line-number {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 18px;
+    fill: #0984e3;
+    text-anchor: end;
+}
+
 /* くろいけんばん Lv4：「ド♯ ＝ ？♭」 */
 .keys-equal {
     font-family: 'M PLUS Rounded 1c', sans-serif;

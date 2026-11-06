@@ -15,7 +15,8 @@ async function openPage(browser, path, storage = {}) {
   await page.waitForTimeout(500);
   return { page, errors: () => errors.filter(e => !/gstatic|googleapis|googletagmanager|jsdelivr|ERR_FAILED/.test(e)) };
 }
-const MUSIC_ON = { 'tamadoro.music.enabled': 'true' };
+// おんぷよみの データの 版（js/modes/notes.js の dataVersion）。ないと、入れておいた ドロップが はじめに 消える
+const MUSIC_ON = { 'tamadoro.music.enabled': 'true', 'tamadoro.notes.dataVersion': '2' };
 const command = (page, c) => page.evaluate(c => { const t = document.getElementById('commandInput'); t.value = c; t.dispatchEvent(new Event('input')); }, c);
 const pressKey = (page, midi) => page.click(`#keysKeyboard .tk-key[data-midi="${midi}"]`);
 const expected = page => page.evaluate(() => keysLesson.run && keysLesson.run.problem ? keysLesson.run.problem.notes[keysLesson.run.pos] : null);
@@ -529,8 +530,12 @@ async function answerAll(page) {
     const { page, errors } = await openPage(browser, 'index.html#/music', MUSIC_ON);
     await page.click('#musicNotes'); await page.waitForTimeout(300);
     ok(await page.evaluate(() => location.hash) === '#/notes' && await page.isVisible('#openingScreen .title-notes'), 'おんがくのへやから おんぷよみへ（タイトル）');
-    ok((await page.$$('.select-level-buttons button')).length === 8, 'おんぷよみの レベルは 8こ');
-    await page.click('#level1'); await page.waitForTimeout(300);
+    ok((await page.$$('.select-level-buttons button')).length === 9, 'おんぷよみの レベルは 9こ（しくみ ＋ 8こ）');
+    ok(await page.isVisible('#level1') && !(await page.isVisible('#level2')), 'さいしょは しくみ だけ');
+    await page.evaluate(() => localStorage.setItem('notes_coins_1', JSON.stringify([{ image: '/img/Lmaru.png' }])));
+    await page.reload(); await page.waitForTimeout(500);
+    ok(await page.isVisible('#level2'), 'しくみで ドロップを 1こ もらうと Lv1 が ひらく');
+    await page.click('#level2'); await page.waitForTimeout(300);
     const s = await page.evaluate(() => {
       const heads = [...document.querySelectorAll('#keysCards .staff-note .staff-head')];
       return { count: heads.length, y: heads[0] && Number(heads[0].getAttribute('cy')), want: TamaStaff.y(keysLesson.run.problem.notes[0]), clef: !!document.querySelector('#keysCards .staff-clef'), lines: document.querySelectorAll('#keysCards .staff-lines line').length };
@@ -543,6 +548,61 @@ async function answerAll(page) {
     const stats = await page.evaluate(() => History.getStats('notes'));
     ok(stats['ド'] && stats['ド'].n === 4, 'おんぷよみの きろく（ド 4かい）');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 17b. おんぷよみ しくみ：せんは 5ほん → ドの ばしょ → のぼる・くだる（せん・あいだ）→ つづけて 読む
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/notes', MUSIC_ON);
+    await page.evaluate(() => {
+      window.sung = [];
+      const voice = TamaSing.voice.bind(TamaSing);
+      TamaSing.voice = (midi, o) => { window.sung.push(`${o && o.kind}${midi}`); return voice(midi, o); };
+    });
+    await page.click('#level1'); await page.waitForTimeout(300);
+    const deck = await page.evaluate(() => keysLesson.run.deck.map(p => p.type || p.notes.join(',')));
+    ok(deck.length === 8 && deck[0] === 'lines' && deck[1] === '60' && deck[2] === '60,62,64,65,67,69,71,72' && deck[3] === '72,71,69,67,65,64,62,60', `しくみの ながれ ${JSON.stringify(deck)}`);
+    // せんは 5ほん：下から じゅんばんに タッチ
+    ok((await page.$$('#keysCards .staff-line-hit')).length === 5 && (await page.$$('#keysCards .staff-note')).length === 0, 'さいしょは せんだけ（タッチできる せん 5ほん）');
+    await page.click('#keysCards .staff-line-hit[data-line="3"]'); await page.waitForTimeout(80);
+    ok((await page.$$('#keysCards .staff-lines line.counted')).length === 0 && (await page.textContent('#keysMessage')).includes('いちばん下'), '下から じゅんばんで ないと かぞえない');
+    for (const l of [1, 2, 3, 4, 5]) { await page.click(`#keysCards .staff-line-hit[data-line="${l}"]`); await page.waitForTimeout(80); }
+    ok((await page.$$('#keysCards .staff-lines line.counted')).length === 5 && (await page.textContent('#keysMessage')).includes('5ほん'), 'せんは 5ほん');
+    await page.waitForTimeout(2000);
+    // ドの ばしょ：みじかい せんが 光る、ふだは「せん」
+    const d = await page.evaluate(() => ({ focus: document.querySelectorAll('#keysCards .staff-ledger.focus').length, tag: document.querySelector('#keysCards .staff-tag').textContent, msg: document.getElementById('keysMessage').textContent }));
+    ok(d.focus === 1 && d.tag === 'せん' && d.msg.startsWith('ドは'), `ドは 下の みじかい せん ${JSON.stringify(d)}`);
+    // まちがえても しっぱいに ならない
+    for (let i = 0; i < 6; i++) { await pressKey(page, 64); await page.waitForTimeout(30); }
+    ok(await page.$eval('#mistakeModal', e => e.style.display) !== 'flex' && (await page.textContent('#keysMessage')).includes('ざんねん'), 'まちがえても しっぱいに ならない');
+    await pressKey(page, 60); await page.waitForTimeout(1500);
+    // のぼる：1つずつ あらわれる。ふだは せん・あいだ を くりかえす
+    const up = await page.evaluate(() => ({
+      hidden: document.querySelectorAll('#keysCards .staff-note.hidden').length,
+      tags: [...document.querySelectorAll('#keysCards .staff-tag')].map(t => t.textContent).join(''),
+    }));
+    ok(up.hidden === 7 && up.tags === 'せんあいだせんあいだせんあいだせんあいだ', `のぼる：音符は 1つずつ、せん・あいだ ${JSON.stringify(up)}`);
+    await pressKey(page, 60); await page.waitForTimeout(60);
+    ok((await page.$$('#keysCards .staff-note.hidden')).length === 6, '読むと つぎの 音符が あらわれる');
+    ok(await page.evaluate(() => TamaStaff.onLine(60) && !TamaStaff.onLine(62) && TamaStaff.onLine(64) && !TamaStaff.onLine(72) && TamaStaff.onLine(71)), 'ド・ミ・シ は せん、レ・たかいド は あいだ');
+    ok((await page.evaluate(() => window.sung)).includes('doremi60'), 'けんばんを おすと 名前を うたう');
+    await answerAll(page);
+    await page.waitForTimeout(400);
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'しくみ、クリア！', 'しくみ クリア');
+    ok((await page.evaluate(() => Object.keys(History.getStats('notes') || {}))).length === 0, 'しくみは にがての きろくに 入れない');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 17c. レベルの ならびを かえたので、まえの おんぷよみの データは 1回だけ 消す
+  {
+    const old = { 'tamadoro.music.enabled': 'true', notes_coins_3: JSON.stringify([{ image: '/img/Lmaru.png' }]), notes_level_3_best_time: '12345', keys_coins_2: JSON.stringify([{ image: '/img/Lmaru.png' }]) };
+    const { page } = await openPage(browser, 'index.html#/', old);
+    const r = await page.evaluate(() => ({ coins: localStorage.getItem('notes_coins_3'), best: localStorage.getItem('notes_level_3_best_time'), keys: localStorage.getItem('keys_coins_2'), ver: localStorage.getItem('tamadoro.notes.dataVersion') }));
+    ok(r.coins === null && r.best === null && r.keys !== null && r.ver === '2', `まえの おんぷよみの ドロップ・タイムは 消える（けんばんは そのまま）${JSON.stringify(r)}`);
+    await page.evaluate(() => localStorage.setItem('notes_coins_1', JSON.stringify([{ image: '/img/Lmaru.png' }])));
+    await page.reload(); await page.waitForTimeout(400);
+    ok(await page.evaluate(() => localStorage.getItem('notes_coins_1')) !== null, '2回めからは 消さない');
     await page.close();
   }
 
@@ -561,16 +621,16 @@ async function answerAll(page) {
   // 19. おんぷよみ Lv7 メロディ・オニ
   {
     const unlockNotes = { ...MUSIC_ON };
-    for (let l = 1; l <= 7; l++) unlockNotes[`notes_coins_${l}`] = JSON.stringify(Array(5).fill({ image: '/img/Lmaru.png' }));
+    for (let l = 1; l <= 8; l++) unlockNotes[`notes_coins_${l}`] = JSON.stringify(Array(5).fill({ image: '/img/Lmaru.png' }));
     const { page, errors } = await openPage(browser, 'index.html#/notes', unlockNotes);
-    await page.click('#level7'); await page.waitForTimeout(300);
+    await page.click('#level8'); await page.waitForTimeout(300);
     const n = await page.evaluate(() => keysLesson.run.problem.notes.length);
     ok((await page.$$('#keysCards .staff-note')).length === n && await page.$eval('#keysCards .staff-note[data-i="0"]', e => e.classList.contains('current')), 'メロディは 1つの 五線に ならぶ（さいしょが いま）');
     await pressKey(page, await expected(page)); await page.waitForTimeout(100);
     ok(await page.$eval('#keysCards .staff-note[data-i="0"]', e => e.classList.contains('done')) && await page.$eval('#keysCards .staff-note[data-i="1"]', e => e.classList.contains('current')), '読んだ 音符は みどり、つぎが いま');
     await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
-    ok(await page.isVisible('#level8'), 'おんぷよみの オニが ひらく');
-    await page.click('#level8'); await page.waitForTimeout(300);
+    ok(await page.isVisible('#level9'), 'おんぷよみの オニが ひらく');
+    await page.click('#level9'); await page.waitForTimeout(300);
     const deck = await page.evaluate(() => keysLesson.run.deck.map(p => p.notes));
     ok(deck.length === 16 && deck.filter(x => x.length === 1).every(x => x[0] >= 60 && x[0] <= 79), 'オニは ド〜たかいソ の 1おん12もん＋メロディ4もん');
     const views = new Set();
