@@ -6,6 +6,11 @@
 //   くろいけんばん（js/modes/black.js）も このエンジン：
 //     ♯・♭ の名前で出す（'spell'）、「ド♯ ＝ ？♭」を ボタンで こたえる（'enharmonic'）、ひっかけ（ミ♯ など）
 //   おんぷよみ（js/modes/notes.js）も このエンジン：display: 'staff' で、カードの かわりに 五線の 音符（js/staff.js）
+//     さいしょの「しくみ」（style: 'tour'）は、せつめいしながら すすむ（まちがえても しっぱいに ならない）。
+//     sing: true の レベルは、けんばんを おすと その音の 名前を うたう（js/sing.js の「どー・れー・みー」）
+//     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
+//       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる。
+//       正解の 和音は、1おんの 問題も おだんごの 和音だけ（Lv1 は C、Lv2 は Dm）
 
 // メロディ（Lv7・オニ）：和音ごとに、その和音に合う 3〜4おん
 //   出すときは C → F → G → C（さいごは ドで おわる）の じゅんばん
@@ -17,6 +22,78 @@ const KEYS_PHRASES = {
     end: [[64, 62, 60], [67, 64, 60], [62, 64, 60], [65, 64, 62, 60], [72, 71, 72], [67, 65, 64, 60]],
 };
 const KEYS_PROGRESSION = ['C', 'F', 'G', 'end'];
+
+// おんぷの しくみ（おんぷよみの さいしょ）：せんは 5ほん → ドの ばしょ → のぼる → くだる → つづけて 読む れんしゅう
+//   のぼる・くだるは、音符が 1つずつ あらわれて、下に「せん」「あいだ」の ふだ
+const KEYS_SCALE_UP = [60, 62, 64, 65, 67, 69, 71, 72];
+const KEYS_TOUR_RUNS = {
+    up: [[64, 65, 67, 69, 71], [62, 64, 65, 67], [65, 67, 69, 71, 72], [60, 62, 64, 65, 67]],
+    down: [[71, 69, 67, 65, 64], [67, 65, 64, 62, 60], [72, 71, 69, 67, 65], [69, 67, 65, 64, 62]],
+};
+
+function keysTourDeck() {
+    const up = KEYS_SCALE_UP;
+    const down = [...up].reverse();
+    const pick = list => list[Math.floor(Math.random() * list.length)];
+    const run = (notes, say, more = {}) => ({
+        notes,
+        say,
+        chord: keysChordFor(notes[notes.length - 1]),
+        key: notes.map(m => TamaNotes.lessonName(m)).join(''),
+        ...more,
+    });
+    return [
+        { type: 'lines', notes: [], key: 'せんは5ほん', chord: 'C', pause: 1800 },
+        run([60], 'ドは、五線の 下に みじかい せんを 1本 たした ところ。ここから スタート！ ひかっている けんばんを おしてね',
+            { tags: true, focusLedger: true, beckon: true, pause: 1300 }),
+        run(up, 'のぼるよ！ せん → あいだ → せん → あいだ … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
+        run(down, 'くだるよ！ あいだ → せん → あいだ → せん … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
+        run(up, 'ド・レ・ミ・ファ・ソ・ラ・シ・ド！ つづけて 読もう'),
+        run(down, 'ド・シ・ラ・ソ・ファ・ミ・レ・ド！ くだって 読もう'),
+        run(pick(KEYS_TOUR_RUNS.up), 'とちゅうからでも、1つずつ のぼるよ'),
+        run(pick(KEYS_TOUR_RUNS.down), 'とちゅうからでも、1つずつ くだるよ'),
+    ];
+}
+
+// 1つずつ あらわれる 音符：正解の キラリンの あと、つぎが 出るまで（ミリ秒）
+const KEYS_REVEAL_DELAY = 550;
+
+// おだんご：お手本（名前つき・わっか）→ 1おん（notes を repeat 回）と おだんご（dangos 回）を まぜる
+function keysDangoDeck(def) {
+    const names = def.notes.map(m => TamaNotes.lessonName(m)).join('・');
+    const dango = (more = {}) => ({
+        notes: def.notes,
+        dango: true,
+        chord: def.chord,
+        key: `おだんご ${names}`,
+        say: 'おだんごを 下から じゅんばんに おしてね',
+        ...more,
+    });
+    const items = [];
+    // 1おんの 問題も、正解の 和音は おだんごの 和音だけ（Lv2 は Dm だけ。その レベルの 音だけを おぼえる）
+    for (let r = 0; r < def.repeat; r++) def.notes.forEach(midi => items.push({ ...keysSingle(midi), chord: def.chord }));
+    for (let i = 0; i < def.dangos; i++) items.push(dango());
+    const intro = dango({
+        showNames: true,
+        beckon: true,
+        say: `${def.dangoName}！ 下から ${names}。ひかっている けんばんを じゅんばんに おしてね`,
+        pause: 1300,
+    });
+    return [intro, ...keysShuffleNoRepeat(items)];
+}
+
+// sing: true の レベル：ピアノの音を すこし 小さくして、名前を うたう（白いけんばん）
+function keysSingingSound(midi) {
+    if (!TamaSing.canSing(midi, 'doremi')) return TamaSound.note(midi);
+    const piano = TamaSound.note(midi, { gain: 0.25 });
+    const voice = TamaSing.voice(midi, { kind: 'doremi' });
+    return {
+        release() {
+            piano.release();
+            voice.release();
+        },
+    };
+}
 
 // 1つの音に合う和音（ド・ミ・ソ → C、ファ・ラ → F、レ・シ → G。黒いけんばんは、その音が 1ばん下の 和音）
 function keysChordFor(midi) {
@@ -135,6 +212,8 @@ function keysPhraseDeck(count) {
 
 function keysBuildDeck(def) {
     if (def.style === 'free') return [];
+    if (def.style === 'tour') return keysTourDeck();
+    if (def.style === 'dango') return keysDangoDeck(def);
     const pools = { sharp: KEYS_SHARPS, flat: KEYS_FLATS, both: [...KEYS_SHARPS, ...KEYS_FLATS] };
     if (def.style === 'spell') return keysShuffleNoRepeat(keysSpelledDeck(pools[def.pool], def));
     if (def.style === 'enharmonic') return keysShuffleNoRepeat(keysSpelledDeck(pools[def.pool], { ...def, make: keysEnharmonic }));
@@ -220,6 +299,12 @@ function keysStartLevel(level) {
         keysLesson.keyboard = new TamaKeyboard(document.getElementById('keysKeyboard'), { onPress: keysOnPress });
     }
     keysLesson.keyboard.glide = def.style === 'free';
+    keysLesson.keyboard.sound = def.sing ? keysSingingSound : midi => TamaSound.note(midi);
+    if (def.sing) {
+        // うたう 声を さきに つくっておく（まんなかの ドの ちかくから）
+        const whites = TamaNotes.whiteKeys(def.active[0], def.active[1]);
+        TamaSing.prepare(whites.sort((a, b) => Math.abs(a - 66) - Math.abs(b - 66)), 'doremi');
+    }
     keysRenderKeyboard(def.view || keysOniView());
 
     document.getElementById('keysHint').textContent = def.hint || '';
@@ -311,6 +396,10 @@ function keysNextProblem() {
     if (run.def.arrow && run.problem.guide) {
         keysLesson.keyboard.guide(run.problem.guide.base, run.problem.guide.dir === 'right' ? '→' : '←');
     }
+    // しくみの さいしょの ド：おす けんばんに ポワンポワン 光る わっか（どこを おせば いいか まよわない）
+    if (run.problem.beckon) {
+        keysLesson.keyboard.beckon(run.problem.notes[0]);
+    }
     run.accepting = true;
 }
 
@@ -368,11 +457,18 @@ function keysShowCards() {
         return;
     }
 
+    if (problem.type === 'lines') {
+        keysShowLines();
+        keysShowMessage('せんは なんぼん？ 1ぽんめ（いちばん下の せん）から じゅんばんに タッチして かぞえよう');
+        return;
+    }
+
     if (currentMode.display === 'staff') {
         // おんぷよみ：五線の 音符（メロディは 左から じゅんばんに。いま 読む音符が ピンク）
-        cards.className = `keys-cards staff ${notes.length > 1 ? 'phrase' : 'single'}`;
-        cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg(notes)}</div>`;
-        keysShowMessage(notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : 'この おんぷは どの けんばん？');
+        cards.className = `keys-cards staff ${notes.length > 1 ? 'phrase' : 'single'}${run.def.style === 'tour' ? ' tour' : ''}`;
+        const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger, dango: problem.dango, names: problem.showNames };
+        cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg(notes, options)}</div>`;
+        keysShowMessage(problem.say || (notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : 'この おんぷは どの けんばん？'));
         return;
     }
 
@@ -380,6 +476,44 @@ function keysShowCards() {
     cards.innerHTML = notes.map((midi, i) =>
         `<div class="keys-card${i === 0 ? ' current' : ''}" data-i="${i}">${keysNameSVG(midi, 'big', name(i), color(i))}</div>`).join('');
     keysShowMessage(notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : '');
+}
+
+// おんぷの しくみ：五線の せんを 下から かぞえる（run.pos 本め まで かぞえた）
+function keysShowLines() {
+    const run = keysLesson.run;
+    const cards = document.getElementById('keysCards');
+    cards.className = 'keys-cards staff lines';
+    cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg([], { countLines: run.pos })}</div>`;
+    cards.querySelectorAll('.staff-line-hit').forEach(hit => {
+        hit.addEventListener('pointerdown', event => {
+            event.preventDefault();
+            keysOnLine(Number(hit.dataset.line));
+        });
+    });
+}
+
+// せんの 音（下から ミ・ソ・シ・たかいレ・たかいファ）
+const KEYS_LINE_NOTES = [64, 67, 71, 74, 77];
+const KEYS_LINE_COUNTS = TamaStaff.LINE_COUNTS; // 1ぽんめ・2ほんめ・3ぼんめ・4ほんめ・5ほんめ
+
+function keysOnLine(number) {
+    const run = keysLesson.run;
+    if (!run || !run.accepting || run.problem.type !== 'lines') return;
+    if (number !== run.pos + 1) {
+        keysShowMessage(number <= run.pos
+            ? `そこは もう かぞえたよ。つぎは ${KEYS_LINE_COUNTS[run.pos]}（その上の せん）`
+            : `${KEYS_LINE_COUNTS[run.pos]}は ${run.pos === 0 ? 'いちばん下の せん' : 'その上の せん'}だよ`);
+        return;
+    }
+    run.pos++;
+    TamaSound.note(KEYS_LINE_NOTES[number - 1]).release();
+    keysShowLines();
+    if (run.pos < 5) {
+        keysShowMessage(`${KEYS_LINE_COUNTS[run.pos - 1]}！ つぎは その上の せん`);
+        return;
+    }
+    keysShowMessage('5ほんめ！ せんは 5ほん。この 5ほんの せんを 五線（ごせん）と いうよ');
+    keysSolved();
 }
 
 function keysShowMessage(text) {
@@ -419,6 +553,7 @@ function keysOnPress(midi, inRange) {
 
     if (!run.accepting) return; // つぎの問題を じゅんびしているあいだは、鳴るだけ
     if (run.problem.type === 'name') return; // 「ド♯ ＝ ？♭」は ボタンで こたえる（けんばんは 鳴るだけ）
+    if (run.problem.type === 'lines') return; // せんを かぞえている あいだは 鳴るだけ
 
     if (!inRange) {
         keyboard.balloon(midi, 'あかるい けんばんで さがしてね', { color: '#555', ms: 1300 });
@@ -428,18 +563,33 @@ function keysOnPress(midi, inRange) {
     const expected = run.problem.notes[run.pos];
     if (midi === expected) {
         keyboard.mark(midi, 'ok');
-        // カード（または 五線の 音符）を「読みおわり」に して、つぎを「いま」に
+        if (run.problem.beckon) keyboard.clearGuide(); // 「ここを おしてね」の わっかを けす
+        // カード（または 五線の 音符）を「読みおわり」に して、つぎを「いま」に。五線の 音符は キラリンと 光る
         const card = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
         if (card) {
             card.classList.remove('current', 'next');
-            card.classList.add('done');
+            card.classList.add('done', 'sparkle');
         }
         run.pos++;
         if (run.pos < run.problem.notes.length) {
-            const next = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
-            if (next) {
-                next.classList.remove('next');
-                next.classList.add('current');
+            const showNext = () => {
+                const next = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
+                if (next) {
+                    next.classList.remove('next', 'hidden'); // かくしていた 音符も あらわれる
+                    next.classList.add('current');
+                }
+                // お手本：わっかも つぎの けんばんへ
+                if (run.problem.beckon) keyboard.beckon(run.problem.notes[run.pos]);
+            };
+            if (run.problem.reveal) {
+                // 1つずつ あらわれる ときは、キラリンを 見てから つぎの 音符（おした音が つぎの 音符だと まちがえない）
+                run.accepting = false;
+                keysLesson.later(() => {
+                    showNext();
+                    run.accepting = true;
+                }, KEYS_REVEAL_DELAY);
+            } else {
+                showNext();
             }
             return;
         }
@@ -448,6 +598,12 @@ function keysOnPress(midi, inRange) {
     } else {
         keyboard.mark(midi, 'ng');
         keyboard.balloon(midi, `${TamaNotes.lessonName(midi)}だよ`);
+        if (run.def.style === 'tour') {
+            // しくみ：まちがえても しっぱいに しない（どこを 見るかを おしえる）
+            const where = TamaStaff.onLine(expected) ? 'せんの 上' : 'せんの あいだ';
+            keysShowMessage(`ざんねん！ ピンクの おんぷは ${where}。けんばんの もじも 見てね`);
+            return;
+        }
         const correct = run.problem.names ? run.problem.names[run.pos] : TamaNotes.lessonName(expected);
         keysMistake(TamaNotes.lessonName(midi), correct);
     }
@@ -496,7 +652,9 @@ function keysSolved() {
     if (problemMs > History.INVALID_MS) {
         run.paused = true;
     }
-    History.recordProblem(currentMode.id, run.problem.key, !problemState.mistakeMade, problemMs);
+    if (run.def.style !== 'tour') { // しくみの せつめいは、きろく（にがて）に 入れない
+        History.recordProblem(currentMode.id, run.problem.key, !problemState.mistakeMade, problemMs);
+    }
     if (problemState.mistakeMade && !run.isReview) {
         run.reviewQueue.push(run.problem); // まちがえた問題は、さいごにもういちど
     }
@@ -508,7 +666,7 @@ function keysSolved() {
         problemState.correctStreak++;
         keysPileCoin(problemState.correctStreak % 5 === 0); // 5問ごとに金のドロップ
     }
-    keysLesson.later(keysNextProblem, 900);
+    keysLesson.later(keysNextProblem, run.problem.pause || 900);
 }
 
 // pressed・correct は 名前（「ミ」「ド♯／レ♭」など）
@@ -607,8 +765,8 @@ function keysFinish() {
         `${currentMode.texts.best} ${bestTime !== null ? formatTime(bestTime) : '--:--'}`;
 
     document.getElementById('completionModal').style.display = 'flex';
-    // おとあそびは、いつも そのレベルの色のドロップ（金は、まちがえずに こたえたとき）
-    const drop = createRewardCoin(level, run.def.style !== 'free');
+    // おとあそび・しくみは、いつも そのレベルの色のドロップ（金は、まちがえずに こたえたとき）
+    const drop = createRewardCoin(level, !['free', 'tour'].includes(run.def.style));
 
     History.addEntry({
         mode: currentMode.id,
