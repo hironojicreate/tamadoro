@@ -345,6 +345,16 @@ async function answerAll(page) {
     await page.evaluate(() => { window.heard = []; });
     await press([60, 61, 62]);
     ok(JSON.stringify(await page.evaluate(() => window.heard)) === '["cat60","cat61","cat62"]', 'ニャーの ときは ネコの声だけ（黒いけんばんでも なく）');
+    // 音名かくにん：ニャーの ときは 名前も ぜんぶ「ニャー」、ピアノの ときは ほんとうの 音名
+    const shownName = async midi => {
+      await page.click(`#pianoKeyboard .tk-key[data-midi="${midi}"]`); await page.waitForTimeout(80);
+      return [await page.textContent(`#pianoKeyboard .tk-balloon[data-midi="${midi}"]`), await page.$eval('#pianoName svg', e => e.getAttribute('aria-label'))].join('|');
+    };
+    await page.click('#pianoNames'); await page.waitForTimeout(100);
+    ok((await shownName(64)) === 'ニャー|ニャー' && (await shownName(70)) === 'ニャー|ニャー', 'ニャーの ときは 音名も「ニャー」（黒いけんばんも）');
+    await page.click('#pianoSound'); await page.waitForTimeout(100);
+    ok((await shownName(64)) === 'ミ|ミ' && (await shownName(70)) === 'ラ♯／シ♭|ラ♯／シ♭', 'ピアノに もどすと ほんとうの 音名');
+    await page.click('#pianoSound'); await page.click('#pianoNames'); await page.waitForTimeout(100);
     // 声の高さは けんばんと 同じ（のばしている ところの 周期を はかる）
     const pitchCents = kind => page.evaluate(kind => [48, 60, 67, 72, 84].map(midi => {
       const rate = TamaSing.RATE;
