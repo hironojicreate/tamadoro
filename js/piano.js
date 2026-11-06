@@ -1,15 +1,16 @@
 // じゆうにひこう（#/piano）：音が鳴る けんばんで、すきなように ひいて あそぶ（ドロップは なし）
 //   けんばんは 画面の 左はしから 右はしまで。画面の はばに合わせて 数がかわる（まんなかの ドの あたりを 中心に）
 //   「音名かくにん」を ON にすると、さわった けんばんの 名前が出る（ON／OFF は この端末に おぼえておく）
-//   「うたう」ボタンで OFF → ドレミ → ニャー → OFF と かわる（js/sing.js。ためしに つくったもの。この端末に おぼえておく）
-//     ドレミ：ドを ひいたら「どー」と その高さで うたう。黒いけんばんは ピアノの音だけ
-//     ニャー：ネコの タマが「ニャー」と その高さで なく。黒いけんばんでも なく
+//   「おと」ボタンで ピアノ ⇄ ニャー を えらぶ（この端末に おぼえておく）
+//     ピアノ：ふつうの ピアノの音
+//     ニャー：ネコの タマが「ニャー」と その高さで なく（js/sing.js。ピアノの音は 鳴らさない。黒いけんばんでも なく）
+//   （js/sing.js には「どー・れー・みー」と うたう 声も ある。いまは えらべない）
 //   「けんばんの はば」の スライダーで、白いけんばん 1この はばを かえられる（この端末に おぼえておく。
 //   うごかすまでは 画面の はばに合わせた めやす）
 
 const TamaPiano = {
     NAMES_KEY: 'tamadoro.piano.names',
-    SING_KEY: 'tamadoro.piano.sing',
+    SOUND_KEY: 'tamadoro.piano.sound',
     WIDTH_KEY: 'tamadoro.piano.keyWidth',
     keyboard: null,
 
@@ -48,7 +49,7 @@ const TamaPiano = {
             });
         }
         this.renderNamesButton();
-        this.renderSingButton();
+        this.renderSoundButton();
         document.getElementById('pianoName').innerHTML = '';
         this.render();
     },
@@ -66,62 +67,42 @@ const TamaPiano = {
         const [from, to] = this.range(this.width());
         document.getElementById('pianoWidth').value = this.keyWidth(this.width()); // スライダーも いまの はばに
         this.keyboard.render({ from, to });
-        if (this.singKind()) this.prepareVoices();
+        if (this.isCat()) this.prepareVoices();
     },
 
-    // ---------- うたう ----------
+    // ---------- おと（ピアノ ⇄ ニャー） ----------
 
-    SING_KINDS: [null, 'doremi', 'cat'],
-    SING_LABELS: { doremi: 'ドレミ', cat: 'ニャー' },
-
-    // いまの 声（null は うたわない）。まえの ON（true）は ドレミ
-    singKind() {
-        const saved = TamaStore.readJSON(this.SING_KEY, null);
-        if (saved === true) return 'doremi';
-        return this.SING_KINDS.includes(saved) ? saved : null;
+    isCat() {
+        return TamaStore.readJSON(this.SOUND_KEY, 'piano') === 'cat';
     },
 
-    toggleSing() {
-        const kinds = this.SING_KINDS;
-        const next = kinds[(kinds.indexOf(this.singKind()) + 1) % kinds.length];
-        TamaStore.writeJSON(this.SING_KEY, next);
-        this.renderSingButton();
-        if (next) this.prepareVoices();
+    toggleSound() {
+        TamaStore.writeJSON(this.SOUND_KEY, this.isCat() ? 'piano' : 'cat');
+        this.renderSoundButton();
+        if (this.isCat()) this.prepareVoices();
     },
 
-    renderSingButton() {
-        const button = document.getElementById('pianoSing');
-        const kind = this.singKind();
-        button.textContent = `うたう：${kind ? this.SING_LABELS[kind] : 'OFF'}`;
-        button.classList.toggle('on', !!kind);
-        button.classList.toggle('cat', kind === 'cat');
-        button.setAttribute('aria-pressed', kind ? 'true' : 'false');
+    renderSoundButton() {
+        const button = document.getElementById('pianoSound');
+        const cat = this.isCat();
+        button.textContent = cat ? 'おと：ニャー' : 'おと：ピアノ';
+        button.classList.toggle('cat', cat);
+        button.setAttribute('aria-pressed', cat ? 'true' : 'false');
     },
 
-    // 見えている けんばんの 声を、まんなかの ドの ちかくから じゅんに つくっておく
+    // 見えている けんばんの ニャーを、まんなかの ドの ちかくから じゅんに つくっておく（はじめて おしたときに おくれないように）
     prepareVoices() {
-        const kind = this.singKind();
         const [from, to] = this.range(this.width());
         const keys = [];
-        for (let midi = from; midi <= to; midi++) {
-            if (TamaSing.canSing(midi, kind)) keys.push(midi);
-        }
+        for (let midi = from; midi <= to; midi++) keys.push(midi);
         keys.sort((a, b) => Math.abs(a - 64) - Math.abs(b - 64));
-        TamaSing.prepare(keys, kind);
+        TamaSing.prepare(keys, 'cat');
     },
 
-    // うたう：ピアノの音を すこし 小さくして、声と いっしょに 鳴らす
+    // おした けんばんの 音（ニャーのときは ネコの 声だけ）
     sound(midi) {
-        const kind = this.singKind();
-        if (!kind || !TamaSing.canSing(midi, kind)) return TamaSound.note(midi);
-        const piano = TamaSound.note(midi, { gain: 0.25 });
-        const voice = TamaSing.voice(midi, { kind });
-        return {
-            release() {
-                piano.release();
-                voice.release();
-            },
-        };
+        if (!this.isCat()) return TamaSound.note(midi);
+        return TamaSing.voice(midi, { kind: 'cat', gain: 0.9 });
     },
 
     stop() {
@@ -167,7 +148,7 @@ const TamaPiano = {
 };
 
 document.getElementById('pianoNames').addEventListener('click', () => TamaPiano.toggleNames());
-document.getElementById('pianoSing').addEventListener('click', () => TamaPiano.toggleSing());
+document.getElementById('pianoSound').addEventListener('click', () => TamaPiano.toggleSound());
 document.getElementById('pianoWidth').addEventListener('input', event => TamaPiano.setKeyWidth(Number(event.target.value)));
 
 // 画面の むき・大きさが かわったら、けんばんの数を つくりなおす

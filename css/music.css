@@ -800,8 +800,7 @@ html[data-mode="rhythm"] .reward-coin {
     accent-color: #c56cf0;
 }
 
-#pianoNames,
-#pianoSing {
+#pianoNames {
     background: linear-gradient(135deg, #b2bec3, #636e72);
 }
 
@@ -809,11 +808,12 @@ html[data-mode="rhythm"] .reward-coin {
     background: linear-gradient(135deg, #c56cf0, #6c5ce7);
 }
 
-#pianoSing.on {
-    background: linear-gradient(135deg, #ff9ff3, #f368e0);
+/* おと：ピアノ（みずいろ）⇄ ニャー（オレンジ） */
+#pianoSound {
+    background: linear-gradient(135deg, #74b9ff, #0984e3);
 }
 
-#pianoSing.on.cat {
+#pianoSound.cat {
     background: linear-gradient(135deg, #ffc371, #ff8c42);
 }
 

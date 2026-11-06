@@ -325,22 +325,26 @@ async function answerAll(page) {
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
-  // 7e. じゆうにひこう：うたう（ドを ひくと「どー」。js/sing.js）
+  // 7e. じゆうにひこう：おと（ピアノ ⇄ ニャー。js/sing.js）
   {
     const { page, errors } = await openPage(browser, 'index.html#/piano', MUSIC_ON);
-    ok((await page.textContent('#pianoSing')) === 'うたう：OFF', 'さいしょは うたう OFF');
-    await page.evaluate(() => {
-      window.sung = [];
+    ok((await page.textContent('#pianoSound')) === 'おと：ピアノ', 'さいしょは ピアノ');
+    const spy = () => page.evaluate(() => {
+      window.heard = [];
       const voice = TamaSing.voice.bind(TamaSing);
-      TamaSing.voice = (midi, o) => { window.sung.push(o && o.kind === 'cat' ? `cat${midi}` : midi); return voice(midi, o); };
+      const note = TamaSound.note.bind(TamaSound);
+      TamaSing.voice = (midi, o) => { window.heard.push(`${o && o.kind}${midi}`); return voice(midi, o); };
+      TamaSound.note = (midi, o) => { window.heard.push(`piano${midi}`); return note(midi, o); };
     });
-    await page.click('#pianoKeyboard .tk-key[data-midi="60"]'); await page.waitForTimeout(100);
-    ok((await page.evaluate(() => window.sung.length)) === 0, 'OFF のときは うたわない');
-    await page.click('#pianoSing'); await page.waitForTimeout(100);
-    ok((await page.textContent('#pianoSing')) === 'うたう：ドレミ', '押すと ドレミ');
-    for (const midi of [60, 62, 64, 65, 67, 69, 71, 72, 61]) { await page.click(`#pianoKeyboard .tk-key[data-midi="${midi}"]`); await page.waitForTimeout(40); }
-    ok(JSON.stringify(await page.evaluate(() => window.sung)) === '[60,62,64,65,67,69,71,72]', '白いけんばんで うたう（黒いけんばんは ピアノだけ）');
-    ok(JSON.stringify(await page.evaluate(() => [60, 62, 64, 65, 67, 69, 71, 61].map(m => TamaSing.syllableOf(m)))) === '["ど","れ","み","ふぁ","そ","ら","し",null]', 'ことばは ど・れ・み・ふぁ・そ・ら・し');
+    const press = async midis => { for (const midi of midis) { await page.click(`#pianoKeyboard .tk-key[data-midi="${midi}"]`); await page.waitForTimeout(40); } };
+    await spy();
+    await press([60, 61]);
+    ok(JSON.stringify(await page.evaluate(() => window.heard)) === '["piano60","piano61"]', 'ピアノの ときは ピアノの音だけ');
+    await page.click('#pianoSound'); await page.waitForTimeout(100);
+    ok((await page.textContent('#pianoSound')) === 'おと：ニャー' && await page.$eval('#pianoSound', e => e.classList.contains('cat')), '押すと ニャー');
+    await page.evaluate(() => { window.heard = []; });
+    await press([60, 61, 62]);
+    ok(JSON.stringify(await page.evaluate(() => window.heard)) === '["cat60","cat61","cat62"]', 'ニャーの ときは ネコの声だけ（黒いけんばんでも なく）');
     // 声の高さは けんばんと 同じ（のばしている ところの 周期を はかる）
     const pitchCents = kind => page.evaluate(kind => [48, 60, 67, 72, 84].map(midi => {
       const rate = TamaSing.RATE;
@@ -354,29 +358,18 @@ async function answerAll(page) {
       const want = 440 * Math.pow(2, (midi - 69) / 12);
       return Math.round(1200 * Math.log2(rate / exact / want));
     }), kind);
-    const cents = await pitchCents('doremi');
-    ok(cents.every(c => Math.abs(c) <= 5), `声の高さは けんばんと 同じ（ずれ ${cents.join('・')} セント）`);
-    await page.waitForTimeout(800);
-    ok((await page.evaluate(() => TamaSing.cache.size)) >= 20, '見えている 白いけんばんの 声は さきに つくっておく');
-    await page.reload(); await page.waitForTimeout(500);
-    ok((await page.textContent('#pianoSing')) === 'うたう：ドレミ', 'ドレミ は おぼえている');
-    // ネコの「ニャー」
-    await page.click('#pianoSing'); await page.waitForTimeout(100);
-    ok((await page.textContent('#pianoSing')) === 'うたう：ニャー' && await page.$eval('#pianoSing', e => e.classList.contains('cat')), 'もう1回 押すと ニャー');
-    await page.evaluate(() => {
-      window.sung = [];
-      const voice = TamaSing.voice.bind(TamaSing);
-      TamaSing.voice = (midi, o) => { window.sung.push(o && o.kind === 'cat' ? `cat${midi}` : midi); return voice(midi, o); };
-    });
-    for (const midi of [60, 61, 62]) { await page.click(`#pianoKeyboard .tk-key[data-midi="${midi}"]`); await page.waitForTimeout(40); }
-    ok(JSON.stringify(await page.evaluate(() => window.sung)) === '["cat60","cat61","cat62"]', 'ネコは 黒いけんばんでも なく');
     const catCents = await pitchCents('cat');
-    ok(catCents.every(c => Math.abs(c) <= 5), `ニャーの 高さも けんばんと 同じ（ずれ ${catCents.join('・')} セント）`);
-    ok(await page.evaluate(() => { const a = TamaSing.render(60, 24000, 'doremi'), b = TamaSing.render(60, 24000, 'cat'); return a.some((x, i) => x !== b[i]); }), 'ドレミ と ニャー は ちがう声');
+    ok(catCents.every(c => Math.abs(c) <= 5), `ニャーの 高さは けんばんと 同じ（ずれ ${catCents.join('・')} セント）`);
+    // とっておいた ドレミの 声（画面からは えらべない）も、高さは けんばんと 同じ
+    const cents = await pitchCents('doremi');
+    ok(cents.every(c => Math.abs(c) <= 5), `ドレミの 声の 高さも 同じ（ずれ ${cents.join('・')} セント）`);
+    ok(JSON.stringify(await page.evaluate(() => [60, 62, 64, 65, 67, 69, 71, 61].map(m => TamaSing.syllableOf(m)))) === '["ど","れ","み","ふぁ","そ","ら","し",null]', 'ドレミの ことばは ど・れ・み・ふぁ・そ・ら・し');
+    await page.waitForTimeout(800);
+    ok((await page.evaluate(() => TamaSing.cache.size)) >= 20, '見えている けんばんの ニャーは さきに つくっておく');
     await page.reload(); await page.waitForTimeout(500);
-    ok((await page.textContent('#pianoSing')) === 'うたう：ニャー', 'ニャー も おぼえている');
-    await page.click('#pianoSing'); await page.waitForTimeout(100);
-    ok((await page.textContent('#pianoSing')) === 'うたう：OFF', 'もう1回 押すと OFF にもどる');
+    ok((await page.textContent('#pianoSound')) === 'おと：ニャー', 'ニャー は おぼえている');
+    await page.click('#pianoSound'); await page.waitForTimeout(100);
+    ok((await page.textContent('#pianoSound')) === 'おと：ピアノ', 'もう1回 押すと ピアノに もどる');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
