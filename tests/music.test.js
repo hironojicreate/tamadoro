@@ -784,9 +784,10 @@ async function answerAll(page) {
         });
         if (!S.FAMILIES[st.family]) bad.push(`${st.id} けいとう`);
         // うたう メロディ（js/songs.js の make）の きまり
-        const whites = S.whites();
+        const whites = S.scaleWhites(st); // 5音音階の 曲調は その 音だけ（となりも 音階の となり）
         const idx = m => whites.indexOf(m);
         const ch = S.melodyOf(st);
+        if (st.scale && (st.scale.length !== 5 || whites.some(m => !st.scale.includes(m % 12)))) bad.push(`${st.id} 音階`);
         for (let k = 0; k < 30; k++) {
           const phrases = S.make(st);
           const flat = [];
@@ -804,6 +805,7 @@ async function answerAll(page) {
           flat.forEach((x, i) => {
             const tone = S.tones(x.chord).includes(x.m % 12);
             if (!(x.m >= 57 && x.m <= 79 && !TamaNotes.isBlack(x.m))) bad.push(`${st.id} はんい`);
+            if (!whites.includes(x.m)) bad.push(`${st.id} 音階の そとの 音`);
             if (x.must && !tone) bad.push(`${st.id} つよい拍は 和音の 音`);
             if (!tone) {
               // 和音の そとの 音：となりから きて、となりの 和音の 音へ ぬける（経過音・刺繍音）
@@ -839,6 +841,11 @@ async function answerAll(page) {
       Object.entries(S.FAMILIES).forEach(([id, f]) => { if (!f.rhythms || !f.rhythms.length || f.rhythms.some(r => !S.RHYTHMS[r])) bad.push(`${id} rhythms`); });
       if (!S.FAMILIES.jazz.rhythms.some(r => S.rhythmBars(r)[0].startsWith('○'))) bad.push('ジャズの はじめの 休符');
       if (S.restsAfter(['○●●●', '●●●○', '●●●○']).join() !== '-1,5,8') bad.push('restsAfter');
+      // 日本の 5音音階・沖縄風：ヨナぬき（ドレミソラ）・みんよう（ラドレミソ。空5度の 伴奏）・琉球音階（ドミファソシ）
+      const scaleOf = id => (S.STYLES.find(x => x.id === id) || {}).scale || [];
+      if (scaleOf('yonanuki').join() !== '0,2,4,7,9' || scaleOf('minyo').join() !== '9,0,2,4,7' || scaleOf('shimauta').join() !== '0,4,5,7,11' || scaleOf('kachashi').join() !== '0,4,5,7,11') bad.push('5音音階');
+      if (S.chordNotes('A5').join() !== '45,52' || !S.STYLES.find(x => x.id === 'minyo').chords.every(c => c.endsWith('5'))) bad.push('空5度');
+      if (S.FAMILIES.nihon.name !== 'にほん' || S.FAMILIES.okinawa.name !== 'おきなわ') bad.push('にほん・おきなわ');
       const ids = new Set(S.STYLES.map(s => s.id));
       // ノブ：曲調の weight 0 は 出ない、系統の weight 0 も 出ない
       const komuro = S.STYLES.find(s => s.id === 'komuro');
@@ -886,7 +893,7 @@ async function answerAll(page) {
       open: !!document.getElementById('songPicker'), styles: document.querySelectorAll('#songPicker [data-song]').length,
       rhythms: document.querySelectorAll('#songPicker [data-rhythm]').length, forced: TamaSongs.forced(),
     }));
-    ok(list.open && list.styles === 29 + 13 + 1 && list.rhythms === 5 + 1 && list.forced === null, `/song⏎ で 曲調の 一覧 ${JSON.stringify(list)}`);
+    ok(list.open && list.styles === 33 + 15 + 1 && list.rhythms === 5 + 1 && list.forced === null, `/song⏎ で 曲調の 一覧 ${JSON.stringify(list)}`);
     await page.click('#songPicker [data-rhythm="setsunai"]'); await page.waitForTimeout(100);
     ok(await page.evaluate(() => TamaSongs.forcedRhythm() === 'setsunai' && !!document.getElementById('songPicker') && document.querySelector('#songPicker [data-rhythm="setsunai"]').classList.contains('on')),
       '一覧：リズムを えらぶ（ひらいた まま）');
@@ -1047,6 +1054,22 @@ async function answerAll(page) {
     ok((await page.$$('#keysCards .staff-note')).length === n && await page.$eval('#keysCards .staff-note[data-i="0"]', e => e.classList.contains('current')), 'メロディは 1つの 五線に ならぶ（さいしょが いま）');
     await pressKey(page, await expected(page)); await page.waitForTimeout(100);
     ok(await page.$eval('#keysCards .staff-note[data-i="0"]', e => e.classList.contains('done')) && await page.$eval('#keysCards .staff-note[data-i="1"]', e => e.classList.contains('current')), '読んだ 音符は みどり、つぎが いま');
+    // 4/4拍子の 1小節：3おんは ●●●○、4おんは ●●●●。拍の かず 1・2・3・4。はじめての きゅうふで せつめい
+    const bars = await page.evaluate(() => keysLesson.run.deck.map(p => `${p.notes.length}:${p.rhythm}:${p.rests.join()}:${p.counts}`));
+    ok(bars.every(b => /^3:●●●○:2:true$|^4:●●●●::true$/.test(b)), `Lv8 メロディは 4/4 の 1小節（3おんは ●●●○）${bars.join(' ')}`);
+    const firstRest = await page.evaluate(() => keysLesson.run.deck.findIndex(p => p.rests.length));
+    const says = await page.evaluate(() => keysLesson.run.deck.filter(p => p.rests.length).map(p => p.say));
+    ok(firstRest >= 0 && says[0].includes('4ぶきゅうふ') && says.slice(1).every(t => t.includes('おやすみ') && !t.includes('4ぶきゅうふ')), `はじめての きゅうふで せつめい ${says.slice(0, 2).join(' / ')}`);
+    // きゅうふの ある 問題を 出して、ぜんぶ ひくと きゅうふと「4」が 光る
+    await page.evaluate(() => { const r = keysLesson.run; const p = r.deck.find(q => q.rests.length); r.deck.splice(r.index, 0, p); r.accepting = false; keysNextProblem(); });
+    await page.waitForTimeout(200);
+    const shown = await page.evaluate(() => ({ time: document.querySelectorAll('#keysCards .staff-time').length, rests: document.querySelectorAll('#keysCards .staff-rest').length,
+      counts: [...document.querySelectorAll('#keysCards .staff-count')].map(t => t.textContent + (t.classList.contains('rest') ? 'r' : '')).join(',') }));
+    ok(shown.time === 1 && shown.rests === 1 && shown.counts === '1,2,3,4r', `4/4・きゅうふ・拍の かず ${JSON.stringify(shown)}`);
+    for (let j = 0; j < 3; j++) { await pressKey(page, await expected(page)); await page.waitForTimeout(40); }
+    await page.waitForTimeout(400);
+    ok(await page.evaluate(() => document.querySelector('#keysCards .staff-rest').classList.contains('on') && document.querySelector('#keysCards [data-rc="0"]').classList.contains('on')),
+      'さいごの 音を ひくと きゅうふと「4」が 光る（おさなくて いい）');
     await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
     ok(await page.isVisible('#level11'), 'おんぷよみの オニが ひらく');
     await page.click('#level11'); await page.waitForTimeout(300);

@@ -12,6 +12,7 @@
 //   chordName：五線の 上に コード名（おんぷよみ Lv9 きょくふう の れんしゅう）
 //   rhythm：'●●●○' のように わたすと、4/4拍子の 1小節（拍子記号・4ぶきゅうふ・おわりの 小節線）。
 //     ● に 音符、○ に 4ぶきゅうふ。きゅうふは data-r（0から）。音符の data-i は 音符だけで かぞえる
+//     counts：拍の 下に 1・2・3・4（4拍を いしきする。きゅうふの 拍は うすく）
 //   TamaStaff.score(phrases, { perRow })：きょくふう メロディ（Lv9）の ぜんぶの がくふ（4/4拍子）。
 //     1だんに perRow 小節。1だんめの はじめに 4/4、小節の 上に コード名、小節の おわりに 小節線。
 //     音符の data-i・きゅうふの data-r は 曲の はじめから
@@ -106,11 +107,20 @@ const TamaStaff = {
         return parts.join('');
     },
 
+    // 拍の かず 1・2・3・4（きゅうふの 拍は うすく。data-rc は その きゅうふの data-r。きゅうふが 光ると いっしょに 光る）
+    counts(rhythm, x0, step) {
+        let r = 0;
+        return rhythm.split('').map((mark, k) => {
+            const rest = mark === '○' ? ` rest" data-rc="${r++}` : '';
+            return `<text class="staff-count${rest}" x="${x0 + k * step}" y="254">${k + 1}</text>`;
+        }).join('');
+    },
+
     barLine(x, end = false) {
         return `<line class="staff-bar${end ? ' end' : ''}" x1="${x}" y1="${this.TOP}" x2="${x}" y2="${this.TOP + 4 * this.GAP}"/>`;
     },
 
-    svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null, dango = false, names = false, chordName = null, rhythm = null } = {}) {
+    svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null, dango = false, names = false, chordName = null, rhythm = null, counts = false } = {}) {
         // 音符が ないとき（せんを かぞえる）は、音符 4こぶんの はば。おだんごは 1れつ（名前つきは すこし ひろく）
         //   rhythm が あるときは 4拍ぶん ＋ 拍子記号
         const longest = Math.max(0, ...notes.map(m => TamaNotes.lessonName(m).length));
@@ -137,6 +147,7 @@ const TamaStaff = {
         const heads = dango ? this.dango(notes, current, names, focusLedger)
             : rhythm ? this.bar(rhythm, notes, first, this.STEP_X, { state: stateOf })
                 + this.timeSignature() + this.barLine(width - 10)
+                + (counts ? this.counts(rhythm, first, this.STEP_X) : '')
             : notes.map((midi, i) => this.note(midi, this.LEFT + i * this.STEP_X, i, stateOf(i), { focusLedger, tags })).join('');
         const chord = chordName ? `<text class="staff-chord" x="${first - 6}" y="52">${chordName}</text>` : '';
         return `<svg class="staff${dango ? ' dango' : ''}" viewBox="0 0 ${width} 260" role="img" aria-label="ト音記号の 五線の 音符">

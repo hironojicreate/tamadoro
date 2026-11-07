@@ -147,6 +147,8 @@ function keysLightRests(after) {
         keysLesson.later(() => {
             const rest = document.querySelector(`#keysCards [data-r="${r}"]`);
             if (rest) rest.classList.add('on');
+            const count = document.querySelector(`#keysCards [data-rc="${r}"]`); // 拍の かず（Lv8 メロディ）
+            if (count) count.classList.add('on');
         }, KEYS_REST_LIGHT * k);
     });
 }
@@ -315,7 +317,24 @@ function keysPhraseDeck(count, melody = null) {
         const choices = phrases[chord].filter(p => !deck.length || deck[deck.length - 1].key !== keysPhrase(p, chord).key);
         deck.push(keysPhrase(choices[Math.floor(Math.random() * choices.length)], chord));
     }
+    if (leap) keysPhraseBars(deck);
     return deck;
+}
+
+// おんぷよみの メロディ（Lv8・オニ）：4/4拍子の 1小節に する。3おんは ●●●○（4ぶきゅうふ）、4おんは ●●●●。
+//   拍の 下に 1・2・3・4。はじめて きゅうふが 出る 問題で、きゅうふの せつめい
+function keysPhraseBars(deck) {
+    let explained = false;
+    deck.forEach(problem => {
+        problem.rhythm = problem.notes.length === 3 ? '●●●○' : '●●●●';
+        problem.rests = TamaSongs.restsAfter([problem.rhythm]);
+        problem.counts = true;
+        if (!problem.rests.length) return;
+        problem.say = explained
+            ? 'ひだりから じゅんばんに。ギザギザは おやすみ'
+            : 'ギザギザは 4ぶきゅうふ（おやすみ）。4つめの 拍は おやすみだよ。おさなくて いいよ';
+        explained = true;
+    });
 }
 
 function keysBuildDeck(def) {
@@ -611,7 +630,7 @@ function keysShowCards() {
     if (currentMode.display === 'staff') {
         // おんぷよみ：五線の 音符（メロディは 左から じゅんばんに。いま 読む音符が ピンク）
         cards.className = `keys-cards staff ${notes.length > 1 ? 'phrase' : 'single'}${run.def.style === 'tour' ? ' tour' : ''}`;
-        const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger, dango: problem.dango, names: problem.showNames, chordName: problem.chordName, rhythm: problem.rhythm };
+        const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger, dango: problem.dango, names: problem.showNames, chordName: problem.chordName, rhythm: problem.rhythm, counts: problem.counts };
         cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg(notes, options)}</div>`;
         keysShowMessage(problem.say || (notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : 'この おんぷは どの けんばん？'));
         return;

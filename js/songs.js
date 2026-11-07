@@ -13,6 +13,7 @@
 //   TamaSongs.pickRhythm(style)      その 曲調の リズムを 1つ えらぶ（/rhythm で きめた リズムが あれば それ）
 //   TamaSongs.make(style, random, rhythm)  その 曲調の 8フレーズ [{ notes, chord, rhythm: '●●●○', sabi: 'up' か null }]
 //   TamaSongs.melodyOf(style)        その 曲調の メロディの 性格（高さ・広さ・とび・サビの むき）
+//   TamaSongs.scaleWhites(style)     その 曲調の メロディに つかう 白いけんばん（5音音階の 曲調は その 音だけ）
 //   TamaSongs.restsAfter(bars)       休符の まえの 音符の ばんごう（-1 は 音符より まえ）。休符を ひからせる ときに 使う
 //   TamaSongs.chordNotes(name)       和音記号（'Dm7' など）→ 伴奏の 音（MIDI）
 //   TamaSongs.force(id) / forced()   /song で 曲調・系統を きめる（'off' で もとに もどす）
@@ -50,6 +51,10 @@ const TamaSongs = {
             melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 3, octave: 2 } } },
         game: { name: 'ゲーム', weight: 1, rhythms: ['genki', 'hazumu'],
             melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 2, octave: 2, surge: 1 } } },
+        nihon: { name: 'にほん', weight: 1, rhythms: ['utau', 'setsunai', 'hazumu'],
+            melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 3, surge: 1 } } },
+        okinawa: { name: 'おきなわ', weight: 1, rhythms: ['hazumu', 'genki', 'utau'],
+            melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 1 } } },
         doyo: { name: 'どうよう', weight: 1, rhythms: ['hazumu', 'utau'],
             melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } } },
     },
@@ -132,6 +137,17 @@ const TamaSongs = {
           chords: ['C', 'F', 'C', 'G7', 'C', 'F', 'G7', 'C'] },
         { id: 'warabe', family: 'doyo', name: 'どうよう風', sub: 'わらべうた', key: 'C', weight: 1,
           chords: ['C', 'Am', 'F', 'G7', 'C', 'F', 'G7', 'C'] },
+        // 日本の 5音音階・沖縄の 音階（scale：メロディに つかう 音。ド＝0 … シ＝11）。メロディは その 音だけ、
+        //   となりの 音も 音階の 中の となり（ドレミソラ なら ミの となりは ソ）
+        { id: 'yonanuki', family: 'nihon', name: 'にほん風', sub: 'ヨナぬき・ドレミソラ', key: 'C', weight: 1,
+          scale: [0, 2, 4, 7, 9], chords: ['C', 'Am', 'F', 'C', 'Am', 'F', 'G', 'C'] },
+        // みんよう：伴奏は 空5度（ねもとと 5度だけ。A5 ＝ ラ・ミ）で、たいこや 三味線の ような ひびき
+        { id: 'minyo', family: 'nihon', name: 'にほん風', sub: 'みんよう・ラドレミソ', key: 'Am', weight: 1,
+          scale: [9, 0, 2, 4, 7], chords: ['A5', 'D5', 'A5', 'E5', 'A5', 'G5', 'D5', 'A5'] },
+        { id: 'shimauta', family: 'okinawa', name: 'おきなわ風', sub: 'しまうた・ドミファソシ', key: 'C', weight: 1,
+          scale: [0, 4, 5, 7, 11], chords: ['C', 'F', 'C', 'G7', 'C', 'F', 'G7', 'C'] },
+        { id: 'kachashi', family: 'okinawa', name: 'おきなわ風', sub: 'カチャーシー', key: 'C', weight: 1,
+          scale: [0, 4, 5, 7, 11], chords: ['C', 'Em', 'F', 'G', 'Cmaj7', 'F', 'G7', 'C'] },
     ],
 
     // ---------- 和音記号 ----------
@@ -140,6 +156,7 @@ const TamaSongs = {
     QUALITIES: {
         '': [0, 4, 7], m: [0, 3, 7], 7: [0, 4, 7, 10], maj7: [0, 4, 7, 11], m7: [0, 3, 7, 10],
         m7b5: [0, 3, 6, 10], sus4: [0, 5, 7], '7sus4': [0, 5, 7, 10], 6: [0, 4, 7, 9], m6: [0, 3, 7, 9],
+        5: [0, 7], // 空5度（ねもとと 5度だけ。みんよう）
         dim: [0, 3, 6], aug: [0, 4, 8], add9: [0, 4, 7, 14],
     },
 
@@ -279,6 +296,11 @@ const TamaSongs = {
         return out;
     },
 
+    // その 曲調の メロディに つかう 白いけんばん（scale が ある 曲調は その 音階の 音だけ）
+    scaleWhites(style) {
+        return this.whites().filter(m => !style.scale || style.scale.includes(m % 12));
+    },
+
     // その 和音の メロディに 使える 音（和音の 音の うち 白いけんばん）
     chordWhites(name) {
         const tones = this.tones(name);
@@ -329,7 +351,7 @@ const TamaSongs = {
     //   かえす フレーズの sabi：サビの 小節は サビの むき（'up' など）、ほかは null
     make(style, random = Math.random, rhythm = this.pickRhythm(style, random)) {
         const character = this.melodyOf(style);
-        const whites = this.whites();
+        const whites = this.scaleWhites(style); // 「となり」は この ならびの となり（5音音階なら 音階の となり）
         const idx = m => whites.indexOf(m);
         const tonic = style.key === 'Am' ? 9 : 0;
         const bars = this.rhythmBars(rhythm);

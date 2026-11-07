@@ -647,6 +647,23 @@ html[data-mode="black"] .select-level-buttons button {
 }
 
 .staff-tag.line { fill: #0984e3; }
+
+/* 拍の かず（おんぷよみ Lv8 メロディ：1・2・3・4。きゅうふの 拍は うすく） */
+.staff-count {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 20px;
+    text-anchor: middle;
+    fill: #6c5ce7;
+}
+
+.staff-count.rest {
+    fill: #b2bec3;
+}
+
+.staff-count.rest.on {
+    fill: #27ae60;
+}
 .staff-tag.space { fill: #e17055; }
 
 /* ドの みじかい せん（加線）を 光らせる */
