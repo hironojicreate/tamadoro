@@ -457,6 +457,7 @@ html[data-mode="black"] .select-level-buttons button {
 .keys-cards .staff-note.dango.d0 .staff-head { fill: #8bc34a; }
 .keys-cards .staff-note.dango.d1 .staff-head { fill: #fffaf0; }
 .keys-cards .staff-note.dango.d2 .staff-head { fill: #ff9ecb; }
+.keys-cards .staff-note.dango.d3 .staff-head { fill: #ffd54f; } /* おだんごの つづき（4つめ） */
 
 /* いま おす おだんご：ピンクの わっかが ポワンポワン */
 .keys-cards .staff-note.dango.current .staff-glow {

@@ -569,9 +569,42 @@ async function answerAll(page) {
     ok(stats['ド'] && stats['ド'].n >= 3, 'おんぷよみの きろく（ド）');
     ok(await page.evaluate(() => { const def = MODES.notes.levels[2]; return keysDangoDeck(def).every(p => p.chord === 'Dm'); }), 'Lv2 は 1おんの 問題も 和音は Dm だけ');
     // Lv2 あいだの おだんご：レ・ファ・ラ（和音は Dm）
-    const lv2 = await page.evaluate(() => { const d = MODES.notes.levels[2]; return { notes: d.notes.join(','), chord: d.chord, dm: TamaSound.CHORDS.Dm.join(','), hint: d.hint, space: d.notes.every(m => !TamaStaff.onLine(m)), line: MODES.notes.levels[1].notes.every(m => TamaStaff.onLine(m)) }; });
+    const lv2 = await page.evaluate(() => { const d = MODES.notes.levels[2]; const g = d.dangos[0]; return { notes: g.notes.join(','), chord: g.chord, dm: TamaSound.CHORDS.Dm.join(','), hint: d.hint, space: g.notes.every(m => !TamaStaff.onLine(m)), line: MODES.notes.levels[1].dangos[0].notes.every(m => TamaStaff.onLine(m)) }; });
     ok(lv2.notes === '62,65,69' && lv2.chord === 'Dm' && lv2.dm === '50,53,57' && lv2.hint.startsWith('せんの あいだの おだんご') && lv2.space && lv2.line,
       `Lv2 は せんの あいだの おだんご（レ・ファ・ラ）、Lv1 は ぜんぶ せんの上 ${JSON.stringify(lv2)}`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 17a. おんぷよみ Lv3 おだんご まぜ・Lv4 おだんごの つづき・Lv6 うえの おと（もんだいの つくりかた）
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/', MUSIC_ON);
+    const r = await page.evaluate(() => {
+      const deck = n => keysDangoDeck(MODES.notes.levels[n]);
+      const show = p => (p.dango ? 'D' : '') + p.notes.join(',');
+      const out = {};
+      [3, 4, 6].forEach(n => {
+        const d = deck(n + 0);
+        const def = MODES.notes.levels[n];
+        out[n] = {
+          len: d.length,
+          intros: d.filter(p => p.showNames).map(show),
+          dangos: [...new Set(d.filter(p => p.dango && !p.showNames).map(show))].sort(),
+          singlesInActive: d.filter(p => !p.dango).every(p => p.notes[0] >= def.active[0] && p.notes[0] <= def.active[1]),
+          chordsMatch: d.filter(p => !p.dango).every(p => def.dangos.find(g => g.notes.includes(p.notes[0])).chord === p.chord),
+          label: def.label,
+        };
+      });
+      out.chords = ['Cmaj7', 'Dm7', 'G7'].every(c => Array.isArray(TamaSound.CHORDS[c]));
+      out.upper = MODES.notes.levels[6].dangos[0].notes.every(m => TamaStaff.onLine(m)) && MODES.notes.levels[6].dangos[1].notes.every(m => !TamaStaff.onLine(m));
+      return out;
+    });
+    ok(r[3].label === 'Lv3 おだんご まぜ' && r[3].len === 16 && r[3].intros.length === 0 && r[3].dangos.join('|') === 'D60,64,67|D62,65,69' && r[3].singlesInActive && r[3].chordsMatch,
+      `Lv3 おだんご まぜ：ド・ミ・ソ と レ・ファ・ラ（1おん 12 ＋ おだんご 4）${JSON.stringify(r[3])}`);
+    ok(r[4].label === 'Lv4 おだんごの つづき' && r[4].len === 18 && r[4].intros.join('|') === 'D60,64,67,71|D62,65,69,72' && r[4].singlesInActive && r[4].chordsMatch && r.chords,
+      `Lv4 おだんごの つづき：4つだま（シ・たかいド）の お手本 2つ ${JSON.stringify(r[4])}`);
+    ok(r[6].label === 'Lv6 うえの おと' && r[6].len === 18 && r[6].intros.join('|') === 'D71,74,77|D72,76,79' && r[6].singlesInActive && r[6].chordsMatch && r.upper,
+      `Lv6 うえの おと：うえの せんの おだんご・あいだの おだんご ${JSON.stringify(r[6])}`);
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }

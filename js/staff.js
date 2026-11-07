@@ -60,8 +60,9 @@ const TamaStaff = {
 
     svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null, dango = false, names = false } = {}) {
         // 音符が ないとき（せんを かぞえる）は、音符 4こぶんの はば。おだんごは 1れつ（名前つきは すこし ひろく）
+        const longest = Math.max(0, ...notes.map(m => TamaNotes.lessonName(m).length));
         const width = dango
-            ? this.LEFT + 56 + (names ? 44 : 0)
+            ? this.LEFT + 56 + (names ? 14 + 18 * longest : 0) // 名前（「たかいファ」など）が はみださない はば
             : this.LEFT + this.STEP_X * (notes.length ? notes.length - 1 : 3) + 56;
         // せんは 下から 1・2・3・4・5（i は 上から 0〜4）
         const lines = [0, 1, 2, 3, 4].map(i => {
