@@ -3,6 +3,8 @@
 //   「おとを けす」（TamaSound.setMuted）は、ぜんぶの音に効く
 //
 //   TamaSound.note(midi)        けんばんの音（ピアノふう）を鳴らす。返り値の release() で はなす
+//     { voice: 'organ' } で 音色を かえる（TamaSound.VOICES。きょくふう の 曲調ごとの 音色）。
+//     hold：はなしても さいていこれだけ 鳴らす 秒（のびる 音色を 拍の ながさ だけ 鳴らす ときに）
 //   TamaSound.chord(name)       正解したときの、小さな ばんそう（C・F・G・G7）
 //   TamaSound.loadSE(url)       効果音（mp3 など）を読みこむ → TamaSound.playSE(読みこんだもの)
 //   TamaSound.musicSession(on)  iPhone のマナーモードでも 音が出るようにする（おんがくの画面だけ）
@@ -127,10 +129,12 @@ const TamaSound = {
 
     // 音を1つ鳴らす。返り値の release() で 指を はなしたことにする（すこし のこって 消える）
     //   gain: 大きさ（0〜1）、when: 何秒あとに鳴らすか、bus: 音の みち（TamaSound.bus()。とちゅうで まとめて 止めるとき）
-    note(midi, { gain = 0.5, when = 0, bus = null } = {}) {
+    //   voice: 音色（'piano' 以外は synth）、hold: はなしても さいていこれだけ 鳴らす 秒
+    note(midi, { gain = 0.5, when = 0, bus = null, voice = 'piano', hold = 0.35 } = {}) {
         const silent = { release() {} };
         const ctx = this.live();
         if (!ctx) return silent;
+        if (voice !== 'piano' && this.VOICES[voice]) return this.synth(ctx, midi, voice, { gain, when, bus, hold });
 
         const t = ctx.currentTime + when;
         const freq = this.frequency(midi);
@@ -167,7 +171,7 @@ const TamaSound = {
                 if (released) return;
                 released = true;
                 // みじかく おしても、音の高さが わかるくらいは のこす
-                const at = Math.max(ctx.currentTime, t + 0.35);
+                const at = Math.max(ctx.currentTime, t + hold);
                 if (at >= end) return;
                 if (amp.gain.cancelAndHoldAtTime) {
                     amp.gain.cancelAndHoldAtTime(at);
@@ -176,6 +180,145 @@ const TamaSound = {
                 }
                 amp.gain.setTargetAtTime(0.0001, at, 0.12);
                 osc.stop(Math.min(end, at + 1));
+            },
+        };
+    },
+
+    // ---------- 音色（きょくふう の 曲調ごと。ピアノ いがい） ----------
+    //   harmonics：倍音の 強さ（1ばんめが もとの 音）。attack：立ちあがり、sustain：のこる 大きさ（0〜1）、
+    //   decay：sustain まで へる はやさ、fade：のこった 音が きえる はやさ（null は 押している あいだ のびる）、
+    //   release：はなしてから きえる はやさ、bright：明るさ（フィルター。音の 高さの 何ばいまで）、
+    //   level：大きさの そろえ、detune：2つの 音を すこし ずらして ひろがりを（セント）、vibrato：[はやさ Hz, ふかさ]
+    //   pluck：はじく 音（琴・ギター。Karplus-Strong で 一度 つくって つかいまわす）
+    VOICES: {
+        epiano: { harmonics: [0, 1, 0.12, 0.05, 0.12, 0.02, 0.01], attack: 0.004, sustain: 0.35, decay: 0.25, fade: 1.4, release: 0.25, bright: 5, level: 1.1 },
+        organ: { harmonics: [0, 1, 0.75, 0.45, 0.55, 0, 0.25, 0, 0.2], attack: 0.012, sustain: 0.85, decay: 0.08, fade: null, release: 0.06, bright: 10, level: 0.6, detune: 4 },
+        strings: { harmonics: [0, 1, 0.5, 0.33, 0.25, 0.2, 0.16, 0.14, 0.12, 0.1], attack: 0.14, sustain: 0.8, decay: 0.3, fade: null, release: 0.3, bright: 4, level: 0.55, detune: 7, vibrato: [5.2, 0.004] },
+        chip: { harmonics: [0, 1, 0.71, 0.33, 0, 0.2, 0.24, 0.1, 0, 0.11, 0.14, 0.06], attack: 0.002, sustain: 0.55, decay: 0.08, fade: 2.5, release: 0.05, bright: 40, level: 0.42 },
+        musicbox: { harmonics: [0, 1, 0, 0.08, 0.32, 0, 0, 0, 0.08], attack: 0.002, sustain: 0.05, decay: 0.55, fade: 0.6, release: 0.5, bright: 12, level: 1.0 },
+        koto: { pluck: true, bright: 0.65, length: 2.4, decay: 1.6, release: 0.25, level: 1.25 },
+        guitar: { pluck: true, bright: 0.3, length: 2.0, decay: 1.2, release: 0.2, level: 1.3 },
+    },
+
+    // 倍音の 表 → PeriodicWave（AudioContext ごとに つくって つかいまわす）
+    periodicWave(ctx, name, harmonics) {
+        if (this.waveCtx !== ctx) {
+            this.waveCtx = ctx;
+            this.waves = {};
+        }
+        if (!this.waves[name]) {
+            this.waves[name] = ctx.createPeriodicWave(new Float32Array(harmonics.length), new Float32Array(harmonics));
+        }
+        return this.waves[name];
+    },
+
+    // はじく 音（Karplus-Strong）：みじかい ノイズを くりかえし なまらせると 弦の 音に なる
+    //   bright：はじめの ノイズの 明るさ（0〜1）、decay：音が 1000分の1に なるまでの 秒
+    //   かえすのは { buffer, rate（再生の はやさ。高さの ずれを なおす）}
+    pluckBuffer(ctx, midi, spec) {
+        this.plucks = this.plucks || {};
+        const key = `${spec.bright}:${spec.decay}:${midi}:${ctx.sampleRate}`;
+        if (this.plucks[key]) return this.plucks[key];
+        const rate = ctx.sampleRate;
+        const period = rate / this.frequency(midi);
+        const n = Math.max(2, Math.round(period));
+        const length = Math.floor(rate * spec.length);
+        const data = new Float32Array(length);
+        const ring = new Float32Array(n);
+        let smooth = 0;
+        for (let i = 0; i < n; i++) {
+            const noise = Math.random() * 2 - 1;
+            smooth += (noise - smooth) * spec.bright; // くらい 音は ノイズを なめらかに
+            ring[i] = smooth;
+        }
+        const loss = Math.pow(0.001, 1 / (spec.decay * rate / n)); // 1しゅう ごとに へる わりあい
+        let peak = 0;
+        for (let i = 0, k = 0; i < length; i++) {
+            const next = (k + 1) % n;
+            const value = ring[k];
+            data[i] = value;
+            ring[k] = (value + ring[next]) * 0.5 * loss;
+            k = next;
+            peak = Math.max(peak, Math.abs(value));
+        }
+        const buffer = ctx.createBuffer(1, length, rate);
+        const scale = peak > 0 ? 1 / peak : 1;
+        buffer.getChannelData(0).set(data.map(v => v * scale));
+        // くりかえしの ながさは n − 0.5（つぎの 値と ならして もどすので 半分 みじかい）。
+        //   ほんとうの 高さに なるよう 再生の はやさを なおす（なおさないと たかいソで 20セントほど 高い）
+        this.plucks[key] = { buffer, rate: (n - 0.5) / period };
+        return this.plucks[key];
+    },
+
+    // ピアノ いがいの 音色を 1つ 鳴らす（返り値の release() で はなす）
+    synth(ctx, midi, name, { gain, when, bus, hold }) {
+        const spec = this.VOICES[name];
+        const t = ctx.currentTime + when;
+        const freq = this.frequency(midi);
+        const level = gain * (spec.level || 1);
+        const amp = ctx.createGain();
+        amp.connect(bus || this.master);
+        const sources = [];
+        let end;
+        if (spec.pluck) {
+            const source = ctx.createBufferSource();
+            const pluck = this.pluckBuffer(ctx, midi, spec);
+            source.buffer = pluck.buffer;
+            source.playbackRate.value = pluck.rate;
+            source.connect(amp);
+            amp.gain.setValueAtTime(level, t);
+            sources.push(source);
+            end = t + spec.length;
+        } else {
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.Q.value = 0.5;
+            filter.frequency.value = Math.min(freq * spec.bright, 14000);
+            filter.connect(amp);
+            const detunes = spec.detune ? [-spec.detune, spec.detune] : [0];
+            detunes.forEach(cents => {
+                const osc = ctx.createOscillator();
+                osc.setPeriodicWave(this.periodicWave(ctx, name, spec.harmonics));
+                osc.frequency.value = freq;
+                osc.detune.value = cents;
+                if (spec.vibrato) {
+                    const lfo = ctx.createOscillator();
+                    const depth = ctx.createGain();
+                    lfo.frequency.value = spec.vibrato[0];
+                    depth.gain.value = freq * spec.vibrato[1];
+                    lfo.connect(depth);
+                    depth.connect(osc.frequency);
+                    sources.push(lfo); // start・stop は 下で まとめて
+                }
+                osc.connect(filter);
+                sources.push(osc);
+            });
+            const each = level / detunes.length;
+            amp.gain.setValueAtTime(0.0001, t);
+            amp.gain.linearRampToValueAtTime(each, t + spec.attack);
+            amp.gain.setTargetAtTime(each * spec.sustain, t + spec.attack, spec.decay);
+            if (spec.fade) amp.gain.setTargetAtTime(0.0001, t + spec.attack + spec.decay * 2, spec.fade);
+            end = t + (spec.fade ? spec.attack + spec.decay * 2 + spec.fade * 6 : 8);
+        }
+        sources.forEach(source => {
+            source.start(t);
+            source.stop(end);
+        });
+        let released = false;
+        return {
+            release() {
+                if (released) return;
+                released = true;
+                const at = Math.max(ctx.currentTime, t + hold);
+                if (at >= end) return;
+                if (amp.gain.cancelAndHoldAtTime) {
+                    amp.gain.cancelAndHoldAtTime(at);
+                } else {
+                    amp.gain.cancelScheduledValues(at);
+                }
+                amp.gain.setTargetAtTime(0.0001, at, spec.release);
+                const stop = Math.min(end, at + spec.release * 8);
+                sources.forEach(source => source.stop(stop));
             },
         };
     },
@@ -269,12 +412,12 @@ const TamaSound = {
     },
 
     // 和音を ポロロンと鳴らす（when 秒あとから、strum 秒ずつ ずらして）
-    chord(name, { gain = 0.16, when = 0.12, strum = 0.035, bus = null } = {}) {
+    //   voice：音色、hold：のびる 音色を 何秒 のばすか
+    chord(name, { gain = 0.16, when = 0.12, strum = 0.035, bus = null, voice = 'piano', hold = 0.35 } = {}) {
         const notes = this.CHORDS[name];
         if (!notes) return;
         notes.forEach((midi, i) => {
-            const voice = this.note(midi, { gain, when: when + i * strum, bus });
-            voice.release();
+            this.note(midi, { gain, when: when + i * strum, bus, voice, hold }).release();
         });
     },
 };

@@ -1,6 +1,7 @@
 // きょくふうを えらぶ（おんぷよみ Lv9 きょくふう。おとなが ためすとき用）
 //   設定の 入力欄に /song だけ 入れて Enter で ひらく。
-//   上に リズム（おまかせ・5つ）、下に 系統ごとの 曲調の ボタン（系統の「ぜんぶ」は その 系統から おまかせ）。
+//   上に リズム（おまかせ・5つ）、下に 系統ごとの 曲調の ボタン（系統の「ぜんぶ」は その 系統から おまかせ。
+//   系統の よこに 音色「♪ メロディ／伴奏」。ノブ 0 の 系統は「おやすみ中」＝ おまかせでは 出ないが ここで えらべる）。
 //   リズムの ボタンは えらぶだけ（ひらいた まま）。曲調を えらぶと きまって とじる。
 //   きょくふう（Lv9）を あそんでいる ときは、えらんだ 曲で はじめから やりなおす。
 //   えらんだ ものは おぼえておく（TamaSongs.force・forceRhythm。/song off⏎・/rhythm off⏎ でも もどせる）
@@ -41,11 +42,13 @@ const TamaSongPicker = {
             .concat(Object.entries(S.RHYTHMS).map(([id, r]) =>
                 `<button type="button" class="song-chip${on(rhythm === id)}" data-rhythm="${id}">${r.name}<small>${r.bars}</small></button>`));
         const families = Object.entries(S.FAMILIES).map(([id, family]) => {
+            const sound = { melody: 'piano', chord: 'piano', ...family.sound }; // 音色（けんばん・メロディ／伴奏）
             const styles = S.STYLES.filter(style => style.family === id).map(style =>
                 `<button type="button" class="song-chip${on(song === style.id)}" data-song="${style.id}">${style.sub}<small>${style.chords.join(' ')}</small></button>`);
             return `<div class="song-family">
-                <div class="song-family-name">${family.name}
-                    <button type="button" class="song-chip mini${on(song === id)}" data-song="${id}">ぜんぶ</button></div>
+                <div class="song-family-name">${family.name}${family.weight === 0 ? '（おやすみ中）' : ''}
+                    <button type="button" class="song-chip mini${on(song === id)}" data-song="${id}">ぜんぶ</button>
+                    <span class="song-sound">♪ ${S.SOUND_NAMES[sound.melody]}／${S.SOUND_NAMES[sound.chord]}</span></div>
                 <div class="song-chips">${styles.join('')}</div>
             </div>`;
         });

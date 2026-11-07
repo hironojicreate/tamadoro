@@ -14,6 +14,7 @@
 //   TamaSongs.make(style, random, rhythm)  その 曲調の 8フレーズ [{ notes, chord, rhythm: '●●●○', sabi: 'up' か null }]
 //   TamaSongs.melodyOf(style)        その 曲調の メロディの 性格（高さ・広さ・とび・サビの むき）
 //   TamaSongs.scaleWhites(style)     その 曲調の メロディに つかう 白いけんばん（5音音階の 曲調は その 音だけ）
+//   TamaSongs.soundOf(style)         その 曲調の 音色 { melody（けんばん・メロディ）, chord（伴奏） }
 //   TamaSongs.restsAfter(bars)       休符の まえの 音符の ばんごう（-1 は 音符より まえ）。休符を ひからせる ときに 使う
 //   TamaSongs.chordNotes(name)       和音記号（'Dm7' など）→ 伴奏の 音（MIDI）
 //   TamaSongs.force(id) / forced()   /song で 曲調・系統を きめる（'off' で もとに もどす）
@@ -25,38 +26,55 @@ const TamaSongs = {
     LOW: 57,  // メロディの いちばん下（ひくいラ）
     HIGH: 79, // メロディの いちばん上（たかいソ）
 
-    // 系統（weight が 系統の ノブ。rhythms：その 系統で 使う リズム、melody：メロディの 性格。下の「メロディ」）
+    // 系統（weight が 系統の ノブ。rhythms：その 系統で 使う リズム、melody：メロディの 性格。下の「メロディ」、
+    //   sound：音色。melody ＝ けんばん・メロディ、chord ＝ 伴奏（js/sound.js の VOICES。'piano' は いつもの 音）。曲調の sound で 上書き）
     FAMILIES: {
         classic: { name: 'クラシック', weight: 1, rhythms: ['utau', 'setsunai'],
-            melody: { center: 'mid', width: 'wide', leap: 'normal', sabi: { up: 4, surge: 1 } } },
+            melody: { center: 'mid', width: 'wide', leap: 'normal', sabi: { up: 4, surge: 1 } },
+            sound: { melody: 'piano', chord: 'strings' } },
         pops: { name: 'ポップス', weight: 1, rhythms: ['genki', 'hazumu', 'utau'],
-            melody: { center: 'mid', width: 'normal', leap: 'normal', verse: -3, lift: 9, sabi: { up: 4, surge: 1 } } },
+            melody: { center: 'mid', width: 'normal', leap: 'normal', verse: -3, lift: 9, sabi: { up: 4, surge: 1 } },
+            sound: { melody: 'piano', chord: 'piano' } },
         minor: { name: 'マイナー', weight: 1, rhythms: ['setsunai', 'utau'],
-            melody: { center: 'low', width: 'normal', leap: 'few', lift: 9, sabi: { up: 4, surge: 1 } } },
+            melody: { center: 'low', width: 'normal', leap: 'few', lift: 9, sabi: { up: 4, surge: 1 } },
+            sound: { melody: 'piano', chord: 'strings' } },
         sus4: { name: 'サスフォー', weight: 1, rhythms: ['utau', 'setsunai'],
-            melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } } },
+            melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } },
+            sound: { melody: 'epiano', chord: 'strings' } },
         jazz: { name: 'ジャズ', weight: 1, rhythms: ['zurashi', 'utau'],
-            melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 3, octave: 2 } } },
+            melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 3, octave: 2 } },
+            sound: { melody: 'epiano', chord: 'epiano' } },
         modern: { name: 'モダン', weight: 1, rhythms: ['setsunai', 'zurashi'],
-            melody: { center: 'high', width: 'normal', leap: 'normal', sabi: { up: 1 } } },
+            melody: { center: 'high', width: 'normal', leap: 'normal', sabi: { up: 1 } },
+            sound: { melody: 'epiano', chord: 'epiano' } },
         borrowed: { name: 'せつない', weight: 1, rhythms: ['setsunai', 'utau'],
-            melody: { center: 'low', width: 'normal', leap: 'few', lift: 9, sabi: { up: 4, surge: 1 } } },
+            melody: { center: 'low', width: 'normal', leap: 'few', lift: 9, sabi: { up: 4, surge: 1 } },
+            sound: { melody: 'piano', chord: 'strings' } },
         church: { name: 'きょうかい', weight: 1, rhythms: ['utau', 'setsunai'],
-            melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } } },
+            melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } },
+            sound: { melody: 'organ', chord: 'organ' } },
         blues: { name: 'ブルース', weight: 1, rhythms: ['genki', 'zurashi'],
-            melody: { center: 'low', width: 'normal', leap: 'normal', sabi: { up: 3, down: 2 } } },
+            melody: { center: 'low', width: 'normal', leap: 'normal', sabi: { up: 3, down: 2 } },
+            sound: { melody: 'piano', chord: 'organ' } },
         rock: { name: 'ロック', weight: 1, rhythms: ['genki', 'hazumu'],
-            melody: { center: 'low', width: 'normal', leap: 'normal', sabi: { up: 3, down: 2, surge: 1 } } },
+            melody: { center: 'low', width: 'normal', leap: 'normal', sabi: { up: 3, down: 2, surge: 1 } },
+            sound: { melody: 'piano', chord: 'organ' } },
         bossa: { name: 'ボサノバ', weight: 1, rhythms: ['zurashi', 'utau'],
-            melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 3, octave: 2 } } },
+            melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 3, octave: 2 } },
+            sound: { melody: 'epiano', chord: 'guitar' } },
         game: { name: 'ゲーム', weight: 1, rhythms: ['genki', 'hazumu'],
-            melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 2, octave: 2, surge: 1 } } },
+            melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 2, octave: 2, surge: 1 } },
+            sound: { melody: 'chip', chord: 'chip' } },
         nihon: { name: 'にほん', weight: 1, rhythms: ['utau', 'setsunai', 'hazumu'],
-            melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 3, surge: 1 } } },
-        okinawa: { name: 'おきなわ', weight: 1, rhythms: ['hazumu', 'genki', 'utau'],
-            melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 1 } } },
+            melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 3, surge: 1 } },
+            sound: { melody: 'koto', chord: 'koto' } },
+        // おきなわ：「沖縄感が むずかしい」ので ほりゅう（ノブ 0 で おまかせでは 出ない。/song では ためせる）
+        okinawa: { name: 'おきなわ', weight: 0, rhythms: ['hazumu', 'genki', 'utau'],
+            melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 1 } },
+            sound: { melody: 'piano', chord: 'piano' } },
         doyo: { name: 'どうよう', weight: 1, rhythms: ['hazumu', 'utau'],
-            melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } } },
+            melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } },
+            sound: { melody: 'musicbox', chord: 'piano' } },
     },
 
     // リズムの パターン（4/4拍子・8小節。weight が リズムの ノブ、tempo が「じぶんの えんそうを きく」の はやさ（1分に 何拍））
@@ -322,6 +340,14 @@ const TamaSongs = {
         many: { weights: [0.3, 3, 3.5, 2.5, 2, 1.2, 0.6, 0.8], max: 5 },
     },
     SURGE: { 2: [4, 12], 3: [3, 8, 12] }, // ぐぐぐっと：サビの 小節ごとの 上げかた（半音。サビが 2小節・3小節）
+
+    // 音色の 名前（/song の 一覧に 出す）
+    SOUND_NAMES: { piano: 'ピアノ', epiano: 'エレピ', organ: 'オルガン', strings: 'ストリングス', chip: 'ピコピコ', musicbox: 'オルゴール', koto: 'こと', guitar: 'ギター' },
+
+    // その 曲調の 音色 { melody, chord }
+    soundOf(style) {
+        return { melody: 'piano', chord: 'piano', ...this.FAMILIES[style.family].sound, ...(style.sound || {}) };
+    },
 
     // その 曲調の メロディの 性格
     melodyOf(style) {

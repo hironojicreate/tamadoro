@@ -846,6 +846,10 @@ async function answerAll(page) {
       if (scaleOf('yonanuki').join() !== '0,2,4,7,9' || scaleOf('minyo').join() !== '9,0,2,4,7' || scaleOf('shimauta').join() !== '0,4,5,7,11' || scaleOf('kachashi').join() !== '0,4,5,7,11') bad.push('5音音階');
       if (S.chordNotes('A5').join() !== '45,52' || !S.STYLES.find(x => x.id === 'minyo').chords.every(c => c.endsWith('5'))) bad.push('空5度');
       if (S.FAMILIES.nihon.name !== 'にほん' || S.FAMILIES.okinawa.name !== 'おきなわ') bad.push('にほん・おきなわ');
+      // 曲調ごとの 音色（けんばん・メロディ／伴奏）は ある 音色
+      S.STYLES.forEach(st => { const v = S.soundOf(st); if (![v.melody, v.chord].every(x => x === 'piano' || TamaSound.VOICES[x]) || !S.SOUND_NAMES[v.melody] || !S.SOUND_NAMES[v.chord]) bad.push(`${st.id} 音色`); });
+      const used = new Set(S.STYLES.flatMap(st => Object.values(S.soundOf(st))));
+      if (!['epiano', 'organ', 'strings', 'chip', 'musicbox', 'koto', 'guitar'].every(v => used.has(v))) bad.push('つかわない 音色');
       const ids = new Set(S.STYLES.map(s => s.id));
       // ノブ：曲調の weight 0 は 出ない、系統の weight 0 も 出ない
       const komuro = S.STYLES.find(s => s.id === 'komuro');
@@ -855,7 +859,9 @@ async function answerAll(page) {
       for (let k = 0; k < 2000; k++) seen.add(S.pick().id);
       komuro.weight = 1;
       S.FAMILIES.jazz.weight = 1;
-      const knob = !seen.has('komuro') && !['twofive', 'junkan', 'minortwofive'].some(id => seen.has(id)) && seen.size >= S.STYLES.length - 5;
+      // おきなわ は ほりゅう（系統の ノブ 0）
+      const knob = !seen.has('komuro') && !['twofive', 'junkan', 'minortwofive', 'shimauta', 'kachashi'].some(id => seen.has(id)) && seen.size >= S.STYLES.length - 7
+        && S.FAMILIES.okinawa.weight === 0;
       return { bad: [...new Set(bad)], styles: S.STYLES.length, families: Object.keys(S.FAMILIES).length, unique: ids.size === S.STYLES.length, knob, stats };
     });
     ok(t.bad.length === 0 && t.styles >= 25 && t.families >= 12 && t.unique, `曲調 ${t.styles}こ・系統 ${t.families}こ：和音・メロディ・おわりの 音 ${JSON.stringify(t.bad.slice(0, 5))}`);
@@ -903,6 +909,57 @@ async function answerAll(page) {
     await page.click('#songPicker [data-song="off"]'); await page.waitForTimeout(100);
     await command(page, '/rhythm off\n'); await page.waitForTimeout(100);
     ok(await page.evaluate(() => TamaSongs.forced() === null && TamaSongs.forcedRhythm() === null), '一覧：おまかせに もどす');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 17h. 曲調ごとの 音色（js/sound.js の VOICES）：ぜんぶ 鳴る・こと の 高さ・きょくふう の けんばんと 伴奏
+  {
+    const unlock = { ...MUSIC_ON, 'tamadoro.notes.song': 'hymn' };
+    for (let l = 1; l <= 9; l++) unlock[`notes_coins_${l}`] = JSON.stringify(Array(3).fill({ image: '/img/Lmaru.png' }));
+    const { page, errors } = await openPage(browser, 'index.html#/notes', unlock);
+    const offline = await page.evaluate(async () => {
+      // ぜんぶの 音色を 録音用の 音の 時計で 鳴らして、音が 出るか・こと の 高さが あっているか
+      const sr = 44100, out = {};
+      const save = { ctx: TamaSound.ctx, master: TamaSound.master, live: TamaSound.live };
+      for (const voice of Object.keys(TamaSound.VOICES)) {
+        const off = new OfflineAudioContext(1, sr, sr);
+        TamaSound.ctx = off; TamaSound.master = off.createGain(); TamaSound.master.connect(off.destination); TamaSound.live = () => off;
+        TamaSound.note(79, { voice, hold: 0.5 }).release();
+        const d = (await off.startRendering()).getChannelData(0);
+        out[voice] = Math.max(...d.subarray(0, 20000).map(Math.abs));
+        if (voice === 'koto') {
+          const seg = d.subarray(3000), per = sr / 784, P = 10;
+          let best = -1e9, lagBest = 0;
+          for (let lag = P * (per - 2); lag <= P * (per + 2); lag += 0.02) {
+            let c = 0; for (let i = 0; i < 6000; i++) { const x = i + lag, a = Math.floor(x), fr = x - a; c += seg[i] * (seg[a] * (1 - fr) + seg[a + 1] * fr); }
+            if (c > best) { best = c; lagBest = lag; }
+          }
+          out.kotoCents = 1200 * Math.log2(per / (lagBest / P));
+        }
+      }
+      Object.assign(TamaSound, save);
+      return out;
+    });
+    const voices = Object.keys(offline).filter(k => k !== 'kotoCents');
+    ok(voices.length >= 7 && voices.every(v => offline[v] > 0.01), `音色は ぜんぶ 鳴る ${voices.map(v => `${v}:${offline[v].toFixed(2)}`).join(' ')}`);
+    ok(Math.abs(offline.kotoCents) < 5, `こと（はじく 音）の 高さが あう（たかいソで ${offline.kotoCents.toFixed(1)}セント）`);
+    // きょうかい風（さんびか）：けんばんも 正解の 和音も オルガン
+    await page.click('#level10'); await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      window.voices = [];
+      const note = TamaSound.note.bind(TamaSound);
+      TamaSound.note = (m, o = {}) => { window.voices.push(o.voice || 'piano'); return note(m, o); };
+    });
+    const len = await page.evaluate(() => keysLesson.run.problem.notes.length);
+    for (let i = 0; i < len; i++) { await pressKey(page, await expected(page)); await page.waitForTimeout(40); }
+    await page.waitForTimeout(400);
+    const heard = await page.evaluate(() => ({ style: keysLesson.run.song.style.id, voices: [...new Set(window.voices)].join() }));
+    ok(heard.style === 'hymn' && heard.voices === 'organ', `きょくふう の けんばん・伴奏は 曲調の 音色（きょうかい ＝ オルガン）${JSON.stringify(heard)}`);
+    // /song の 一覧に 音色と「おやすみ中」
+    await command(page, '/song\n'); await page.waitForTimeout(200);
+    const pickerText = await page.$eval('#songPicker', e => e.textContent);
+    ok(pickerText.includes('♪ オルガン／オルガン') && pickerText.includes('おきなわ（おやすみ中）'), '一覧に 音色（♪ メロディ／伴奏）と おきなわ（おやすみ中）');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }

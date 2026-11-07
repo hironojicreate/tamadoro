@@ -153,6 +153,12 @@ function keysLightRests(after) {
     });
 }
 
+// いまの きょくふう の 音色（part：'melody' けんばん・メロディ、'chord' 伴奏）。きょくふう でなければ ピアノ
+function keysVoice(part) {
+    const run = keysLesson.run;
+    return run && run.song ? TamaSongs.soundOf(run.song.style)[part] : 'piano';
+}
+
 // sing: true の レベル：ピアノの音を すこし 小さくして、名前を うたう（白いけんばん）
 function keysSingingSound(midi) {
     if (!TamaSing.canSing(midi, 'doremi')) return TamaSound.note(midi);
@@ -430,7 +436,9 @@ function keysStartLevel(level) {
         keysLesson.keyboard = new TamaKeyboard(document.getElementById('keysKeyboard'), { onPress: keysOnPress });
     }
     keysLesson.keyboard.glide = def.style === 'free';
-    keysLesson.keyboard.sound = def.sing ? keysSingingSound : midi => TamaSound.note(midi);
+    // きょくふう は 曲調の 音色（けんばん ＝ メロディの 音色）
+    const voice = keysVoice('melody');
+    keysLesson.keyboard.sound = def.sing ? keysSingingSound : midi => TamaSound.note(midi, { voice });
     if (def.sing) {
         // うたう 声を さきに つくっておく（まんなかの ドの ちかくから）
         const whites = TamaNotes.whiteKeys(def.active[0], def.active[1]);
@@ -795,7 +803,7 @@ function keysOnPerform(midi) {
     keyboard.mark(midi, 'ok');
     const phrase = problem.starts.indexOf(run.pos);
     if (phrase >= 0) {
-        TamaSound.chord(problem.chords[phrase], { when: 0.02, gain: 0.2, strum: 0.02 });
+        TamaSound.chord(problem.chords[phrase], { when: 0.02, gain: 0.2, strum: 0.02, voice: keysVoice('chord'), hold: 1.2 });
     }
     const note = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
     if (note) {
@@ -840,9 +848,9 @@ function keysPerformDone() {
 // ジャーン（おわりの 和音と、上に かけあがる 音）
 function keysFanfare(style) {
     const chord = style.chords[style.chords.length - 1];
-    TamaSound.chord(chord, { when: 0.25, gain: 0.24, strum: 0.05 });
+    TamaSound.chord(chord, { when: 0.25, gain: 0.24, strum: 0.05, voice: keysVoice('chord'), hold: 1.5 });
     const tones = TamaSongs.chordWhites(chord).filter(m => m >= 67).slice(0, 4);
-    tones.forEach((midi, i) => TamaSound.note(midi, { gain: 0.32, when: 0.25 + i * 0.09 }).release());
+    tones.forEach((midi, i) => TamaSound.note(midi, { gain: 0.32, when: 0.25 + i * 0.09, voice: keysVoice('melody') }).release());
 }
 
 // じぶんの えんそうを きく：4/4拍子の マス目に そろえて（はやさは リズムの tempo）。
@@ -877,26 +885,29 @@ function keysPlayback() {
     }, seconds);
     const bus = playback.bus;
     const beat = 60 / TamaSongs.RHYTHMS[run.song.rhythm].tempo;
+    const melody = keysVoice('melody');
+    const chord = keysVoice('chord');
     const phrases = run.song.phrases;
     let noteIndex = 0;
     let restIndex = 0;
     phrases.forEach((phrase, b) => {
         const bar = PLAYBACK_START + b * 4 * beat;
         const bass = TamaSongs.chordNotes(phrase.chord)[0] - 12;
-        TamaSound.chord(phrase.chord, { when: bar, gain: 0.17, strum: 0.02, bus });
-        TamaSound.note(bass, { when: bar, gain: 0.3, bus }).release();
-        TamaSound.chord(phrase.chord, { when: bar + 2 * beat, gain: 0.09, strum: 0.015, bus });
-        TamaSound.note(bass, { when: bar + 2 * beat, gain: 0.2, bus }).release();
+        // のびる 音色（オルガン・ストリングス）は 2拍 のばす
+        TamaSound.chord(phrase.chord, { when: bar, gain: 0.17, strum: 0.02, bus, voice: chord, hold: 2 * beat * 0.95 });
+        TamaSound.note(bass, { when: bar, gain: 0.3, bus, voice: chord, hold: 2 * beat * 0.95 }).release();
+        TamaSound.chord(phrase.chord, { when: bar + 2 * beat, gain: 0.09, strum: 0.015, bus, voice: chord, hold: 2 * beat * 0.95 });
+        TamaSound.note(bass, { when: bar + 2 * beat, gain: 0.2, bus, voice: chord, hold: 2 * beat * 0.95 }).release();
         let n = 0;
         phrase.rhythm.split('').forEach((mark, k) => {
             const at = bar + k * beat;
             if (mark === '●') {
-                TamaSound.note(phrase.notes[n++], { when: at, bus }).release();
+                TamaSound.note(phrase.notes[n++], { when: at, bus, voice: melody, hold: beat * 0.9 }).release();
                 flash(`#keysCards [data-i="${noteIndex++}"]`, 'sparkle', at);
             } else {
                 flash(`#keysCards [data-r="${restIndex++}"]`, 'on', at);
                 if (b === phrases.length - 1 && k === 3) {
-                    TamaSound.chord(phrase.chord, { when: at, gain: 0.22, strum: 0.04, bus }); // おわりの ジャーン
+                    TamaSound.chord(phrase.chord, { when: at, gain: 0.22, strum: 0.04, bus, voice: chord, hold: 1.5 }); // おわりの ジャーン
                 }
             }
         });
@@ -965,7 +976,7 @@ function keysSolved() {
         run.reviewQueue.push(run.problem); // まちがえた問題は、さいごにもういちど
     }
 
-    TamaSound.chord(run.problem.chord);
+    TamaSound.chord(run.problem.chord, { voice: keysVoice('chord'), hold: 0.8 });
     document.getElementById('keysCards').classList.add('solved');
 
     if (!problemState.mistakeMade) {
