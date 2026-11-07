@@ -126,10 +126,10 @@ document.getElementById('fileInput').addEventListener('change', function (event)
 //   どの画面でも：
 //   /music on    さいしょの画面に「おんがくのへや」を出す（ためしているあいだ。js/music.js）
 //   /music off   「おんがくのへや」をかくす
-//   /song⏎       おんぷよみ Lv8 の 曲調と リズムを 一覧から えらぶ（js/song-picker.js）
-//   /song jazz⏎  おんぷよみ Lv8 の 曲調を きめる（曲調の id か 系統。js/songs.js。Enter で きまる）
+//   /song⏎       おんぷよみ Lv9 きょくふう の 曲調と リズムを 一覧から えらぶ（js/song-picker.js）
+//   /song jazz⏎  おんぷよみ Lv9 きょくふう の 曲調を きめる（曲調の id か 系統。js/songs.js。Enter で きまる）
 //   /song off⏎   曲調を もとに もどす（ノブの わりあいで えらぶ）
-//   /rhythm genki⏎  おんぷよみ Lv8 の リズムを きめる（genki・hazumu・setsunai・utau・zurashi。Enter で きまる）
+//   /rhythm genki⏎  おんぷよみ Lv9 きょくふう の リズムを きめる（genki・hazumu・setsunai・utau・zurashi。Enter で きまる）
 //   /rhythm off⏎    リズムを もとに もどす（曲調の 系統から ノブの わりあいで えらぶ）
 //   計算・けんばんの画面だけ：
 //   /rescue      レベルを復元するモーダル

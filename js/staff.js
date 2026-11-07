@@ -1,6 +1,6 @@
 // 五線（ト音記号）と 音符の絵（おんぷよみ）
 //   TamaStaff.svg([60, 62, 64], { current: 1 })  → 五線に 音符を ならべた SVG（文字列）
-//   音符は 白いけんばん（ド〜シ）だけ。下第1線の ド から、上第1線の ラ くらいまで
+//   音符は 白いけんばん（ド〜シ）だけ。下第2線の ひくいラ から、上第1線の ラ くらいまで
 //   current：いま 読む音符（ピンクに 光る）。それより前の 音符は 読みおわり（みどり）
 //   おんぷの しくみ（おんぷよみの さいしょの レベル）で 使う もの：
 //     reveal：まだ 読まない 音符は かくしておく（1つずつ あらわれる）
@@ -9,10 +9,10 @@
 //     countLines：五線の せんを 下から かぞえる（タッチできる。counted 本めまで 光って 番号が 出る。
 //                 まだ 1本も かぞえていない ときは、1ぽんめが やさしく 点滅して「おしてね」）
 //   正解した 音符は、class に sparkle を つけると キラリンと 光る（★ が はじける）
-//   chordName：五線の 上に コード名（おんぷよみ Lv8 の れんしゅう）
+//   chordName：五線の 上に コード名（おんぷよみ Lv9 きょくふう の れんしゅう）
 //   rhythm：'●●●○' のように わたすと、4/4拍子の 1小節（拍子記号・4ぶきゅうふ・おわりの 小節線）。
 //     ● に 音符、○ に 4ぶきゅうふ。きゅうふは data-r（0から）。音符の data-i は 音符だけで かぞえる
-//   TamaStaff.score(phrases, { perRow })：きょくふう メロディ（Lv8）の ぜんぶの がくふ（4/4拍子）。
+//   TamaStaff.score(phrases, { perRow })：きょくふう メロディ（Lv9）の ぜんぶの がくふ（4/4拍子）。
 //     1だんに perRow 小節。1だんめの はじめに 4/4、小節の 上に コード名、小節の おわりに 小節線。
 //     音符の data-i・きゅうふの data-r は 曲の はじめから
 //   おだんご（おんぷよみ Lv1・Lv2）：
@@ -174,7 +174,7 @@ const TamaStaff = {
         </g>`;
     },
 
-    // きょくふう メロディ（Lv8）：ぜんぶの がくふ（だんごとに 1つの svg。4/4拍子）
+    // きょくふう メロディ（Lv9）：ぜんぶの がくふ（だんごとに 1つの svg。4/4拍子）
     score(phrases, { perRow = 4 } = {}) {
         const NOTE_X = 50;   // 拍と 拍の あいだ
         const BAR_PAD = 34;  // さいごの 拍から 小節線まで
@@ -207,7 +207,7 @@ const TamaStaff = {
             const width = lineEnd + 8;
             const lines = [0, 1, 2, 3, 4].map(i =>
                 `<line x1="8" y1="${this.TOP + i * this.GAP}" x2="${lineEnd}" y2="${this.TOP + i * this.GAP}"/>`).join('');
-            rows.push(`<svg class="staff score-row" viewBox="0 22 ${width} 206" role="img" aria-label="がくふ ${rows.length + 1}だんめ">
+            rows.push(`<svg class="staff score-row" viewBox="0 22 ${width} 222" role="img" aria-label="がくふ ${rows.length + 1}だんめ">
                 <g class="staff-lines">${lines}</g>
                 ${this.clef()}
                 ${parts.join('')}
