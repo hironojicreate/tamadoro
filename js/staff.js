@@ -9,6 +9,9 @@
 //     countLines：五線の せんを 下から かぞえる（タッチできる。counted 本めまで 光って 番号が 出る。
 //                 まだ 1本も かぞえていない ときは、1ぽんめが やさしく 点滅して「おしてね」）
 //   正解した 音符は、class に sparkle を つけると キラリンと 光る（★ が はじける）
+//   chordName：五線の 上に コード名（おんぷよみ Lv8 の れんしゅう）
+//   TamaStaff.score(phrases, { perRow })：きょくふう メロディ（Lv8）の ぜんぶの がくふ。
+//     1だんに perRow フレーズ。フレーズの 上に コード名、フレーズの あいだに 小節線。音符の data-i は 曲の はじめから
 //   おだんご（おんぷよみ Lv1・Lv2）：
 //     dango：音符を 1本の くしに さした おだんご に する。下から じゅんばんに 読む
 //            おだんごの 色は 音の 色（けんばんの 名前の 色を あわく）。ドミソ と レファラ は べつの 色、
@@ -60,7 +63,7 @@ const TamaStaff = {
         </g>`;
     },
 
-    svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null, dango = false, names = false } = {}) {
+    svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null, dango = false, names = false, chordName = null } = {}) {
         // 音符が ないとき（せんを かぞえる）は、音符 4こぶんの はば。おだんごは 1れつ（名前つきは すこし ひろく）
         const longest = Math.max(0, ...notes.map(m => TamaNotes.lessonName(m).length));
         const width = dango
@@ -80,37 +83,85 @@ const TamaStaff = {
         const hits = countLines === null ? '' : [0, 1, 2, 3, 4].map(i =>
             `<rect class="staff-line-hit" data-line="${5 - i}" x="0" y="${this.TOP + i * this.GAP - this.GAP / 2}" width="${width}" height="${this.GAP}"/>`).join('');
         const heads = dango ? this.dango(notes, current, names, focusLedger) : notes.map((midi, i) => {
-            const x = this.LEFT + i * this.STEP_X;
-            const y = this.y(midi);
             const state = i < current ? 'done' : i === current ? 'current' : `next${reveal ? ' hidden' : ''}`;
-            const ledgers = this.ledgers(y).map(ly =>
-                `<line class="staff-ledger${focusLedger ? ' focus' : ''}" x1="${x - 20}" y1="${ly}" x2="${x + 20}" y2="${ly}"/>`).join('');
-            const onLine = this.onLine(midi);
-            const tag = tags
-                ? `<text class="staff-tag ${onLine ? 'line' : 'space'}" x="${x}" y="252">${onLine ? 'せん' : 'あいだ'}</text>`
-                : '';
-            // ぼう：シより 上は 左に 下むき、それより 下は 右に 上むき
-            const up = y > this.TOP + 2 * this.GAP;
-            const stem = up
-                ? `<line class="staff-stem" x1="${x + 12}" y1="${y - 3}" x2="${x + 12}" y2="${y - 68}"/>`
-                : `<line class="staff-stem" x1="${x - 12}" y1="${y + 3}" x2="${x - 12}" y2="${y + 68}"/>`;
-            return `<g class="staff-note ${state}" data-i="${i}">
-                <ellipse class="staff-glow" cx="${x}" cy="${y}" rx="24" ry="20"/>
-                ${ledgers}
-                <ellipse class="staff-head" cx="${x}" cy="${y}" rx="12.5" ry="9" transform="rotate(-22 ${x} ${y})"/>
-                ${stem}
-                <text class="staff-star a" x="${x - 26}" y="${y - 14}">★</text>
-                <text class="staff-star b" x="${x + 22}" y="${y - 20}">★</text>
-                <text class="staff-star c" x="${x + 26}" y="${y + 18}">★</text>
-                ${tag}
-            </g>`;
+            return this.note(midi, this.LEFT + i * this.STEP_X, i, state, { focusLedger, tags });
         }).join('');
+        const chord = chordName ? `<text class="staff-chord" x="${this.LEFT - 6}" y="52">${chordName}</text>` : '';
         return `<svg class="staff${dango ? ' dango' : ''}" viewBox="0 0 ${width} 260" role="img" aria-label="ト音記号の 五線の 音符">
             <g class="staff-lines">${lines}</g>
             ${this.clef()}
+            ${chord}
             ${heads}
             ${hits}
         </svg>`;
+    },
+
+    // 音符 1つ（x：よこの いち、i：data-i、state：done・current・next）
+    note(midi, x, i, state, { focusLedger = false, tags = false } = {}) {
+        const y = this.y(midi);
+        const ledgers = this.ledgers(y).map(ly =>
+            `<line class="staff-ledger${focusLedger ? ' focus' : ''}" x1="${x - 20}" y1="${ly}" x2="${x + 20}" y2="${ly}"/>`).join('');
+        const onLine = this.onLine(midi);
+        const tag = tags
+            ? `<text class="staff-tag ${onLine ? 'line' : 'space'}" x="${x}" y="252">${onLine ? 'せん' : 'あいだ'}</text>`
+            : '';
+        // ぼう：シより 上は 左に 下むき、それより 下は 右に 上むき
+        const up = y > this.TOP + 2 * this.GAP;
+        const stem = up
+            ? `<line class="staff-stem" x1="${x + 12}" y1="${y - 3}" x2="${x + 12}" y2="${y - 68}"/>`
+            : `<line class="staff-stem" x1="${x - 12}" y1="${y + 3}" x2="${x - 12}" y2="${y + 68}"/>`;
+        return `<g class="staff-note ${state}" data-i="${i}">
+            <ellipse class="staff-glow" cx="${x}" cy="${y}" rx="24" ry="20"/>
+            ${ledgers}
+            <ellipse class="staff-head" cx="${x}" cy="${y}" rx="12.5" ry="9" transform="rotate(-22 ${x} ${y})"/>
+            ${stem}
+            <text class="staff-star a" x="${x - 26}" y="${y - 14}">★</text>
+            <text class="staff-star b" x="${x + 22}" y="${y - 20}">★</text>
+            <text class="staff-star c" x="${x + 26}" y="${y + 18}">★</text>
+            ${tag}
+        </g>`;
+    },
+
+    // きょくふう メロディ（Lv8）：ぜんぶの がくふ（だんごとに 1つの svg）
+    score(phrases, { perRow = 4 } = {}) {
+        const NOTE_X = 54;   // フレーズの 中の 音符の あいだ
+        const BAR_GAP = 40;  // フレーズと フレーズの あいだ（小節線）
+        const rows = [];
+        let index = 0;
+        for (let start = 0; start < phrases.length; start += perRow) {
+            const part = phrases.slice(start, start + perRow);
+            let x = this.LEFT;
+            const parts = [];
+            part.forEach((phrase, k) => {
+                if (k > 0) {
+                    const barX = x - NOTE_X + BAR_GAP / 2 + 14;
+                    parts.push(`<line class="staff-bar" x1="${barX}" y1="${this.TOP}" x2="${barX}" y2="${this.TOP + 4 * this.GAP}"/>`);
+                    x += BAR_GAP;
+                }
+                parts.push(`<text class="staff-chord" x="${x - 14}" y="48">${phrase.chord}</text>`);
+                phrase.notes.forEach(midi => {
+                    parts.push(this.note(midi, x, index, index === 0 ? 'current' : 'next'));
+                    index++;
+                    x += NOTE_X;
+                });
+            });
+            const width = x - NOTE_X + 40;
+            const last = start + perRow >= phrases.length;
+            // さいごの だんの おわりは 2本の せん（おわり）
+            const end = last
+                ? `<line class="staff-bar" x1="${width - 14}" y1="${this.TOP}" x2="${width - 14}" y2="${this.TOP + 4 * this.GAP}"/>
+                   <line class="staff-bar end" x1="${width - 7}" y1="${this.TOP}" x2="${width - 7}" y2="${this.TOP + 4 * this.GAP}"/>`
+                : '';
+            const lines = [0, 1, 2, 3, 4].map(i =>
+                `<line x1="8" y1="${this.TOP + i * this.GAP}" x2="${width - 7}" y2="${this.TOP + i * this.GAP}"/>`).join('');
+            rows.push(`<svg class="staff score-row" viewBox="0 22 ${width} 206" role="img" aria-label="がくふ ${rows.length + 1}だんめ">
+                <g class="staff-lines">${lines}</g>
+                ${this.clef()}
+                ${parts.join('')}
+                ${end}
+            </svg>`);
+        }
+        return rows.join('');
     },
 
     // 色を あわく（白に ちかづける。amount：0〜1）

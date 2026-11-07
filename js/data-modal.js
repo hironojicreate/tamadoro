@@ -126,6 +126,8 @@ document.getElementById('fileInput').addEventListener('change', function (event)
 //   どの画面でも：
 //   /music on    さいしょの画面に「おんがくのへや」を出す（ためしているあいだ。js/music.js）
 //   /music off   「おんがくのへや」をかくす
+//   /song jazz⏎  おんぷよみ Lv8 の 曲調を きめる（曲調の id か 系統。js/songs.js。Enter で きまる）
+//   /song off⏎   曲調を もとに もどす（ノブの わりあいで えらぶ）
 //   計算・けんばんの画面だけ：
 //   /rescue      レベルを復元するモーダル
 //   /delete      このページのデータを消すモーダル
@@ -147,6 +149,22 @@ if (commandInput) {
             if (!on && /^#\/?(music|keys|black|notes|rhythm|piano)/.test(location.hash)) {
                 location.hash = '#/';
             }
+            return;
+        }
+        // /song：Enter（改行）で きまる（とちゅうの 文字で うごかないように）
+        if (command.startsWith('/song')) {
+            if (!/\n$/.test(event.target.value)) return;
+            const id = command.slice(5).trim() || 'off';
+            if (TamaSongs.force(id)) {
+                const style = TamaSongs.STYLES.find(s => s.id === id);
+                const family = TamaSongs.FAMILIES[id];
+                showNotification(id === 'off' ? 'きょくふうを もとに もどしました。'
+                    : `きょくふうを「${style ? `${style.name}（${style.sub}）` : `${family.name}風`}」に しました。`);
+            } else {
+                showNotification(`「${id}」という きょくふうは ありません。`);
+            }
+            event.target.value = '';
+            closeDataModal();
             return;
         }
         if (!currentMode) {

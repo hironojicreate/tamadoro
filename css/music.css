@@ -530,6 +530,70 @@ html[data-mode="black"] .select-level-buttons button {
     100% { opacity: 0; }
 }
 
+/* きょくふう メロディ（おんぷよみ Lv8）：コード名・小節線・ぜんぶの がくふ */
+.staff-chord {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    fill: #6c5ce7;
+}
+
+.staff-bar {
+    stroke: #2d3436;
+    stroke-width: 2.5;
+}
+
+.staff-bar.end {
+    stroke-width: 6;
+}
+
+.keys-cards.score .keys-card.score-card {
+    height: auto;
+    max-height: 100%;
+    width: auto;
+    max-width: 96vw;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    pointer-events: auto; /* だんが おおいときは スクロール */
+}
+
+.keys-cards.score {
+    max-height: 100%;
+    min-height: 0;
+}
+
+.score-row {
+    height: min(17vh, 150px);
+    width: auto;
+    max-width: 92vw;
+    flex: none;
+}
+
+/* ひきおわったあとの ボタン（じぶんの えんそうを きく・ドロップを もらう） */
+.keys-perform-button {
+    padding: 8px 18px;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: clamp(15px, 2.4vh, 20px);
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+}
+
+.keys-perform-button.finish {
+    background: linear-gradient(135deg, #ff9ff3, #f368e0);
+}
+
+.keys-perform-button:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
 /* まだ 読まない 音符は かくしておく（1つずつ あらわれる） */
 .staff-note {
     transition: opacity 0.25s ease;
