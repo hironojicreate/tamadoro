@@ -769,6 +769,12 @@ async function answerAll(page) {
     const t = await page.evaluate(() => {
       const S = TamaSongs;
       const bad = [];
+      const stats = { nct: 0 };
+      // メロディの 性格（系統の melody）
+      Object.entries(S.FAMILIES).forEach(([id, f]) => {
+        const m = f.melody || {};
+        if (!S.CENTERS[m.center] || !S.SPREADS[m.width] || !S.LEAPS[m.leap] || !m.sabi || !Object.keys(m.sabi).every(d => ['up', 'down', 'octave', 'surge'].includes(d))) bad.push(`${id} せいかく`);
+      });
       S.STYLES.forEach(st => {
         const tonic = st.key === 'Am' ? 9 : 0;
         if (st.chords.length !== 8) bad.push(`${st.id} 8こ`);
@@ -777,16 +783,51 @@ async function answerAll(page) {
           if (i > 0 && c === st.chords[i - 1]) bad.push(`${st.id} つづく ${c}`);
         });
         if (!S.FAMILIES[st.family]) bad.push(`${st.id} けいとう`);
-        for (let k = 0; k < 60; k++) {
+        // うたう メロディ（js/songs.js の make）の きまり
+        const whites = S.whites();
+        const idx = m => whites.indexOf(m);
+        const ch = S.melodyOf(st);
+        for (let k = 0; k < 30; k++) {
           const phrases = S.make(st);
-          phrases.forEach(ph => {
-            if (!ph.notes.every(m => m >= 57 && m <= 79 && !TamaNotes.isBlack(m) && S.tones(ph.chord).includes(m % 12))) bad.push(`${st.id} おと`);
-            if (!ph.notes.slice(1).some((m, i) => Math.abs(m - ph.notes[i]) >= 3)) bad.push(`${st.id} とび`);
+          const flat = [];
+          phrases.forEach((ph, b) => {
+            if (!ph.rhythm || ph.notes.length !== ph.rhythm.split('').filter(c => c === '●').length) bad.push(`${st.id} リズム`);
+            let n = 0;
+            ph.rhythm.split('').forEach((mark, beat) => {
+              if (mark !== '●') return;
+              const restNext = beat === 3 ? (b === 7 || phrases[b + 1].rhythm[0] === '○') : ph.rhythm[beat + 1] === '○';
+              flat.push({ m: ph.notes[n], chord: ph.chord, b, must: beat === 0 || beat === 2 || n === 0 || restNext, sabi: ph.sabi });
+              n++;
+            });
           });
-          if (phrases[7].notes[phrases[7].notes.length - 1] % 12 !== tonic) bad.push(`${st.id} おわり`);
-          // リズム：小節の 音の かず ＝ ● の かず。4小節めの おわりは ド（ラ）で おわらない
-          phrases.forEach(ph => { if (!ph.rhythm || ph.notes.length !== ph.rhythm.split('').filter(c => c === '●').length) bad.push(`${st.id} リズム`); });
+          flat[flat.length - 1].must = true;
+          flat.forEach((x, i) => {
+            const tone = S.tones(x.chord).includes(x.m % 12);
+            if (!(x.m >= 57 && x.m <= 79 && !TamaNotes.isBlack(x.m))) bad.push(`${st.id} はんい`);
+            if (x.must && !tone) bad.push(`${st.id} つよい拍は 和音の 音`);
+            if (!tone) {
+              // 和音の そとの 音：となりから きて、となりの 和音の 音へ ぬける（経過音・刺繍音）
+              const a = flat[i - 1], c = flat[i + 1];
+              const d1 = idx(x.m) - idx(a.m), d2 = idx(c.m) - idx(x.m);
+              if (Math.abs(d1) !== 1 || Math.abs(d2) !== 1 || !S.tones(c.chord).includes(c.m % 12)) bad.push(`${st.id} 経過音`);
+            }
+          });
+          const last = flat[flat.length - 1];
+          if (last.m % 12 !== tonic || Math.abs(idx(last.m) - idx(flat[flat.length - 2].m)) !== 1) bad.push(`${st.id} おわり`);
           if (phrases[3].notes[phrases[3].notes.length - 1] % 12 === tonic) bad.push(`${st.id} 4小節め`);
+          // サビ：5〜6小節めは かならず、7小節めは ときどき。1〜4・8小節めは ちがう
+          const dir = phrases[4].sabi;
+          if (!dir || phrases[5].sabi !== dir || phrases.slice(0, 4).some(p => p.sabi) || phrases[7].sabi || (phrases[6].sabi && phrases[6].sabi !== dir)) bad.push(`${st.id} サビの ばしょ`);
+          const sabi = flat.filter(x => x.sabi).map(x => x.m), others = flat.filter(x => !x.sabi).map(x => x.m);
+          if (dir === 'down' ? Math.min(...sabi) >= Math.min(...others) : Math.max(...sabi) <= Math.max(...others)) bad.push(`${st.id} 山（谷）は サビ`);
+          if (dir === 'surge') {
+            const tops = phrases.filter(p => p.sabi).map(p => Math.max(...p.notes));
+            if (tops.some((t, j) => j > 0 && t <= tops[j - 1]) || tops[tops.length - 1] < 77) bad.push(`${st.id} ぐぐぐっと`);
+          }
+          if (ch.width === 'wide' && !flat.some(x => x.m <= 59 || x.m >= 77)) bad.push(`${st.id} はしの 音`);
+          if (!(dir in ch.sabi)) bad.push(`${st.id} サビの むき`);
+          stats[dir] = (stats[dir] || 0) + 1;
+          stats.nct += flat.filter(x => !S.tones(x.chord).includes(x.m % 12)).length;
         }
       });
       // リズムの パターン：8小節・4拍、4小節めと 8小節めは ●●●○。系統の rhythms は ある リズム
@@ -808,10 +849,12 @@ async function answerAll(page) {
       komuro.weight = 1;
       S.FAMILIES.jazz.weight = 1;
       const knob = !seen.has('komuro') && !['twofive', 'junkan', 'minortwofive'].some(id => seen.has(id)) && seen.size >= S.STYLES.length - 5;
-      return { bad: [...new Set(bad)], styles: S.STYLES.length, families: Object.keys(S.FAMILIES).length, unique: ids.size === S.STYLES.length, knob };
+      return { bad: [...new Set(bad)], styles: S.STYLES.length, families: Object.keys(S.FAMILIES).length, unique: ids.size === S.STYLES.length, knob, stats };
     });
     ok(t.bad.length === 0 && t.styles >= 25 && t.families >= 12 && t.unique, `曲調 ${t.styles}こ・系統 ${t.families}こ：和音・メロディ・おわりの 音 ${JSON.stringify(t.bad.slice(0, 5))}`);
     ok(t.knob, 'ノブ（weight 0）の 曲調・系統は 出ない');
+    ok(t.stats.up > 0 && t.stats.down > 0 && t.stats.octave > 0 && t.stats.surge > 0 && t.stats.surge < t.stats.up / 3 && t.stats.nct > 0,
+      `サビの むき：もりあがる・しずむ・とびあがる・ぐぐぐっと（ぐぐぐっとは ときどき）。経過音も 出る ${JSON.stringify(t.stats)}`);
     // /song：Enter で きまる
     await command(page, '/song jaz');
     ok(await page.evaluate(() => TamaSongs.forced()) === null, '/song は Enter まで きまらない');
@@ -870,6 +913,8 @@ async function answerAll(page) {
     ok(first.deck === 8 && first.style === 'komuro' && first.chords === 'Am,F,G,C,Am,F,G,C' && first.msg.includes('ポップス風（こむろ しんこう）') && first.msg.includes('1/8') && first.chord === 'Am',
       `Lv9：曲調の 8フレーズを 1つずつ（コード名つき）${JSON.stringify(first)}`);
     ok(await page.isVisible('#keysHelp'), 'Lv9 にも けんばんの よみかた スイッチ');
+    ok(await page.evaluate(() => keysLesson.run.deck.every((p, i) => p.say.includes('（サビ）') === !!keysLesson.run.song.phrases[i].sabi) && keysLesson.run.deck[4].say.includes('（サビ）')),
+      'れんしゅうの せつめいに「（サビ）」（5小節めから）');
     // 4/4拍子の 1小節：げんきな リズムの 1小節めは ●●●○（音符 3つ・きゅうふ 1つ）
     const bar1 = await page.evaluate(() => ({
       time: document.querySelectorAll('#keysCards .staff-time').length, notes: document.querySelectorAll('#keysCards .staff-note').length,

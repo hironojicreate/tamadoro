@@ -111,7 +111,7 @@ function keysSongDeck() {
         rhythm: phrase.rhythm,
         rests: TamaSongs.restsAfter([phrase.rhythm]),
         key: phrase.notes.map(m => TamaNotes.lessonName(m)).join(''),
-        say: `${style.name}（${style.sub}）　${i + 1}/${phrases.length}ばんめの フレーズ`
+        say: `${style.name}（${style.sub}）　${i + 1}/${phrases.length}ばんめの フレーズ${phrase.sabi ? '（サビ）' : ''}`
             + (i === firstRest ? '　ギザギザの きゅうふは おやすみ。おさなくて いいよ' : ''),
     }));
     deck.song = { style, rhythm, phrases };
