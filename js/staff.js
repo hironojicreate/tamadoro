@@ -10,8 +10,11 @@
 //                 まだ 1本も かぞえていない ときは、1ぽんめが やさしく 点滅して「おしてね」）
 //   正解した 音符は、class に sparkle を つけると キラリンと 光る（★ が はじける）
 //   chordName：五線の 上に コード名（おんぷよみ Lv8 の れんしゅう）
-//   TamaStaff.score(phrases, { perRow })：きょくふう メロディ（Lv8）の ぜんぶの がくふ。
-//     1だんに perRow フレーズ。フレーズの 上に コード名、フレーズの あいだに 小節線。音符の data-i は 曲の はじめから
+//   rhythm：'●●●○' のように わたすと、4/4拍子の 1小節（拍子記号・4ぶきゅうふ・おわりの 小節線）。
+//     ● に 音符、○ に 4ぶきゅうふ。きゅうふは data-r（0から）。音符の data-i は 音符だけで かぞえる
+//   TamaStaff.score(phrases, { perRow })：きょくふう メロディ（Lv8）の ぜんぶの がくふ（4/4拍子）。
+//     1だんに perRow 小節。1だんめの はじめに 4/4、小節の 上に コード名、小節の おわりに 小節線。
+//     音符の data-i・きゅうふの data-r は 曲の はじめから
 //   おだんご（おんぷよみ Lv1・Lv2）：
 //     dango：音符を 1本の くしに さした おだんご に する。下から じゅんばんに 読む
 //            おだんごの 色は 音の 色（けんばんの 名前の 色を あわく）。ドミソ と レファラ は べつの 色、
@@ -63,12 +66,60 @@ const TamaStaff = {
         </g>`;
     },
 
-    svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null, dango = false, names = false, chordName = null } = {}) {
+    // 4/4拍子の しるし（ト音記号の みぎ。上の 4 は 上の 2つの あいだ、下の 4 は 下の 2つの あいだ）
+    TIME_W: 40, // 拍子記号の ぶん、音符を みぎへ
+    timeSignature(x = this.LEFT - 18) {
+        return `<g class="staff-time" aria-label="4ぶんの4びょうし">
+            <text x="${x}" y="${this.TOP + 2 * this.GAP - 2}">4</text>
+            <text x="${x}" y="${this.TOP + 4 * this.GAP - 2}">4</text>
+        </g>`;
+    },
+
+    // 4ぶきゅうふ（ギザギザ。五線の まんなかあたり）。r：data-r
+    rest(x, r) {
+        const t = this.TOP;
+        const d = `M ${x - 4},${t + 8} L ${x + 8},${t + 25} L ${x - 4},${t + 41} L ${x + 8},${t + 57}`
+            + ` C ${x - 7},${t + 51} ${x - 10},${t + 64} ${x},${t + 72}`;
+        return `<g class="staff-rest" data-r="${r}">
+            <ellipse class="staff-glow" cx="${x + 2}" cy="${t + 40}" rx="22" ry="40"/>
+            <path class="staff-rest-mark" d="${d}"/>
+        </g>`;
+    },
+
+    // 1小節ぶんの 音符と きゅうふ（rhythm：'●●●○' など）。x0：1拍めの x、step：拍の あいだ
+    //   first：さいしょの 音符の data-i、firstRest：さいしょの きゅうふの data-r、state(i)：音符の ようす
+    bar(rhythm, notes, x0, step, { first = 0, firstRest = 0, state = () => 'next' } = {}) {
+        const parts = [];
+        let n = 0;
+        let r = 0;
+        rhythm.split('').forEach((mark, beat) => {
+            const x = x0 + beat * step;
+            if (mark === '●') {
+                const i = first + n;
+                parts.push(this.note(notes[n], x, i, state(i)));
+                n++;
+            } else {
+                parts.push(this.rest(x, firstRest + r));
+                r++;
+            }
+        });
+        return parts.join('');
+    },
+
+    barLine(x, end = false) {
+        return `<line class="staff-bar${end ? ' end' : ''}" x1="${x}" y1="${this.TOP}" x2="${x}" y2="${this.TOP + 4 * this.GAP}"/>`;
+    },
+
+    svg(notes, { current = 0, reveal = false, tags = false, focusLedger = false, countLines = null, dango = false, names = false, chordName = null, rhythm = null } = {}) {
         // 音符が ないとき（せんを かぞえる）は、音符 4こぶんの はば。おだんごは 1れつ（名前つきは すこし ひろく）
+        //   rhythm が あるときは 4拍ぶん ＋ 拍子記号
         const longest = Math.max(0, ...notes.map(m => TamaNotes.lessonName(m).length));
+        const first = this.LEFT + (rhythm ? this.TIME_W : 0); // 1こめ（1拍め）の x
         const width = dango
             ? this.LEFT + 56 + (names ? 14 + 18 * longest : 0) // 名前（「たかいファ」など）が はみださない はば
-            : this.LEFT + this.STEP_X * (notes.length ? notes.length - 1 : 3) + 56;
+            : rhythm
+                ? first + this.STEP_X * 3 + 56
+                : this.LEFT + this.STEP_X * (notes.length ? notes.length - 1 : 3) + 56;
         // せんは 下から 1・2・3・4・5（i は 上から 0〜4）
         const lines = [0, 1, 2, 3, 4].map(i => {
             const y = this.TOP + i * this.GAP;
@@ -82,11 +133,12 @@ const TamaStaff = {
         // せんを かぞえるときの、タッチする ところ（せんの 上下 すこし ひろめ）
         const hits = countLines === null ? '' : [0, 1, 2, 3, 4].map(i =>
             `<rect class="staff-line-hit" data-line="${5 - i}" x="0" y="${this.TOP + i * this.GAP - this.GAP / 2}" width="${width}" height="${this.GAP}"/>`).join('');
-        const heads = dango ? this.dango(notes, current, names, focusLedger) : notes.map((midi, i) => {
-            const state = i < current ? 'done' : i === current ? 'current' : `next${reveal ? ' hidden' : ''}`;
-            return this.note(midi, this.LEFT + i * this.STEP_X, i, state, { focusLedger, tags });
-        }).join('');
-        const chord = chordName ? `<text class="staff-chord" x="${this.LEFT - 6}" y="52">${chordName}</text>` : '';
+        const stateOf = i => (i < current ? 'done' : i === current ? 'current' : `next${reveal ? ' hidden' : ''}`);
+        const heads = dango ? this.dango(notes, current, names, focusLedger)
+            : rhythm ? this.bar(rhythm, notes, first, this.STEP_X, { state: stateOf })
+                + this.timeSignature() + this.barLine(width - 10)
+            : notes.map((midi, i) => this.note(midi, this.LEFT + i * this.STEP_X, i, stateOf(i), { focusLedger, tags })).join('');
+        const chord = chordName ? `<text class="staff-chord" x="${first - 6}" y="52">${chordName}</text>` : '';
         return `<svg class="staff${dango ? ' dango' : ''}" viewBox="0 0 ${width} 260" role="img" aria-label="ト音記号の 五線の 音符">
             <g class="staff-lines">${lines}</g>
             ${this.clef()}
@@ -122,43 +174,43 @@ const TamaStaff = {
         </g>`;
     },
 
-    // きょくふう メロディ（Lv8）：ぜんぶの がくふ（だんごとに 1つの svg）
+    // きょくふう メロディ（Lv8）：ぜんぶの がくふ（だんごとに 1つの svg。4/4拍子）
     score(phrases, { perRow = 4 } = {}) {
-        const NOTE_X = 54;   // フレーズの 中の 音符の あいだ
-        const BAR_GAP = 40;  // フレーズと フレーズの あいだ（小節線）
+        const NOTE_X = 50;   // 拍と 拍の あいだ
+        const BAR_PAD = 34;  // さいごの 拍から 小節線まで
+        const BAR_NEXT = 56; // 小節線から つぎの 小節の 1拍めまで（コード名が 入る）
         const rows = [];
         let index = 0;
+        let restIndex = 0;
         for (let start = 0; start < phrases.length; start += perRow) {
             const part = phrases.slice(start, start + perRow);
-            let x = this.LEFT;
-            const parts = [];
-            part.forEach((phrase, k) => {
-                if (k > 0) {
-                    const barX = x - NOTE_X + BAR_GAP / 2 + 14;
-                    parts.push(`<line class="staff-bar" x1="${barX}" y1="${this.TOP}" x2="${barX}" y2="${this.TOP + 4 * this.GAP}"/>`);
-                    x += BAR_GAP;
-                }
-                parts.push(`<text class="staff-chord" x="${x - 14}" y="48">${phrase.chord}</text>`);
-                phrase.notes.forEach(midi => {
-                    parts.push(this.note(midi, x, index, index === 0 ? 'current' : 'next'));
-                    index++;
-                    x += NOTE_X;
-                });
-            });
-            const width = x - NOTE_X + 40;
+            const firstRow = start === 0;
             const last = start + perRow >= phrases.length;
-            // さいごの だんの おわりは 2本の せん（おわり）
-            const end = last
-                ? `<line class="staff-bar" x1="${width - 14}" y1="${this.TOP}" x2="${width - 14}" y2="${this.TOP + 4 * this.GAP}"/>
-                   <line class="staff-bar end" x1="${width - 7}" y1="${this.TOP}" x2="${width - 7}" y2="${this.TOP + 4 * this.GAP}"/>`
-                : '';
+            let x = this.LEFT + (firstRow ? this.TIME_W : 0);
+            const parts = firstRow ? [this.timeSignature()] : [];
+            let lineEnd = x;
+            part.forEach((phrase, k) => {
+                const rhythm = phrase.rhythm || '●'.repeat(phrase.notes.length);
+                parts.push(`<text class="staff-chord" x="${x - 14}" y="48">${phrase.chord}</text>`);
+                parts.push(this.bar(rhythm, phrase.notes, x, NOTE_X, {
+                    first: index, firstRest: restIndex, state: i => (i === 0 ? 'current' : 'next'),
+                }));
+                index += phrase.notes.length;
+                restIndex += rhythm.split('').filter(mark => mark === '○').length;
+                const barX = x + (rhythm.length - 1) * NOTE_X + BAR_PAD;
+                const end = last && k === part.length - 1;
+                // 小節の おわりの せん（さいごは 2本：ほそい せんと ふとい せん）
+                parts.push(end ? this.barLine(barX - 7) + this.barLine(barX, true) : this.barLine(barX));
+                lineEnd = barX + (end ? 3 : 1);
+                x = barX + BAR_NEXT;
+            });
+            const width = lineEnd + 8;
             const lines = [0, 1, 2, 3, 4].map(i =>
-                `<line x1="8" y1="${this.TOP + i * this.GAP}" x2="${width - 7}" y2="${this.TOP + i * this.GAP}"/>`).join('');
+                `<line x1="8" y1="${this.TOP + i * this.GAP}" x2="${lineEnd}" y2="${this.TOP + i * this.GAP}"/>`).join('');
             rows.push(`<svg class="staff score-row" viewBox="0 22 ${width} 206" role="img" aria-label="がくふ ${rows.length + 1}だんめ">
                 <g class="staff-lines">${lines}</g>
                 ${this.clef()}
                 ${parts.join('')}
-                ${end}
             </svg>`);
         }
         return rows.join('');

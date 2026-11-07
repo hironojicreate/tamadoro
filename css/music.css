@@ -411,6 +411,11 @@ html[data-mode="black"] .select-level-buttons button {
     opacity: 1;
 }
 
+/* 五線は カードの 中に おさめる（せまい 画面で 4/4 の 1小節が はみださないように） */
+.keys-card.staff-card .staff {
+    max-width: min(92vw, calc(100vw - 60px));
+}
+
 .staff {
     height: 100%;
     max-width: 92vw;
@@ -545,6 +550,36 @@ html[data-mode="black"] .select-level-buttons button {
 
 .staff-bar.end {
     stroke-width: 6;
+}
+
+/* 4/4拍子の しるし */
+.staff-time text {
+    font-family: 'Times New Roman', 'Noto Serif', serif;
+    font-weight: 900;
+    font-size: 54px;
+    text-anchor: middle;
+    fill: #2d3436;
+}
+
+/* 4ぶきゅうふ（おやすみ）。その 拍に なると、すこし 光って みどりに（おさなくて いい） */
+.staff-rest-mark {
+    fill: none;
+    stroke: #2d3436;
+    stroke-width: 5.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.staff-rest .staff-glow {
+    fill: none;
+}
+
+.staff-rest.on .staff-rest-mark {
+    stroke: #27ae60;
+}
+
+.staff-rest.on .staff-glow {
+    animation: staff-sparkle-glow 0.55s ease-out;
 }
 
 .keys-cards.score .keys-card.score-card {

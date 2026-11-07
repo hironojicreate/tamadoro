@@ -8,7 +8,8 @@
 //   おんぷよみ（js/modes/notes.js）も このエンジン：display: 'staff' で、カードの かわりに 五線の 音符（js/staff.js）
 //     さいしょの「しくみ」（style: 'tour'）は、せつめいしながら すすむ（まちがえても しっぱいに ならない）。
 //     sing: true の レベルは、けんばんを おすと その音の 名前を うたう（js/sing.js の「どー・れー・みー」）
-//     きょくふう メロディ（style: 'song'。js/songs.js）：曲調を 1つ えらんで、8フレーズを 1つずつ れんしゅう →
+//     きょくふう メロディ（style: 'song'。js/songs.js）：曲調と リズム（4/4拍子）を えらんで、8フレーズ（8小節）を 1つずつ れんしゅう →
+//       （きゅうふは おさなくて いい。その 拍に なると すこし 光って みどりに）→
 //       ぜんぶの がくふで さいごまで ひきとおす（ばんそうが ついてくる。じぶんの ペースで。まちがえても とまらない）→
 //       「じぶんの えんそうを きく」で ひいた タイミングを すこし はやくして きける（とちゅうで 止められる）
 //     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
@@ -96,22 +97,29 @@ function keysDangoDeck(def) {
     return [...intros, ...keysShuffleNoRepeat(items)];
 }
 
-// きょくふう メロディ：曲調を えらんで 8フレーズ（れんしゅう）。さいごの とおし えんそうは keysNextProblem で
+// きょくふう メロディ：曲調と リズムを えらんで 8フレーズ（1フレーズ ＝ 4/4拍子の 1小節。れんしゅう）。
+//   さいごの とおし えんそうは keysNextProblem で
 function keysSongDeck() {
     const style = TamaSongs.pick();
-    const phrases = TamaSongs.make(style);
+    const rhythm = TamaSongs.pickRhythm(style);
+    const phrases = TamaSongs.make(style, Math.random, rhythm);
+    const firstRest = phrases.findIndex(phrase => phrase.rhythm.includes('○'));
     const deck = phrases.map((phrase, i) => ({
         notes: phrase.notes,
         chord: phrase.chord,
         chordName: phrase.chord,
+        rhythm: phrase.rhythm,
+        rests: TamaSongs.restsAfter([phrase.rhythm]),
         key: phrase.notes.map(m => TamaNotes.lessonName(m)).join(''),
-        say: `${style.name}（${style.sub}）　${i + 1}/${phrases.length}ばんめの フレーズ`,
+        say: `${style.name}（${style.sub}）　${i + 1}/${phrases.length}ばんめの フレーズ`
+            + (i === firstRest ? '　ギザギザの きゅうふは おやすみ。おさなくて いいよ' : ''),
     }));
-    deck.song = { style, phrases };
+    deck.song = { style, rhythm, phrases };
     return deck;
 }
 
-// とおし えんそうの 問題：ぜんぶの 音を ひとつながりに（starts：フレーズの はじまりの 音の ばんごう）
+// とおし えんそうの 問題：ぜんぶの 音を ひとつながりに（starts：フレーズの はじまりの 音の ばんごう、
+//   rests：きゅうふの まえの 音の ばんごう）
 function keysPerformProblem(song) {
     const notes = [];
     const starts = [];
@@ -119,7 +127,28 @@ function keysPerformProblem(song) {
         starts.push(notes.length);
         notes.push(...phrase.notes);
     });
-    return { type: 'perform', notes, starts, chords: song.phrases.map(p => p.chord), key: 'とおし えんそう' };
+    return {
+        type: 'perform', notes, starts, chords: song.phrases.map(p => p.chord), key: 'とおし えんそう',
+        rests: TamaSongs.restsAfter(song.phrases.map(p => p.rhythm)),
+    };
+}
+
+// きゅうふ（おやすみ）：after ばんめの 音を ひいたら（-1 は はじまったら）、その うしろの きゅうふが
+//   すこし あとに 光って みどりに なる。おさなくて いい（その子の テンポでは またない）
+const KEYS_REST_LIGHT = 220;
+
+function keysLightRests(after) {
+    const rests = keysLesson.run.problem.rests;
+    if (!rests) return;
+    let k = 0;
+    rests.forEach((at, r) => {
+        if (at !== after) return;
+        k++;
+        keysLesson.later(() => {
+            const rest = document.querySelector(`#keysCards [data-r="${r}"]`);
+            if (rest) rest.classList.add('on');
+        }, KEYS_REST_LIGHT * k);
+    });
 }
 
 // sing: true の レベル：ピアノの音を すこし 小さくして、名前を うたう（白いけんばん）
@@ -363,7 +392,7 @@ function keysStartLevel(level) {
         pos: 0,               // メロディの 何おんめか
         accepting: false,     // こたえを うけつけているか
         presses: 0,           // おとあそびで ならした回数
-        song: null,           // きょくふう メロディ：{ style, phrases }
+        song: null,           // きょくふう メロディ：{ style, rhythm, phrases }
         performed: false,     // とおし えんそうを はじめたか
         performance: [],      // とおし えんそうで ひいた 音と 時刻（じぶんの えんそうを きく）
         finished: false,
@@ -492,6 +521,7 @@ function keysNextProblem() {
     }
     keysUpdateRemaining();
     keysShowCards();
+    keysLightRests(-1); // 1拍めが きゅうふの 小節（ずらす リズム）
     // ♯・♭ の ガイド：もとの音を 光らせて、みぎどなり（→）・ひだりどなり（←）
     keysLesson.keyboard.clearGuide();
     if (run.def.arrow && run.problem.guide) {
@@ -507,7 +537,7 @@ function keysNextProblem() {
 function keysUpdateRemaining() {
     const run = keysLesson.run;
     if (run.problem && run.problem.type === 'perform') {
-        document.getElementById('keysRemaining').textContent = `とおし えんそう！ ${run.song.style.name}`;
+        document.getElementById('keysRemaining').textContent = `とおし えんそう！ ${run.song.style.name}・${TamaSongs.RHYTHMS[run.song.rhythm].name}`;
         return;
     }
     const remaining = run.deck.length - run.index + run.reviewQueue.length + 1;
@@ -581,7 +611,7 @@ function keysShowCards() {
     if (currentMode.display === 'staff') {
         // おんぷよみ：五線の 音符（メロディは 左から じゅんばんに。いま 読む音符が ピンク）
         cards.className = `keys-cards staff ${notes.length > 1 ? 'phrase' : 'single'}${run.def.style === 'tour' ? ' tour' : ''}`;
-        const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger, dango: problem.dango, names: problem.showNames, chordName: problem.chordName };
+        const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger, dango: problem.dango, names: problem.showNames, chordName: problem.chordName, rhythm: problem.rhythm };
         cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg(notes, options)}</div>`;
         keysShowMessage(problem.say || (notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : 'この おんぷは どの けんばん？'));
         return;
@@ -690,6 +720,7 @@ function keysOnPress(midi, inRange) {
             card.classList.remove('current', 'next');
             card.classList.add('done', 'sparkle');
         }
+        keysLightRests(run.pos);
         run.pos++;
         if (run.pos < run.problem.notes.length) {
             const showNext = () => {
@@ -755,6 +786,7 @@ function keysOnPerform(midi) {
         note.classList.remove('current', 'next');
         note.classList.add('done', 'sparkle');
     }
+    keysLightRests(run.pos);
     run.pos++;
     if (run.pos < problem.notes.length) {
         const next = document.querySelector(`#keysCards [data-i="${run.pos}"]`);

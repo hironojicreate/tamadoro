@@ -3,32 +3,54 @@
 //   曲調には ノブ（weight）が ついている：0 で 出なくなり、2 で 2ばい 出やすい。
 //   系統（FAMILIES）にも weight が あるので、「ジャズ風は まとめて 止める」も 1か所で できる
 //   メロディは 白いけんばん（ド〜たかいソ）だけ。黒いけんばんの 音（C7 の シ♭ など）は 伴奏の 和音の 中だけ
+//   リズムは 4/4拍子。1つの 和音 ＝ 1小節（4拍）。● は 4ぶおんぷ、○ は 4ぶきゅうふ（3おんの 小節は ●●●○）。
+//     リズムの パターン（RHYTHMS）は 系統ごとに えらぶ（系統の rhythms。リズムにも ノブ weight）
 //
 //   TamaSongs.pick()                 曲調を 1つ えらぶ（/song で きめた 曲調・系統が あれば それ）
-//   TamaSongs.make(style)            その 曲調の 8フレーズ [{ notes, chord }]
+//   TamaSongs.pickRhythm(style)      その 曲調の リズムを 1つ えらぶ（/rhythm で きめた リズムが あれば それ）
+//   TamaSongs.make(style, random, rhythm)  その 曲調の 8フレーズ [{ notes, chord, rhythm: '●●●○' }]
+//   TamaSongs.restsAfter(bars)       休符の まえの 音符の ばんごう（-1 は 音符より まえ）。休符を ひからせる ときに 使う
 //   TamaSongs.chordNotes(name)       和音記号（'Dm7' など）→ 伴奏の 音（MIDI）
 //   TamaSongs.force(id) / forced()   /song で 曲調・系統を きめる（'off' で もとに もどす）
+//   TamaSongs.forceRhythm(id) / forcedRhythm()   /rhythm で リズムを きめる（'off' で もとに もどす）
 
 const TamaSongs = {
     FORCE_KEY: 'tamadoro.notes.song',
+    RHYTHM_KEY: 'tamadoro.notes.rhythm',
     LOW: 60,  // メロディの いちばん下（ド）
     HIGH: 79, // メロディの いちばん上（たかいソ）
 
-    // 系統（weight が 系統の ノブ）
+    // 系統（weight が 系統の ノブ。rhythms：その 系統で 使う リズム）
     FAMILIES: {
-        classic: { name: 'クラシック', weight: 1 },
-        pops: { name: 'ポップス', weight: 1 },
-        minor: { name: 'マイナー', weight: 1 },
-        sus4: { name: 'サスフォー', weight: 1 },
-        jazz: { name: 'ジャズ', weight: 1 },
-        modern: { name: 'モダン', weight: 1 },
-        borrowed: { name: 'せつない', weight: 1 },
-        church: { name: 'きょうかい', weight: 1 },
-        blues: { name: 'ブルース', weight: 1 },
-        rock: { name: 'ロック', weight: 1 },
-        bossa: { name: 'ボサノバ', weight: 1 },
-        game: { name: 'ゲーム', weight: 1 },
-        doyo: { name: 'どうよう', weight: 1 },
+        classic: { name: 'クラシック', weight: 1, rhythms: ['utau', 'setsunai'] },
+        pops: { name: 'ポップス', weight: 1, rhythms: ['genki', 'hazumu', 'utau'] },
+        minor: { name: 'マイナー', weight: 1, rhythms: ['setsunai', 'utau'] },
+        sus4: { name: 'サスフォー', weight: 1, rhythms: ['utau', 'setsunai'] },
+        jazz: { name: 'ジャズ', weight: 1, rhythms: ['zurashi', 'utau'] },
+        modern: { name: 'モダン', weight: 1, rhythms: ['setsunai', 'zurashi'] },
+        borrowed: { name: 'せつない', weight: 1, rhythms: ['setsunai', 'utau'] },
+        church: { name: 'きょうかい', weight: 1, rhythms: ['utau', 'setsunai'] },
+        blues: { name: 'ブルース', weight: 1, rhythms: ['genki', 'zurashi'] },
+        rock: { name: 'ロック', weight: 1, rhythms: ['genki', 'hazumu'] },
+        bossa: { name: 'ボサノバ', weight: 1, rhythms: ['zurashi', 'utau'] },
+        game: { name: 'ゲーム', weight: 1, rhythms: ['genki', 'hazumu'] },
+        doyo: { name: 'どうよう', weight: 1, rhythms: ['hazumu', 'utau'] },
+    },
+
+    // リズムの パターン（4/4拍子・8小節。weight が リズムの ノブ）
+    //   ● は 4ぶおんぷ（1つの 音）、○ は 4ぶきゅうふ（おやすみ）。｜ は 小節の くぎり、／ は だんの くぎり
+    //   4小節めと 8小節めは かならず ●●●○（いきつぎ。さいごの ○ で 伴奏の 和音が のこる）
+    RHYTHMS: {
+        // うしろの だんほど 音が つまって、もりあがる
+        genki: { name: 'げんきな リズム', weight: 1, bars: '●●●○｜●●●○｜●●●●｜●●●○ ／ ●●●●｜●●●●｜●●●●｜●●●○' },
+        // ●●●○ が おおくて、はずむ（行進曲・どうよう）
+        hazumu: { name: 'はずむ リズム', weight: 1, bars: '●●●○｜●●●○｜●●●●｜●●●○ ／ ●●●○｜●●●○｜●●●●｜●●●○' },
+        // さいごに 休みが つづいて、しんみり おわる
+        setsunai: { name: 'せつない リズム', weight: 1, bars: '●●●●｜●●●○｜●●●●｜●●●○ ／ ●●●●｜●●●●｜●●●○｜●●●○' },
+        // 2小節ずつ「とい → こたえ」
+        utau: { name: 'うたう リズム', weight: 1, bars: '●●●●｜●●●○｜●●●●｜●●●○ ／ ●●●●｜●●●○｜●●●●｜●●●○' },
+        // 1拍めを 休んで、うしろに ずらす（ジャズ・ボサノバ）。ひくのは 音符だけ
+        zurashi: { name: 'ずらす リズム', weight: 1, bars: '○●●●｜●●●●｜○●●●｜●●●○ ／ ○●●●｜●●●●｜●●●●｜●●●○' },
     },
 
     // 曲調（weight が 曲調の ノブ）。key：おわりの 音（'C' は ドで、'Am' は ラで おわる）
@@ -154,6 +176,56 @@ const TamaSongs = {
         return true;
     },
 
+    forcedRhythm() {
+        try {
+            return localStorage.getItem(this.RHYTHM_KEY);
+        } catch (error) {
+            return null;
+        }
+    },
+
+    // /rhythm で きめる：リズムの id。'off' で もとに もどす。きめられたら true
+    forceRhythm(id) {
+        if (id === 'off') {
+            localStorage.removeItem(this.RHYTHM_KEY);
+            return true;
+        }
+        if (!this.RHYTHMS[id]) return false;
+        localStorage.setItem(this.RHYTHM_KEY, id);
+        return true;
+    },
+
+    // リズムの 8小節（['●●●○', …]）
+    rhythmBars(id) {
+        return this.RHYTHMS[id].bars.split(/[｜／]/).map(bar => bar.trim());
+    },
+
+    // その 曲調の リズムを えらぶ（/rhythm で きめた リズム → 系統の rhythms から ノブの わりあいで）
+    pickRhythm(style, random = Math.random) {
+        const forced = this.forcedRhythm();
+        if (forced && this.RHYTHMS[forced]) return forced;
+        const ids = this.FAMILIES[style.family].rhythms;
+        const total = ids.reduce((sum, id) => sum + Math.max(0, this.RHYTHMS[id].weight), 0);
+        if (total <= 0) return ids[0];
+        let r = random() * total;
+        for (const id of ids) {
+            r -= Math.max(0, this.RHYTHMS[id].weight);
+            if (r < 0) return id;
+        }
+        return ids[ids.length - 1];
+    },
+
+    // 休符の まえの 音符の ばんごう（小節を つないだ ときの。-1 は 音符より まえ）
+    restsAfter(bars) {
+        const out = [];
+        let count = 0;
+        bars.join('').split('').forEach(mark => {
+            if (mark === '●') count++;
+            else if (mark === '○') out.push(count - 1);
+        });
+        return out;
+    },
+
     weightOf(style) {
         return Math.max(0, style.weight) * Math.max(0, this.FAMILIES[style.family].weight);
     },
@@ -195,19 +267,23 @@ const TamaSongs = {
         return this.whites().filter(m => tones.includes(m % 12));
     },
 
-    // 8フレーズを つくる。どの フレーズも 和音の 音だけで、3度より 大きい とびが 1かいは ある。
-    //   まえの フレーズの おわりから、むりの ない ところで はじまる。さいごは key の 音（ド か ラ）で おわる
-    make(style, random = Math.random) {
+    // 8フレーズを つくる。小節の 音の かずは リズム（● の かず）。どの フレーズも 和音の 音だけで、
+    //   3度より 大きい とびが 1かいは ある。まえの フレーズの おわりから、むりの ない ところで はじまる。
+    //   4小節めの おわりは ド（マイナーは ラ）を さけて「まだ つづく」感じに。さいごは key の 音（ド か ラ）で おわる
+    make(style, random = Math.random, rhythm = this.pickRhythm(style, random)) {
         const pickOne = list => list[Math.floor(random() * list.length)];
         const tonic = style.key === 'Am' ? 9 : 0;
+        const bars = this.rhythmBars(rhythm);
         const phrases = [];
         let previous = 67; // さいしょは ソの あたりから
         style.chords.forEach((chord, index) => {
             const last = index === style.chords.length - 1;
+            const half = index === 3; // 4小節め（1だんめの おわり）
+            const length = bars[index].split('').filter(mark => mark === '●').length;
             const pool = this.chordWhites(chord);
             let notes = null;
-            for (let tries = 0; tries < 200 && !notes; tries++) {
-                const length = random() < 0.3 ? 4 : 3;
+            let fallback = null;
+            for (let tries = 0; tries < 300 && !notes; tries++) {
                 // はじめの 音：まえの おわりに ちかい 和音の 音（ちかい 3つから）
                 const near = [...pool].sort((a, b) => Math.abs(a - previous) - Math.abs(b - previous)).slice(0, 3);
                 const candidate = [pickOne(near)];
@@ -226,9 +302,14 @@ const TamaSongs = {
                 const leap = jumps.some(j => j >= 3);
                 const tooBig = jumps.some(j => j > 12);
                 const same = phrases.length && phrases[phrases.length - 1].notes.join() === candidate.join();
-                if (leap && !tooBig && !same) notes = candidate;
+                if (leap && !tooBig && !same) {
+                    fallback = candidate;
+                    const settled = half && candidate[candidate.length - 1] % 12 === tonic; // 4小節めで おわった 感じに ならない
+                    if (!settled) notes = candidate;
+                }
             }
-            phrases.push({ notes, chord });
+            notes = notes || fallback;
+            phrases.push({ notes, chord, rhythm: bars[index] });
             previous = notes[notes.length - 1];
         });
         return phrases;

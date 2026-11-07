@@ -128,6 +128,8 @@ document.getElementById('fileInput').addEventListener('change', function (event)
 //   /music off   「おんがくのへや」をかくす
 //   /song jazz⏎  おんぷよみ Lv8 の 曲調を きめる（曲調の id か 系統。js/songs.js。Enter で きまる）
 //   /song off⏎   曲調を もとに もどす（ノブの わりあいで えらぶ）
+//   /rhythm genki⏎  おんぷよみ Lv8 の リズムを きめる（genki・hazumu・setsunai・utau・zurashi。Enter で きまる）
+//   /rhythm off⏎    リズムを もとに もどす（曲調の 系統から ノブの わりあいで えらぶ）
 //   計算・けんばんの画面だけ：
 //   /rescue      レベルを復元するモーダル
 //   /delete      このページのデータを消すモーダル
@@ -162,6 +164,20 @@ if (commandInput) {
                     : `きょくふうを「${style ? `${style.name}（${style.sub}）` : `${family.name}風`}」に しました。`);
             } else {
                 showNotification(`「${id}」という きょくふうは ありません。`);
+            }
+            event.target.value = '';
+            closeDataModal();
+            return;
+        }
+        // /rhythm：Enter（改行）で きまる
+        if (command.startsWith('/rhythm')) {
+            if (!/\n$/.test(event.target.value)) return;
+            const id = command.slice(7).trim() || 'off';
+            if (TamaSongs.forceRhythm(id)) {
+                showNotification(id === 'off' ? 'リズムを もとに もどしました。'
+                    : `リズムを「${TamaSongs.RHYTHMS[id].name}」に しました。`);
+            } else {
+                showNotification(`「${id}」という リズムは ありません。`);
             }
             event.target.value = '';
             closeDataModal();
