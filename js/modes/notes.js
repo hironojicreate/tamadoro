@@ -23,11 +23,27 @@
         backTo: '#/music',
         inRecords: false,
         storagePrefix: 'notes',           // ドロップの保存キー notes_coins_3 など
-        dataVersion: 2,                   // レベルの ならびを かえたら 1つ 上げる（まえの ドロップ・きろくを 消す。js/app.js）
+        dataVersion: 3,                   // レベルの ならびを かえたら 1つ 上げる（まえの ドロップ・きろくを 消す。js/app.js）
+        // 版 2 → 3：Lv8 を オニの まえに 入れたので、オニの ドロップ・タイム・きろくを レベル9 から 10 へ うつす（消さない）
+        upgradeData(from) {
+            if (from !== 2) return false; // それより まえの 版は 消す
+            const move = (oldKey, newKey) => {
+                const value = localStorage.getItem(oldKey);
+                if (value === null) return;
+                localStorage.setItem(newKey, value);
+                localStorage.removeItem(oldKey);
+            };
+            move('notes_coins_9', 'notes_coins_10');
+            move('notes_level_9_best_time', 'notes_level_10_best_time');
+            const log = History.getLog().map(entry =>
+                (entry.mode === 'notes' && entry.level === 9 ? { ...entry, level: 10 } : entry));
+            TamaStore.writeJSON(History.LOG_KEY, log);
+            return true;
+        },
         bestTimePrefix: 'notes',
         menuCoinSize: '25px',
         deleteMessage: 'おんぷよみのデータを消去しました',
-        rescue: { type: 'slider', max: 9 },
+        rescue: { type: 'slider', max: 10 },
         maxMistakes: 5,
         perfectClear: {},
         existingCoinsLevels: [],
@@ -38,11 +54,12 @@
         },
 
         // しくみ → Lv1 は ドロップ1こ、オニは 5こ、ほかは 3こで つぎが ひらく
-        coinsToUnlock: level => (level === 2 ? 1 : level === 9 ? 5 : 3),
+        coinsToUnlock: level => (level === 2 ? 1 : level === 10 ? 5 : 3),
 
         // view・active・guide・repeat は けんばんと 同じ（js/modes/keys.js）
         //   view の はしは、黒いけんばんの かたまりが かけないところ
         //   labelSwitch：名前なしの レベルに「けんばんの よみかた」スイッチ（ON で けんばんに 名前）
+        //   style: 'song'：きょくふう メロディ（js/songs.js の 曲調から 8フレーズ → とおし えんそう）
         //   melody: 'leap'：とびはねる メロディと、和音の かわりかた（Am・C7・Fm）。けんばんの Lv7 は もとの まま
         //   style: 'tour'（しくみ）、'dango'（おだんご。js/engines/keys.js の keysDangoDeck）
         //     dangos：[{ notes（下から）, chord（そろったときの 和音）, name, intro（名前つきの お手本） }]
@@ -90,6 +107,9 @@
               hint: 'せんに シ・たかいレ・たかいファ（3〜5ほんめ）、あいだに たかいド・たかいミ・たかいソ（5ほんめの すぐ上）' },
             { label: 'Lv7 メロディ', comment: '3〜4おんの がくふ', drop: 'Y',
               style: 'phrase', count: 8, melody: 'leap', view: [F3, E5], active: [C4, C5], guide: 'none' },
+            { label: 'Lv8 きょくふう', comment: 'いろいろな きょくを ひこう', drop: 'C',
+              style: 'song', view: [B3, B5], active: [C4, G5], guide: 'none', labelSwitch: true,
+              hint: '8つの フレーズを れんしゅうしたら、さいごに ぜんぶ つなげて えんそう！' },
             { label: 'Lvオニ', comment: 'ぜんぶ まぜて・もじなし', drop: 'S',
               style: 'oni', singles: 12, phrases: 4, melody: 'leap', view: [B3, B5], active: [C4, G5], guide: 'none' },
         ],

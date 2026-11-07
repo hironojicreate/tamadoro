@@ -123,11 +123,17 @@ function route() {
 }
 
 // レベルの ならびを かえた モード（dataVersion）は、まえの ドロップ・ベストタイム・きろくを 消す（かわったときに 1回だけ）
+//   モードに upgradeData(まえの版) が あって true を かえしたら、消さずに うつしかえた ことに する
 function resetChangedModes() {
     Object.values(MODES).forEach(mode => {
         if (!mode.dataVersion) return;
         const key = `tamadoro.${mode.id}.dataVersion`;
-        if (TamaStore.readJSON(key, 1) === mode.dataVersion) return;
+        const from = TamaStore.readJSON(key, 1);
+        if (from === mode.dataVersion) return;
+        if (mode.upgradeData && mode.upgradeData(from)) {
+            TamaStore.writeJSON(key, mode.dataVersion);
+            return;
+        }
         Object.keys(localStorage)
             .filter(k => k.startsWith(`${mode.storagePrefix}_coins_`)
                 || (k.startsWith(`${mode.bestTimePrefix}_level_`) && k.endsWith('_best_time')))
