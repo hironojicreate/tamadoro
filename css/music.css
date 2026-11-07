@@ -389,6 +389,15 @@ html[data-mode="black"] .select-level-buttons button {
     text-align: center;
 }
 
+/* けんばんの よみかた（おんぷよみ Lv5）：右上の スイッチ（右上の ドロップより 上に） */
+.keys-help {
+    z-index: 20;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 15px;
+    color: #4a235a;
+}
+
 /* おんぷよみ：五線の 音符（js/staff.js） */
 .keys-card.staff-card {
     width: auto;
@@ -442,7 +451,7 @@ html[data-mode="black"] .select-level-buttons button {
 .keys-cards.tour .staff-note.current .staff-stem { stroke: #e84393; }
 .keys-cards.tour .staff-note.current .staff-glow { fill: rgba(232, 67, 147, 0.15); }
 
-/* おだんご（おんぷよみ Lv1・Lv2）：1本の くしに 三色だんご（下から みどり・しろ・ピンク） */
+/* おだんご（おんぷよみ）：1本の くしに おだんご。色は 音の 色（js/staff.js が style で つける） */
 .staff-skewer {
     stroke: #c68e52;
     stroke-width: 5;
@@ -454,9 +463,6 @@ html[data-mode="black"] .select-level-buttons button {
     stroke-width: 2;
 }
 
-.keys-cards .staff-note.dango.d0 .staff-head { fill: #8bc34a; }
-.keys-cards .staff-note.dango.d1 .staff-head { fill: #fffaf0; }
-.keys-cards .staff-note.dango.d2 .staff-head { fill: #ff9ecb; }
 
 /* いま おす おだんご：ピンクの わっかが ポワンポワン */
 .keys-cards .staff-note.dango.current .staff-glow {

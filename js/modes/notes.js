@@ -9,6 +9,10 @@
     const C5 = 72, D5 = 74, E5 = 76, F5 = 77, G5 = 79;
     const F3 = 53, B3 = 59, B5 = 83;
 
+    // せんに ささった おだんご（ド・ミ・ソ）と、せんの あいだの おだんご（レ・ファ・ラ）
+    const LINE_DANGO = { notes: [C4, E4, G4], chord: 'C', name: 'せんに ささった おだんご', intro: true };
+    const SPACE_DANGO = { notes: [D4, F4, A4], chord: 'Dm', name: 'せんの あいだの おだんご', intro: true };
+
     MODES.notes = {
         id: 'notes',
         name: 'おんぷよみ',
@@ -38,29 +42,51 @@
 
         // view・active・guide・repeat は けんばんと 同じ（js/modes/keys.js）
         //   view の はしは、黒いけんばんの かたまりが かけないところ
-        //   style: 'tour'（しくみ）、'dango'（おだんご：notes を repeat 回 ＋ おだんごを dangos 回。chord は おだんごの 和音）
+        //   labelSwitch：名前なしの レベルに「けんばんの よみかた」スイッチ（ON で けんばんに 名前）
+        //   style: 'tour'（しくみ）、'dango'（おだんご。js/engines/keys.js の keysDangoDeck）
+        //     dangos：[{ notes（下から）, chord（そろったときの 和音）, name, intro（名前つきの お手本） }]
+        //     singles を repeat 回 ＋ extra の 1おんと、おだんごを dangoRepeat 回ずつ
         //   sing: けんばんを おすと 名前を うたう
         levels: [
             { label: 'しくみ', comment: 'せんは 5ほん・ドから のぼって くだる', drop: 'L',
               style: 'tour', view: [F3, E5], active: [C4, C5], guide: 'all', sing: true },
             { label: 'Lv1 せんの おだんご', comment: 'ド・ミ・ソ', drop: 'M',
-              style: 'dango', notes: [C4, E4, G4], chord: 'C', repeat: 3, dangos: 3, dangoName: 'せんに ささった おだんご',
+              style: 'dango', dangos: [LINE_DANGO], singles: [C4, E4, G4], repeat: 3, dangoRepeat: 3,
               view: [F3, B4], active: [C4, G4], guide: 'all', sing: true,
               hint: 'せんに ささった おだんご：ド（みじかい せん）・ミ（1ぽんめ）・ソ（2ほんめ）' },
             { label: 'Lv2 あいだの おだんご', comment: 'レ・ファ・ラ', drop: 'B',
-              style: 'dango', notes: [D4, F4, A4], chord: 'Dm', repeat: 3, dangos: 3, dangoName: 'せんの あいだの おだんご',
+              style: 'dango', dangos: [SPACE_DANGO], singles: [D4, F4, A4], repeat: 3, dangoRepeat: 3,
               view: [F3, B4], active: [C4, A4], guide: 'all', sing: true,
               hint: 'せんの あいだの おだんご：レ（ドの せんと 1ぽんめの あいだ）・ファ・ラ' },
-            { label: 'Lv3 ソ〜ド', comment: 'ソから たかいドまで', drop: 'A',
-              style: 'single', notes: [G4, A4, B4, C5], repeat: 4, view: [F3, E5], active: [G4, C5], guide: 'all',
-              hint: 'ト音記号の うずまきが まいている せんが ソ' },
-            { label: 'Lv4 ド〜ド', comment: 'たかいドまで ぜんぶ', drop: 'R',
-              style: 'single', notes: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 2, view: [F3, E5], active: [C4, C5], guide: 'all' },
+            { label: 'Lv3 おだんご まぜ', comment: 'ド・ミ・ソ と レ・ファ・ラ', drop: 'A',
+              style: 'dango', dangos: [{ ...LINE_DANGO, intro: false }, { ...SPACE_DANGO, intro: false }],
+              singles: [C4, D4, E4, F4, G4, A4], repeat: 2, dangoRepeat: 2,
+              view: [F3, B4], active: [C4, A4], guide: 'all', sing: true,
+              hint: 'せんに ささった ド・ミ・ソ と、せんの あいだの レ・ファ・ラ。どっちの おだんご かな？' },
+            { label: 'Lv4 おだんごの つづき', comment: 'シ と たかいド を たして ド〜ド', drop: 'R',
+              style: 'dango',
+              dangos: [
+                  { notes: [C4, E4, G4, B4], chord: 'Cmaj7', name: 'せんの おだんごの つづきは シ（3ぼんめ）', intro: true },
+                  { notes: [D4, F4, A4, C5], chord: 'Dm7', name: 'あいだの おだんごの つづきは たかいド', intro: true },
+              ],
+              singles: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 1, extra: [B4, C5, B4, C5], dangoRepeat: 2,
+              // 1おんは これまでと 同じ ひびき（ド・ミ・ソ は C、レ・ファ・ラ は Dm）。シは ミ・ソ・シ、たかいドは C
+              //   （4つだまの 和音 Cmaj7・Dm7 は、おだんごが そろった ときの ごほうび）
+              singleChords: { [C4]: 'C', [E4]: 'C', [G4]: 'C', [D4]: 'Dm', [F4]: 'Dm', [A4]: 'Dm', [B4]: 'Em', [C5]: 'C' },
+              view: [F3, E5], active: [C4, C5], guide: 'all', sing: true,
+              hint: 'せんの おだんごの つぎは シ（3ぼんめ）、あいだの おだんごの つぎは たかいド' },
             { label: 'Lv5 ド〜ド', comment: 'けんばんの もじなし', drop: 'K',
-              style: 'single', notes: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 2, view: [F3, E5], active: [C4, C5], guide: 'none' },
-            { label: 'Lv6 うえの おと', comment: 'たかいドから たかいソまで', drop: 'P',
-              style: 'single', notes: [C5, D5, E5, F5, G5], repeat: 3, view: [F4, B5], active: [C5, G5], guide: 'all',
-              hint: '五線の いちばん上の せんが たかいファ' },
+              style: 'single', notes: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 2, view: [F3, E5], active: [C4, C5], guide: 'none',
+              labelSwitch: true }, // こまったら「けんばんの よみかた」を ON に（けんばんに 名前が 出る）
+            { label: 'Lv6 うえの おと', comment: 'うえの おだんご（たかいド〜たかいソ）', drop: 'P',
+              style: 'dango',
+              dangos: [
+                  { notes: [B4, D5, F5], chord: 'G7', name: 'うえの せんの おだんご', intro: true },
+                  { notes: [C5, E5, G5], chord: 'C', name: 'うえの あいだの おだんご', intro: true },
+              ],
+              singles: [B4, C5, D5, E5, F5, G5], repeat: 2, dangoRepeat: 2,
+              view: [B3, B5], active: [B4, G5], guide: 'all', sing: true, // 左に くらい けんばん（まんなかの ドの あたり）
+              hint: 'せんに シ・たかいレ・たかいファ（3〜5ほんめ）、あいだに たかいド・たかいミ・たかいソ（5ほんめの すぐ上）' },
             { label: 'Lv7 メロディ', comment: '3〜4おんの がくふ', drop: 'Y',
               style: 'phrase', count: 8, view: [F3, E5], active: [C4, C5], guide: 'none' },
             { label: 'Lvオニ', comment: 'ぜんぶ まぜて・もじなし', drop: 'S',

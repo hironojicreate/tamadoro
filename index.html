@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.53</span>
+                <span id="version">Ver.6.3.56</span>
             </p>
         </footer>
     </div>
@@ -1423,6 +1423,11 @@
         <button class="returnButton" onclick="returnMenu()">はじめにもどる</button>
 
         <h1 class="page-title"></h1>
+        <!-- けんばんの よみかた：名前なしの レベル（labelSwitch）で、けんばんに 名前を 出す スイッチ（js/engines/keys.js） -->
+        <div class="help-checkbox keys-help" id="keysHelp" style="display: none;">
+            <input type="checkbox" id="keysHelpCheckbox" name="keysHelpCheckbox">
+            <label for="keysHelpCheckbox">けんばんの よみかた</label>
+        </div>
         <div class="keys-stage">
             <div id="keysCards" class="keys-cards"></div>
             <div id="keysAnswers" class="keys-answers"></div>

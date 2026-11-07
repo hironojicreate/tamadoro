@@ -10,7 +10,7 @@
 //     sing: true の レベルは、けんばんを おすと その音の 名前を うたう（js/sing.js の「どー・れー・みー」）
 //     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
 //       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる。
-//       正解の 和音は、1おんの 問題も おだんごの 和音だけ（Lv1 は C、Lv2 は Dm）
+//       正解の 和音は、1おんの 問題も その音の おだんごの 和音（Lv1 は C、Lv2 は Dm だけ）
 
 // メロディ（Lv7・オニ）：和音ごとに、その和音に合う 3〜4おん
 //   出すときは C → F → G → C（さいごは ドで おわる）の じゅんばん
@@ -58,28 +58,39 @@ function keysTourDeck() {
 // 1つずつ あらわれる 音符：正解の キラリンの あと、つぎが 出るまで（ミリ秒）
 const KEYS_REVEAL_DELAY = 550;
 
-// おだんご：お手本（名前つき・わっか）→ 1おん（notes を repeat 回）と おだんご（dangos 回）を まぜる
+// おだんご：
+//   dangos：[{ notes（下から）, chord（そろったときの 和音）, name, intro（さいしょに 名前つきの お手本） }]
+//   singles を repeat 回 ＋ extra（とくに おぼえたい 音を たす）の 1おんと、おだんごを dangoRepeat 回ずつ まぜる
+//   singleChords：1おんの 正解の 和音を 音ごとに きめる（ないときは その音の おだんごの 和音）
 function keysDangoDeck(def) {
-    const names = def.notes.map(m => TamaNotes.lessonName(m)).join('・');
-    const dango = (more = {}) => ({
-        notes: def.notes,
+    const names = d => d.notes.map(m => TamaNotes.lessonName(m)).join('・');
+    const dango = (d, more = {}) => ({
+        notes: d.notes,
         dango: true,
-        chord: def.chord,
-        key: `おだんご ${names}`,
+        chord: d.chord,
+        key: `おだんご ${names(d)}`,
         say: 'おだんごを 下から じゅんばんに おしてね',
         ...more,
     });
+    // 1おんの 問題も、正解の 和音は その音の おだんごの 和音（Lv2 は Dm だけ。その レベルの 音だけを おぼえる）
+    const chordOf = midi => {
+        if (def.singleChords && def.singleChords[midi]) return def.singleChords[midi];
+        const home = def.dangos.find(d => d.notes.includes(midi));
+        return home ? home.chord : keysChordFor(midi);
+    };
     const items = [];
-    // 1おんの 問題も、正解の 和音は おだんごの 和音だけ（Lv2 は Dm だけ。その レベルの 音だけを おぼえる）
-    for (let r = 0; r < def.repeat; r++) def.notes.forEach(midi => items.push({ ...keysSingle(midi), chord: def.chord }));
-    for (let i = 0; i < def.dangos; i++) items.push(dango());
-    const intro = dango({
+    for (let r = 0; r < def.repeat; r++) def.singles.forEach(midi => items.push({ ...keysSingle(midi), chord: chordOf(midi) }));
+    (def.extra || []).forEach(midi => items.push({ ...keysSingle(midi), chord: chordOf(midi) }));
+    def.dangos.forEach(d => {
+        for (let i = 0; i < def.dangoRepeat; i++) items.push(dango(d));
+    });
+    const intros = def.dangos.filter(d => d.intro).map(d => dango(d, {
         showNames: true,
         beckon: true,
-        say: `${def.dangoName}！ 下から ${names}。ひかっている けんばんを じゅんばんに おしてね`,
+        say: `${d.name}！ 下から ${names(d)}。ひかっている けんばんを じゅんばんに おしてね`,
         pause: 1300,
-    });
-    return [intro, ...keysShuffleNoRepeat(items)];
+    }));
+    return [...intros, ...keysShuffleNoRepeat(items)];
 }
 
 // sing: true の レベル：ピアノの音を すこし 小さくして、名前を うたう（白いけんばん）
@@ -308,6 +319,9 @@ function keysStartLevel(level) {
     keysRenderKeyboard(def.view || keysOniView());
 
     document.getElementById('keysHint').textContent = def.hint || '';
+    // けんばんの よみかた：名前なしの レベルでも、スイッチを ON に すると 名前が 出る（はじめは いつも OFF）
+    document.getElementById('keysHelp').style.display = def.labelSwitch ? 'block' : 'none';
+    document.getElementById('keysHelpCheckbox').checked = false;
 
     if (def.style === 'free') {
         keysShowFree();
@@ -345,9 +359,19 @@ function keysRenderKeyboard(view) {
         to: view[1],
         activeFrom: def.active[0],
         activeTo: def.active[1],
-        label: midi => def.guide === 'all' && midi >= def.active[0] && midi <= def.active[1] && !vanished.includes(midi),
+        label: midi => keysShowLabels(def) && midi >= def.active[0] && midi <= def.active[1] && !vanished.includes(midi),
     });
 }
+
+// けんばんに 名前を 書くか（名前ありの レベル、または「けんばんの よみかた」が ON）
+function keysShowLabels(def) {
+    return def.guide === 'all' || (!!def.labelSwitch && document.getElementById('keysHelpCheckbox').checked);
+}
+
+document.getElementById('keysHelpCheckbox').addEventListener('change', () => {
+    const run = keysLesson.run;
+    if (run && run.view) keysRenderKeyboard(run.view);
+});
 
 function keysRetryLevel() {
     document.getElementById('completionModal').style.display = 'none';

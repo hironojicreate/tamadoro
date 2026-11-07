@@ -555,6 +555,15 @@ async function answerAll(page) {
       };
     });
     ok(s.count === 3 && s.xs === 1 && s.skewer === 1 && s.ys === s.want && s.names === 'ドミソ' && s.clef && s.lines === 5, `おだんご：1本の くしに ド・ミ・ソ（名前つき）${JSON.stringify(s)}`);
+    // おだんごの 色は 音の 色：ドミソ と レファラ は ちがう 色、シは あたらしい 色、たかいドは ドと 同じ
+    const colors = await page.evaluate(() => {
+      const fill = notes => { const box = document.createElement('div'); box.innerHTML = TamaStaff.svg(notes, { dango: true }); return [...box.querySelectorAll('.staff-head')].map(h => h.style.fill); };
+      const [c, e, g, b] = fill([60, 64, 67, 71]);
+      const [d, f, a, c5] = fill([62, 65, 69, 72]);
+      return { line: [c, e, g], space: [d, f, a], b, c, c5 };
+    });
+    ok(colors.line.every(x => !colors.space.includes(x)) && new Set([...colors.line, ...colors.space, colors.b]).size === 7 && colors.c5 === colors.c,
+      `おだんごの 色：ドミソ と レファラ は ちがう、シは あたらしい 色、たかいドは ドと 同じ ${JSON.stringify(colors)}`);
     ok(await page.$$eval('#keysKeyboard .tk-label', l => l.map(e => e.textContent).join('')) === 'ドレミファソ', 'Lv1 は けんばんに 名前あり');
     const ring = () => page.evaluate(() => { const r = document.querySelector('#keysKeyboard .tk-ring'); return r ? Number(r.parentElement.dataset.midi) : null; });
     ok((await ring()) === 60, 'お手本：ドの けんばんに わっか');
@@ -569,9 +578,78 @@ async function answerAll(page) {
     ok(stats['ド'] && stats['ド'].n >= 3, 'おんぷよみの きろく（ド）');
     ok(await page.evaluate(() => { const def = MODES.notes.levels[2]; return keysDangoDeck(def).every(p => p.chord === 'Dm'); }), 'Lv2 は 1おんの 問題も 和音は Dm だけ');
     // Lv2 あいだの おだんご：レ・ファ・ラ（和音は Dm）
-    const lv2 = await page.evaluate(() => { const d = MODES.notes.levels[2]; return { notes: d.notes.join(','), chord: d.chord, dm: TamaSound.CHORDS.Dm.join(','), hint: d.hint, space: d.notes.every(m => !TamaStaff.onLine(m)), line: MODES.notes.levels[1].notes.every(m => TamaStaff.onLine(m)) }; });
+    const lv2 = await page.evaluate(() => { const d = MODES.notes.levels[2]; const g = d.dangos[0]; return { notes: g.notes.join(','), chord: g.chord, dm: TamaSound.CHORDS.Dm.join(','), hint: d.hint, space: g.notes.every(m => !TamaStaff.onLine(m)), line: MODES.notes.levels[1].dangos[0].notes.every(m => TamaStaff.onLine(m)) }; });
     ok(lv2.notes === '62,65,69' && lv2.chord === 'Dm' && lv2.dm === '50,53,57' && lv2.hint.startsWith('せんの あいだの おだんご') && lv2.space && lv2.line,
       `Lv2 は せんの あいだの おだんご（レ・ファ・ラ）、Lv1 は ぜんぶ せんの上 ${JSON.stringify(lv2)}`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 17a. おんぷよみ Lv3 おだんご まぜ・Lv4 おだんごの つづき・Lv6 うえの おと（もんだいの つくりかた）
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/', MUSIC_ON);
+    const r = await page.evaluate(() => {
+      const deck = n => keysDangoDeck(MODES.notes.levels[n]);
+      const show = p => (p.dango ? 'D' : '') + p.notes.join(',');
+      const out = {};
+      [3, 4, 6].forEach(n => {
+        const d = deck(n + 0);
+        const def = MODES.notes.levels[n];
+        out[n] = {
+          len: d.length,
+          intros: d.filter(p => p.showNames).map(show),
+          dangos: [...new Set(d.filter(p => p.dango && !p.showNames).map(show))].sort(),
+          singlesInActive: d.filter(p => !p.dango).every(p => p.notes[0] >= def.active[0] && p.notes[0] <= def.active[1]),
+          chordsMatch: d.filter(p => !p.dango).every(p => ((def.singleChords || {})[p.notes[0]] || def.dangos.find(g => g.notes.includes(p.notes[0])).chord) === p.chord),
+          singleChords: [...new Set(d.filter(p => !p.dango).map(p => `${p.notes[0]}:${p.chord}`))].sort().join(','),
+          dangoChords: [...new Set(d.filter(p => p.dango).map(p => p.chord))].sort().join(','),
+          label: def.label,
+        };
+      });
+      out.chords = ['Cmaj7', 'Dm7', 'G7'].every(c => Array.isArray(TamaSound.CHORDS[c]));
+      out.upper = MODES.notes.levels[6].dangos[0].notes.every(m => TamaStaff.onLine(m)) && MODES.notes.levels[6].dangos[1].notes.every(m => !TamaStaff.onLine(m));
+      return out;
+    });
+    ok(r[3].label === 'Lv3 おだんご まぜ' && r[3].len === 16 && r[3].intros.length === 0 && r[3].dangos.join('|') === 'D60,64,67|D62,65,69' && r[3].singlesInActive && r[3].chordsMatch,
+      `Lv3 おだんご まぜ：ド・ミ・ソ と レ・ファ・ラ（1おん 12 ＋ おだんご 4）${JSON.stringify(r[3])}`);
+    ok(r[4].label === 'Lv4 おだんごの つづき' && r[4].len === 18 && r[4].intros.join('|') === 'D60,64,67,71|D62,65,69,72' && r[4].singlesInActive && r.chords,
+      `Lv4 おだんごの つづき：4つだま（シ・たかいド）の お手本 2つ ${JSON.stringify(r[4])}`);
+    ok(r[4].singleChords === '60:C,62:Dm,64:C,65:Dm,67:C,69:Dm,71:Em,72:C' && r[4].dangoChords === 'Cmaj7,Dm7',
+      `Lv4 の 1おんは これまでと 同じ ひびき（C・Dm）、シは Em、たかいドは C。おだんごは Cmaj7・Dm7 ${r[4].singleChords} / ${r[4].dangoChords}`);
+    ok(r[6].label === 'Lv6 うえの おと' && r[6].len === 18 && r[6].intros.join('|') === 'D71,74,77|D72,76,79' && r[6].singlesInActive && r[6].chordsMatch && r.upper,
+      `Lv6 うえの おと：うえの せんの おだんご・あいだの おだんご ${JSON.stringify(r[6])}`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 17d. おんぷよみ Lv5：けんばんの よみかた スイッチ／Lv6：あかるい けんばんは 右がわ
+  {
+    const unlock = { ...MUSIC_ON };
+    for (let l = 1; l <= 6; l++) unlock[`notes_coins_${l}`] = JSON.stringify(Array(3).fill({ image: '/img/Lmaru.png' }));
+    const { page, errors } = await openPage(browser, 'index.html#/notes', unlock);
+    await page.click('#level6'); await page.waitForTimeout(300);
+    const labels = () => page.$$eval('#keysKeyboard .tk-label', l => l.map(e => e.textContent).join(''));
+    ok(await page.isVisible('#keysHelp') && !(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'Lv5 は スイッチ OFF（けんばんに 名前なし）');
+    await page.click('#keysHelp label'); await page.waitForTimeout(100);
+    ok(await page.isChecked('#keysHelpCheckbox') && (await labels()) === 'ドレミファソラシド', 'スイッチ ON で けんばんに 名前');
+    await pressKey(page, await expected(page)); await page.waitForTimeout(1000);
+    ok((await labels()) === 'ドレミファソラシド', 'つぎの 問題でも 名前は 出たまま');
+    await page.click('#keysHelp label'); await page.waitForTimeout(100);
+    ok(!(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'もう1回 おすと OFF（トグル）');
+    await page.click('#keysHelp label'); await page.waitForTimeout(100);
+    await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
+    await page.click('#level7'); await page.waitForTimeout(300);
+    ok(!(await page.isVisible('#keysHelp')), 'Lv6（名前あり）には スイッチなし');
+    const kb = await page.evaluate(() => {
+      const keys = [...document.querySelectorAll('#keysKeyboard .tk-white-key')];
+      const bright = keys.filter(k => !k.classList.contains('tk-dim'));
+      const first = keys.indexOf(bright[0]);
+      return { all: keys.length, left: first, right: keys.length - 1 - keys.indexOf(bright[bright.length - 1]), from: keys[0].dataset.midi };
+    });
+    ok(kb.left > kb.right && kb.left >= 6 && kb.from === '59', `Lv6 は あかるい けんばんが 右がわ（左に くらい けんばん ${kb.left}こ、右に ${kb.right}こ）`);
+    await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
+    await page.click('#level6'); await page.waitForTimeout(300);
+    ok(!(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'もう一度 ひらくと スイッチは OFF から');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
