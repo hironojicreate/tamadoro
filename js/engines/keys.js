@@ -10,7 +10,7 @@
 //     sing: true の レベルは、けんばんを おすと その音の 名前を うたう（js/sing.js の「どー・れー・みー」）
 //     きょくふう メロディ（style: 'song'。js/songs.js）：曲調を 1つ えらんで、8フレーズを 1つずつ れんしゅう →
 //       ぜんぶの がくふで さいごまで ひきとおす（ばんそうが ついてくる。じぶんの ペースで。まちがえても とまらない）→
-//       「じぶんの えんそうを きく」で ひいた タイミングの まま きける
+//       「じぶんの えんそうを きく」で ひいた タイミングを すこし はやくして きける（とちゅうで 止められる）
 //     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
 //       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる。
 //       正解の 和音は、1おんの 問題も その音の おだんごの 和音（Lv1 は C、Lv2 は Dm だけ）
@@ -187,6 +187,7 @@ const keysLesson = {
     keyboard: null,
     run: null,      // いま遊んでいるレベルの状態（やめたら null）
     timers: [],
+    playback: null, // じぶんの えんそうを きいている あいだ：{ bus, timers }
 
     later(fn, ms) {
         const run = this.run;
@@ -453,6 +454,7 @@ function keysRetryLevel() {
 
 // やめるとき（はじめにもどる・ほかの画面へ）
 function keysStopLevel() {
+    keysStopPlayback();
     keysLesson.stopTimers();
     keysLesson.run = null;
     if (keysLesson.keyboard) {
@@ -781,6 +783,7 @@ function keysPerformDone() {
         <button type="button" class="keys-perform-button finish">ドロップを もらう</button>`;
     answers.querySelector('.listen').addEventListener('click', keysPlayback);
     answers.querySelector('.finish').addEventListener('click', () => {
+        keysStopPlayback();
         answers.innerHTML = '';
         keysFinish();
     });
@@ -794,26 +797,38 @@ function keysFanfare(style) {
     tones.forEach((midi, i) => TamaSound.note(midi, { gain: 0.32, when: 0.25 + i * 0.09 }).release());
 }
 
-// じぶんの えんそうを きく：ひいた タイミングの まま（ながく とまった ところは 1.2秒に つめる）
+// じぶんの えんそうを きく：ひいた タイミングで、すこし はやく（PLAYBACK_SPEED ばい。ながく とまった ところは
+//   PLAYBACK_MAX_GAP 秒に つめる）。きいている あいだ ボタンは「とめる」。ほかの ボタン・ほかの 画面で 止まる
+const PLAYBACK_SPEED = 1.5;
+const PLAYBACK_MAX_GAP = 0.6;
+
 function keysPlayback() {
     const run = keysLesson.run;
     if (!run || !run.performance.length) return;
+    if (keysLesson.playback) {
+        keysStopPlayback(); // 「とめる」
+        return;
+    }
+    const playback = { bus: TamaSound.bus(), timers: [] };
+    keysLesson.playback = playback;
     const button = document.querySelector('#keysAnswers .listen');
-    if (button) button.disabled = true;
-    const MAX_GAP = 1.2;
+    if (button) button.textContent = 'とめる';
+    const later = (fn, ms) => playback.timers.push(setTimeout(() => {
+        if (keysLesson.playback === playback) fn();
+    }, ms));
     let at = 0.3;
     let previous = run.performance[0].t;
     let noteIndex = 0;
     run.performance.forEach(event => {
-        at += Math.min(MAX_GAP, (event.t - previous) / 1000);
+        at += Math.min(PLAYBACK_MAX_GAP, (event.t - previous) / 1000 / PLAYBACK_SPEED);
         previous = event.t;
         if (event.chord) {
-            TamaSound.chord(event.chord, { when: at, gain: 0.2, strum: 0.02 });
+            TamaSound.chord(event.chord, { when: at, gain: 0.2, strum: 0.02, bus: playback.bus });
             return;
         }
-        TamaSound.note(event.midi, { when: at }).release();
+        TamaSound.note(event.midi, { when: at, bus: playback.bus }).release();
         const i = noteIndex++;
-        keysLesson.later(() => {
+        later(() => {
             const note = document.querySelector(`#keysCards [data-i="${i}"]`);
             if (!note) return;
             note.classList.remove('sparkle');
@@ -823,10 +838,18 @@ function keysPlayback() {
             if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }, at * 1000);
     });
-    keysLesson.later(() => {
-        const again = document.querySelector('#keysAnswers .listen');
-        if (again) again.disabled = false;
-    }, (at + 1) * 1000);
+    later(keysStopPlayback, (at + 1) * 1000);
+}
+
+// きくのを やめる：まだ 鳴っていない 音も、鳴っている 音も ぜんぶ けす
+function keysStopPlayback() {
+    const playback = keysLesson.playback;
+    if (!playback) return;
+    keysLesson.playback = null;
+    playback.timers.forEach(clearTimeout);
+    if (playback.bus) playback.bus.disconnect();
+    const button = document.querySelector('#keysAnswers .listen');
+    if (button) button.textContent = 'じぶんの えんそうを きく';
 }
 
 // くろいけんばんの問題で 正解したら、その けんばんの 名前を ぜんぶ見せる（ド♯ で こたえても「ド♯／レ♭」）

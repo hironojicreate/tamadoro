@@ -126,8 +126,8 @@ const TamaSound = {
     },
 
     // 音を1つ鳴らす。返り値の release() で 指を はなしたことにする（すこし のこって 消える）
-    //   gain: 大きさ（0〜1）、when: 何秒あとに鳴らすか
-    note(midi, { gain = 0.5, when = 0 } = {}) {
+    //   gain: 大きさ（0〜1）、when: 何秒あとに鳴らすか、bus: 音の みち（TamaSound.bus()。とちゅうで まとめて 止めるとき）
+    note(midi, { gain = 0.5, when = 0, bus = null } = {}) {
         const silent = { release() {} };
         const ctx = this.live();
         if (!ctx) return silent;
@@ -156,7 +156,7 @@ const TamaSound = {
 
         osc.connect(filter);
         filter.connect(amp);
-        amp.connect(this.master);
+        amp.connect(bus || this.master);
         osc.start(t);
         const end = t + 0.35 + sustain * 6;
         osc.stop(end);
@@ -269,11 +269,11 @@ const TamaSound = {
     },
 
     // 和音を ポロロンと鳴らす（when 秒あとから、strum 秒ずつ ずらして）
-    chord(name, { gain = 0.16, when = 0.12, strum = 0.035 } = {}) {
+    chord(name, { gain = 0.16, when = 0.12, strum = 0.035, bus = null } = {}) {
         const notes = this.CHORDS[name];
         if (!notes) return;
         notes.forEach((midi, i) => {
-            const voice = this.note(midi, { gain, when: when + i * strum });
+            const voice = this.note(midi, { gain, when: when + i * strum, bus });
             voice.release();
         });
     },

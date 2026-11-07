@@ -843,10 +843,37 @@ async function answerAll(page) {
       return keysLesson.run.performance.filter(e => e.midi).length;
     });
     await page.click('#keysAnswers .listen'); await page.waitForTimeout(150);
-    ok(notesPlayed === total && await page.evaluate(() => window.played) === total && await page.$eval('#keysAnswers .listen', b => b.disabled),
-      `じぶんの えんそうを きく（${total}おん）`);
+    ok(notesPlayed === total && await page.evaluate(() => window.played) === total && await page.textContent('#keysAnswers .listen') === 'とめる',
+      `じぶんの えんそうを きく（${total}おん。きいている あいだは「とめる」）`);
+    // 「とめる」で 止まる（音の みちが きれて、ボタンも もどる）
+    await page.evaluate(() => {
+      window.cut = 0;
+      const bus = keysLesson.playback.bus;
+      if (bus) { const off = bus.disconnect.bind(bus); bus.disconnect = (...a) => { window.cut++; return off(...a); }; }
+    });
+    await page.click('#keysAnswers .listen'); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => keysLesson.playback === null && window.cut === (TamaSound.context() ? 1 : 0)) && await page.textContent('#keysAnswers .listen') === 'じぶんの えんそうを きく',
+      '「とめる」を おすと、きくのが 止まる');
+    // すこし はやく：さいごの 音が 鳴るのは、ひいた 時間 ÷ 1.5 より まえ
+    const timing = await page.evaluate(() => {
+      const when = [];
+      const note = TamaSound.note.bind(TamaSound);
+      TamaSound.note = (m, o) => { if (o && o.gain === undefined) when.push(o.when); return note(m, o); };
+      keysPlayback();
+      TamaSound.note = note;
+      const p = keysLesson.run.performance;
+      return { last: when[when.length - 1], played: (p[p.length - 1].t - p[0].t) / 1000 };
+    });
+    ok(timing.last <= 0.3 + timing.played / 1.5 + 0.01, `じぶんの えんそうを きく は すこし はやい ${JSON.stringify(timing)}`);
+    // 「ドロップを もらう」でも 止まる
     await page.click('#keysAnswers .finish'); await page.waitForTimeout(400);
+    ok(await page.evaluate(() => keysLesson.playback === null), '「ドロップを もらう」で、きくのが 止まる');
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'Lv8 きょくふう、クリア！', 'Lv8 クリア');
+    // きいている とちゅうで ほかの 画面へ いっても 止まる
+    await page.evaluate(() => keysPlayback());
+    const playing = await page.evaluate(() => keysLesson.playback !== null);
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(300);
+    ok(playing && await page.evaluate(() => keysLesson.playback === null), 'ほかの 画面へ いくと、きくのが 止まる');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
