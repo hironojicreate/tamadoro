@@ -1398,3 +1398,118 @@ html[data-mode="rhythm"] .reward-coin {
 @media (max-height: 640px) {
     #rhythmScreen .rhythm-pad { display: none; }
 }
+
+/* きょくふうを えらぶ（/song⏎。js/song-picker.js） */
+.song-picker-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.song-picker {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    padding: 14px 16px;
+    width: min(760px, 100%);
+    max-height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+}
+
+.song-picker h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    color: #6c5ce7;
+}
+
+.song-picker h3 {
+    margin: 12px 0 6px;
+    font-size: 16px;
+    color: #2d3436;
+}
+
+.song-picker-note {
+    margin: 0;
+    font-size: 13px;
+    color: #636e72;
+}
+
+.song-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.song-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 6px 10px;
+    border: 2px solid #dcd6ff;
+    border-radius: 10px;
+    background: #f7f5ff;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 14px;
+    color: #2d3436;
+    cursor: pointer;
+    text-align: left;
+}
+
+.song-chip small {
+    font-weight: 400;
+    font-size: 11px;
+    color: #636e72;
+}
+
+.song-chip.on {
+    border-color: #6c5ce7;
+    background: #6c5ce7;
+    color: #fff;
+}
+
+.song-chip.on small {
+    color: #eee;
+}
+
+.song-chip.mini {
+    display: inline-block;
+    padding: 1px 8px;
+    margin-left: 6px;
+    font-size: 12px;
+}
+
+.song-family {
+    margin-top: 8px;
+}
+
+.song-family-name {
+    margin-bottom: 4px;
+    font-weight: 900;
+    font-size: 14px;
+    color: #6c5ce7;
+}
+
+.song-picker-buttons {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.song-picker-buttons button {
+    padding: 6px 24px;
+    font-family: inherit;
+    font-size: 15px;
+    border-radius: 999px;
+    border: 2px solid #6c5ce7;
+    background: #fff;
+    color: #6c5ce7;
+    cursor: pointer;
+}

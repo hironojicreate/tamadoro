@@ -813,6 +813,22 @@ async function answerAll(page) {
     await command(page, '/rhythm off\n'); await page.waitForTimeout(100);
     const back = await page.evaluate(() => { const ids = new Set(); for (let k = 0; k < 200; k++) ids.add(TamaSongs.pickRhythm(TamaSongs.STYLES.find(s => s.id === 'komuro'))); return { f: TamaSongs.forcedRhythm(), ids: [...ids].sort().join() }; });
     ok(back.f === null && back.ids === 'genki,hazumu,utau', `/rhythm off で 系統の リズムに もどす ${JSON.stringify(back)}`);
+    // /song だけ：一覧から えらぶ（リズムは えらんでも ひらいた まま、曲調で きまって とじる）
+    await command(page, '/song\n'); await page.waitForTimeout(200);
+    const list = await page.evaluate(() => ({
+      open: !!document.getElementById('songPicker'), styles: document.querySelectorAll('#songPicker [data-song]').length,
+      rhythms: document.querySelectorAll('#songPicker [data-rhythm]').length, forced: TamaSongs.forced(),
+    }));
+    ok(list.open && list.styles === 29 + 13 + 1 && list.rhythms === 5 + 1 && list.forced === null, `/song⏎ で 曲調の 一覧 ${JSON.stringify(list)}`);
+    await page.click('#songPicker [data-rhythm="setsunai"]'); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => TamaSongs.forcedRhythm() === 'setsunai' && !!document.getElementById('songPicker') && document.querySelector('#songPicker [data-rhythm="setsunai"]').classList.contains('on')),
+      '一覧：リズムを えらぶ（ひらいた まま）');
+    await page.click('#songPicker [data-song="bossa"]'); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => TamaSongs.forced() === 'bossa' && !document.getElementById('songPicker')), '一覧：曲調を えらぶと きまって とじる');
+    await command(page, '/song\n'); await page.waitForTimeout(200);
+    await page.click('#songPicker [data-song="off"]'); await page.waitForTimeout(100);
+    await command(page, '/rhythm off\n'); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => TamaSongs.forced() === null && TamaSongs.forcedRhythm() === null), '一覧：おまかせに もどす');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
@@ -880,7 +896,7 @@ async function answerAll(page) {
       window.played = 0;
       const note = TamaSound.note.bind(TamaSound);
       TamaSound.note = (m, o) => { if (!o || o.gain === undefined) window.played++; return note(m, o); }; // 和音の 中の 音は かぞえない
-      return keysLesson.run.performance.filter(e => e.midi).length;
+      return keysLesson.run.problem.notes.length;
     });
     await page.click('#keysAnswers .listen'); await page.waitForTimeout(150);
     ok(notesPlayed === total && await page.evaluate(() => window.played) === total && await page.textContent('#keysAnswers .listen') === 'とめる',
@@ -894,17 +910,30 @@ async function answerAll(page) {
     await page.click('#keysAnswers .listen'); await page.waitForTimeout(100);
     ok(await page.evaluate(() => keysLesson.playback === null && window.cut === (TamaSound.context() ? 1 : 0)) && await page.textContent('#keysAnswers .listen') === 'じぶんの えんそうを きく',
       '「とめる」を おすと、きくのが 止まる');
-    // すこし はやく：さいごの 音が 鳴るのは、ひいた 時間 ÷ 1.5 より まえ
-    const timing = await page.evaluate(() => {
+    // 4/4拍子の マス目に そろえる：メロディは ● の 拍に（○ の 拍は おやすみ）。1拍めに 和音と ベース
+    const grid = await page.evaluate(() => {
       const when = [];
+      const bars = [];
       const note = TamaSound.note.bind(TamaSound);
+      const chord = TamaSound.chord.bind(TamaSound);
       TamaSound.note = (m, o) => { if (o && o.gain === undefined) when.push(o.when); return note(m, o); };
+      TamaSound.chord = (n, o) => { bars.push(o.when); return chord(n, o); };
       keysPlayback();
       TamaSound.note = note;
-      const p = keysLesson.run.performance;
-      return { last: when[when.length - 1], played: (p[p.length - 1].t - p[0].t) / 1000 };
+      TamaSound.chord = chord;
+      const song = keysLesson.run.song;
+      const beat = 60 / TamaSongs.RHYTHMS[song.rhythm].tempo;
+      const marks = song.phrases.map(p => p.rhythm).join('').split('');
+      const want = marks.map((m, k) => (m === '●' ? 0.3 + k * beat : null)).filter(t => t !== null);
+      const close = (a, b) => a.length === b.length && a.every((t, i) => Math.abs(t - b[i]) < 1e-6);
+      const downbeats = song.phrases.map((p, b) => 0.3 + b * 4 * beat);
+      return {
+        melody: close(when, want), notes: when.length, tempo: TamaSongs.RHYTHMS[song.rhythm].tempo,
+        down: downbeats.every(t => bars.some(w => Math.abs(w - t) < 1e-6)),
+        end: bars.some(w => Math.abs(w - (0.3 + 31 * beat)) < 1e-6), // さいごの ○ で ジャーン
+      };
     });
-    ok(timing.last <= 0.3 + timing.played / 1.5 + 0.01, `じぶんの えんそうを きく は すこし はやい ${JSON.stringify(timing)}`);
+    ok(grid.melody && grid.down && grid.end && grid.tempo === 112, `じぶんの えんそうを きく は 4/4 の マス目に そろう ${JSON.stringify(grid)}`);
     // 「ドロップを もらう」でも 止まる
     await page.click('#keysAnswers .finish'); await page.waitForTimeout(400);
     ok(await page.evaluate(() => keysLesson.playback === null), '「ドロップを もらう」で、きくのが 止まる');
@@ -914,6 +943,14 @@ async function answerAll(page) {
     const playing = await page.evaluate(() => keysLesson.playback !== null);
     await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(300);
     ok(playing && await page.evaluate(() => keysLesson.playback === null), 'ほかの 画面へ いくと、きくのが 止まる');
+    // Lv8 で /song⏎ → 曲調を えらぶと、その 曲で はじめから
+    await page.evaluate(() => { location.hash = '#/notes'; }); await page.waitForTimeout(400);
+    await page.click('#level9'); await page.waitForTimeout(300);
+    await pressKey(page, await expected(page)); await page.waitForTimeout(30);
+    await command(page, '/song\n'); await page.waitForTimeout(200);
+    await page.click('#songPicker [data-song="cadence"]'); await page.waitForTimeout(400);
+    const again = await page.evaluate(() => ({ style: keysLesson.run.song.style.id, rhythm: keysLesson.run.song.rhythm, index: keysLesson.run.index, pos: keysLesson.run.pos }));
+    ok(again.style === 'cadence' && again.rhythm === 'genki' && again.index === 1 && again.pos === 0, `Lv8 で 曲調を えらぶと その 曲で はじめから ${JSON.stringify(again)}`);
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }

@@ -126,6 +126,7 @@ document.getElementById('fileInput').addEventListener('change', function (event)
 //   どの画面でも：
 //   /music on    さいしょの画面に「おんがくのへや」を出す（ためしているあいだ。js/music.js）
 //   /music off   「おんがくのへや」をかくす
+//   /song⏎       おんぷよみ Lv8 の 曲調と リズムを 一覧から えらぶ（js/song-picker.js）
 //   /song jazz⏎  おんぷよみ Lv8 の 曲調を きめる（曲調の id か 系統。js/songs.js。Enter で きまる）
 //   /song off⏎   曲調を もとに もどす（ノブの わりあいで えらぶ）
 //   /rhythm genki⏎  おんぷよみ Lv8 の リズムを きめる（genki・hazumu・setsunai・utau・zurashi。Enter で きまる）
@@ -156,7 +157,14 @@ if (commandInput) {
         // /song：Enter（改行）で きまる（とちゅうの 文字で うごかないように）
         if (command.startsWith('/song')) {
             if (!/\n$/.test(event.target.value)) return;
-            const id = command.slice(5).trim() || 'off';
+            const id = command.slice(5).trim();
+            if (!id) {
+                // /song だけ：一覧から えらぶ
+                event.target.value = '';
+                closeDataModal();
+                TamaSongPicker.open();
+                return;
+            }
             if (TamaSongs.force(id)) {
                 const style = TamaSongs.STYLES.find(s => s.id === id);
                 const family = TamaSongs.FAMILIES[id];
