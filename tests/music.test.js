@@ -763,6 +763,42 @@ async function answerAll(page) {
     await page.close();
   }
 
+  // 19b. おんぷよみ Lv7：とびはねる メロディと 和音の かわりかた（けんばんの Lv7 は もとの まま）
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/', MUSIC_ON);
+    const r = await page.evaluate(() => {
+      const out = { leapAll: true, range: true, noRepeat: true, slots: true, fm: true, chordsExist: true, fmSeen: 0, amSeen: 0, c7Seen: 0 };
+      for (let k = 0; k < 300; k++) {
+        const deck = keysPhraseDeck(8, 'leap');
+        const chords = deck.map(p => p.chord);
+        deck.forEach(p => {
+          const jumps = p.notes.slice(1).map((m, i) => Math.abs(m - p.notes[i]));
+          if (!jumps.some(j => j >= 3)) out.leapAll = false;
+          if (!p.notes.every(m => m >= 60 && m <= 72 && !TamaNotes.isBlack(m))) out.range = false;
+          if (p.chord === 'Fm' && !p.notes.every(m => m % 12 === 5 || m % 12 === 0)) out.fm = false;
+          if (!TamaSound.CHORDS[p.chord]) out.chordsExist = false;
+        });
+        if (chords.some((c, i) => i > 0 && c === chords[i - 1])) out.noRepeat = false;
+        if (chords[0] !== 'C' || chords[1] !== 'F' || chords[5] !== 'F' || chords[3] !== 'C' || chords[7] !== 'C'
+          || !['Am', 'C7'].includes(chords[4]) || !['G', 'G7', 'Fm'].includes(chords[2]) || !['G', 'G7', 'Fm'].includes(chords[6])) out.slots = false;
+        if (deck[3].notes[2] % 12 !== 0 || deck[7].notes[2] % 12 !== 0) out.slots = false; // C の おわりは ド
+        out.fmSeen += chords.filter(c => c === 'Fm').length;
+        out.amSeen += chords.filter(c => c === 'Am').length;
+        out.c7Seen += chords.filter(c => c === 'C7').length;
+      }
+      const keysDeck = keysPhraseDeck(8);
+      out.keysSame = keysDeck.every((p, i) => (['C', 'F', ['G', 'G7'], 'C'][i % 4]).includes(p.chord)) && keysDeck.every(p => Object.values(KEYS_PHRASES).flat().some(q => q.join() === p.notes.join()));
+      out.notesDef = MODES.notes.levels[7].melody === 'leap' && MODES.notes.levels[8].melody === 'leap' && !MODES.keys.levels[7].melody;
+      return out;
+    });
+    ok(r.leapAll && r.range, `どの メロディにも 3度より 大きい とび（ド〜たかいド の 白いけんばん）${JSON.stringify(r)}`);
+    ok(r.noRepeat && r.slots, '同じ 和音は つづかない（C の つぎの C は Am か C7、G の ところは G・G7・Fm、C は ドで おわる）');
+    ok(r.fm && r.fmSeen > 0 && r.amSeen > 0 && r.c7Seen > 0 && r.chordsExist, `Fm の メロディは ファ と ド だけ。Am・C7・Fm も 出る（Fm ${r.fmSeen}・Am ${r.amSeen}・C7 ${r.c7Seen}）`);
+    ok(r.keysSame && r.notesDef, 'けんばんの Lv7 は もとの メロディ（おんぷよみの Lv7・オニ だけ かわる）');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
   // 20. リズム：おんがくのへやから。さいしょは ちょうせい だけ
   {
     const { page, errors } = await openPage(browser, 'index.html#/music', MUSIC_ON);
