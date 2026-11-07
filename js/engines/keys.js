@@ -106,6 +106,39 @@ function keysSingingSound(midi) {
     };
 }
 
+// おんぷよみの メロディ（Lv7・オニ。melody: 'leap'）：とびはねる メロディ（どの メロディにも 3度より 大きい とび）
+//   和音の じゅんばんは C → F → G（G7）→ C の くりかえし。ただし
+//     ・C で おわって また C から はじまる ところ（同じ 和音が つづく）は、Am（1の和音を 6の和音に）か
+//       C7（セブンス。つぎの F へ いきたくなる ひびき）に かえる
+//     ・ときどき G の かわりに Fm（借用和音。F → Fm → C で すこし せつない ひびき）
+//   メロディは 白いけんばんだけ（C7 の シ♭、Fm の ラ♭ は 和音の 中だけ。Fm の メロディは ファ と ド だけ）
+const KEYS_LEAP_PHRASES = {
+    C: [[60, 67, 64], [64, 60, 67], [67, 60, 64], [72, 67, 64], [60, 64, 72], [64, 72, 67], [60, 67, 72], [67, 64, 72]],
+    F: [[65, 72, 69], [69, 65, 72], [72, 65, 69], [60, 69, 65], [65, 60, 69], [69, 72, 65]],
+    G: [[67, 62, 71], [71, 67, 62], [62, 71, 67], [67, 71, 62], [71, 62, 67]],
+    G7: [[65, 71, 67], [62, 67, 65], [71, 65, 62], [67, 62, 65, 71]],
+    Am: [[69, 64, 72], [72, 64, 69], [64, 69, 72], [69, 60, 64], [60, 69, 64]],
+    C7: [[67, 60, 64], [72, 64, 60], [64, 67, 72], [60, 72, 67]],
+    Fm: [[65, 72, 65], [72, 65, 72], [60, 65, 72], [72, 60, 65]],
+    end: [[67, 64, 60], [64, 67, 60], [72, 64, 60], [60, 67, 72], [67, 64, 72], [64, 72, 60]],
+};
+const KEYS_LEAP_FM_RATE = 0.25; // G の かわりに Fm に なる わりあい
+
+// melody: 'leap' の 和音の じゅんばん（count こ）
+function keysLeapProgression(count) {
+    const chords = [];
+    for (let i = 0; i < count; i++) {
+        let chord = KEYS_PROGRESSION[i % KEYS_PROGRESSION.length];
+        if (chord === 'C' && i > 0) chord = Math.random() < 0.5 ? 'Am' : 'C7'; // C で おわった つぎの C
+        if (chord === 'G') {
+            const r = Math.random();
+            chord = r < KEYS_LEAP_FM_RATE ? 'Fm' : r < 0.6 ? 'G' : 'G7';
+        }
+        chords.push(chord);
+    }
+    return chords;
+}
+
 // 1つの音に合う和音（ド・ミ・ソ → C、ファ・ラ → F、レ・シ → G。黒いけんばんは、その音が 1ばん下の 和音）
 function keysChordFor(midi) {
     const pc = ((midi % 12) + 12) % 12;
@@ -210,12 +243,16 @@ function keysPhrase(notes, chord) {
 }
 
 // C → F → G → C の じゅんばんで count こ（G は ファの入ったメロディなら G7）
-function keysPhraseDeck(count) {
+//   melody: 'leap'（おんぷよみ）は、とびはねる メロディと 和音の かわりかた（keysLeapProgression）
+function keysPhraseDeck(count, melody = null) {
+    const leap = melody === 'leap';
+    const phrases = leap ? KEYS_LEAP_PHRASES : KEYS_PHRASES;
+    const progression = leap ? keysLeapProgression(count) : null;
     const deck = [];
     for (let i = 0; i < count; i++) {
-        let chord = KEYS_PROGRESSION[i % KEYS_PROGRESSION.length];
-        if (chord === 'G' && Math.random() < 0.5) chord = 'G7';
-        const choices = KEYS_PHRASES[chord].filter(p => !deck.length || deck[deck.length - 1].key !== keysPhrase(p, chord).key);
+        let chord = leap ? progression[i] : KEYS_PROGRESSION[i % KEYS_PROGRESSION.length];
+        if (!leap && chord === 'G' && Math.random() < 0.5) chord = 'G7';
+        const choices = phrases[chord].filter(p => !deck.length || deck[deck.length - 1].key !== keysPhrase(p, chord).key);
         deck.push(keysPhrase(choices[Math.floor(Math.random() * choices.length)], chord));
     }
     return deck;
@@ -241,14 +278,14 @@ function keysBuildDeck(def) {
             ...pick(KEYS_TRAPS, def.traps).map(keysSpelled),
         ]);
     }
-    if (def.style === 'phrase') return keysPhraseDeck(def.count);
+    if (def.style === 'phrase') return keysPhraseDeck(def.count, def.melody);
     if (def.style === 'oni') {
         const whites = TamaNotes.whiteKeys(def.active[0], def.active[1]);
         const singles = [];
         while (singles.length < def.singles) {
             keysShuffle(whites).forEach(midi => { if (singles.length < def.singles) singles.push(keysSingle(midi)); });
         }
-        return keysShuffleNoRepeat([...singles, ...keysPhraseDeck(def.phrases)]);
+        return keysShuffleNoRepeat([...singles, ...keysPhraseDeck(def.phrases, def.melody)]);
     }
     const deck = [];
     for (let r = 0; r < def.repeat; r++) {

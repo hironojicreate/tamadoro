@@ -43,6 +43,7 @@
         // view・active・guide・repeat は けんばんと 同じ（js/modes/keys.js）
         //   view の はしは、黒いけんばんの かたまりが かけないところ
         //   labelSwitch：名前なしの レベルに「けんばんの よみかた」スイッチ（ON で けんばんに 名前）
+        //   melody: 'leap'：とびはねる メロディと、和音の かわりかた（Am・C7・Fm）。けんばんの Lv7 は もとの まま
         //   style: 'tour'（しくみ）、'dango'（おだんご。js/engines/keys.js の keysDangoDeck）
         //     dangos：[{ notes（下から）, chord（そろったときの 和音）, name, intro（名前つきの お手本） }]
         //     singles を repeat 回 ＋ extra の 1おんと、おだんごを dangoRepeat 回ずつ
@@ -88,9 +89,9 @@
               view: [B3, B5], active: [B4, G5], guide: 'all', sing: true, // 左に くらい けんばん（まんなかの ドの あたり）
               hint: 'せんに シ・たかいレ・たかいファ（3〜5ほんめ）、あいだに たかいド・たかいミ・たかいソ（5ほんめの すぐ上）' },
             { label: 'Lv7 メロディ', comment: '3〜4おんの がくふ', drop: 'Y',
-              style: 'phrase', count: 8, view: [F3, E5], active: [C4, C5], guide: 'none' },
+              style: 'phrase', count: 8, melody: 'leap', view: [F3, E5], active: [C4, C5], guide: 'none' },
             { label: 'Lvオニ', comment: 'ぜんぶ まぜて・もじなし', drop: 'S',
-              style: 'oni', singles: 12, phrases: 4, view: [B3, B5], active: [C4, G5], guide: 'none' },
+              style: 'oni', singles: 12, phrases: 4, melody: 'leap', view: [B3, B5], active: [C4, G5], guide: 'none' },
         ],
     };
 })();
