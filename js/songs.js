@@ -1,4 +1,4 @@
-// きょくふう メロディ（おんぷよみ オニ）：曲調の 表と、その 曲調の メロディを つくる
+// きょくふう メロディ（おんぷよみ マスタークラス）：曲調の 表と、その 曲調の メロディを つくる
 //   1つの 曲は 8つの 和音（1つの 和音に 3〜4おんの メロディ ＝ 1フレーズ）。8フレーズを つなぐと 1曲
 //   曲調には ノブ（weight）が ついている：0 で 出なくなり、2 で 2ばい 出やすい。
 //   系統（FAMILIES）にも weight が あるので、「ジャズ風は まとめて 止める」も 1か所で できる
@@ -15,6 +15,7 @@
 //   TamaSongs.melodyOf(style)        その 曲調の メロディの 性格（高さ・広さ・とび・サビの むき）
 //   TamaSongs.scaleWhites(style)     その 曲調の メロディに つかう 白いけんばん（5音音階の 曲調は その 音だけ）
 //   TamaSongs.soundOf(style)         その 曲調の 音色 { melody（けんばん・メロディ）, chord（伴奏） }
+//   TamaSongs.expressive(phrases, take, beat)  とおし えんそうの きろくを、おしゃれな えんそうに（下の「えんそうの ひょうげん」）
 //   TamaSongs.restsAfter(bars)       休符の まえの 音符の ばんごう（-1 は 音符より まえ）。休符を ひからせる ときに 使う
 //   TamaSongs.chordNotes(name)       和音記号（'Dm7' など）→ 伴奏の 音（MIDI）
 //   TamaSongs.force(id) / forced()   /song で 曲調・系統を きめる（'off' で もとに もどす）
@@ -528,6 +529,96 @@ const TamaSongs = {
         };
         // えらんだ むきで → だめなら もりあがる（up）で → それでも だめなら 1曲 ぜんたいの きまりを ゆるめて（まず ない）
         return compose(chosen, true) || compose('up', true) || compose(chosen, false);
+    },
+
+    // ---------- えんそうの ひょうげん ----------
+    //   とおし えんそうで ひいた きろく（take：音ごとに { t：ひいた 時刻 ミリびょう, wrongs：その まえに まちがえて おした 音 }）を、
+    //   「じぶんの えんそうを きく」で おしゃれな えんそうに する。ミスを めだたせず、えんそうの 味に する
+    //   ・ずれ → ゆれ（ルバート）：その子の ふだんの はやさ から の ずれを 35% だけ、4分の1拍 まで。まえと うしろで ならす
+    //   ・つっかえ → ため（フェルマータ）：大きく とまった ところで 1拍 ためる（1曲で 3かい まで。伴奏が そっと まつ）
+    //   ・まちがえた 音 → かざりの 音（そうしょくおん）：正しい 音の すこし まえに 小さく（2つまで。とおい 音は オクターブを かえて 5度 いないに）
+    //   かえすのは { notes: [{ midi, beat, graces }], holds: [{ before（その 音の ばんごう）, at（格子の 拍）}], warp（格子の 拍 → ためを たした 拍）, traits }
+    //   beat：曲の 1拍の びょう（はやさの くらべ）。traits：えんそうの とくちょう（ほめる ことば）
+    RUBATO: 0.35,        // ずれを どれだけ のこすか
+    RUBATO_MAX: 0.25,    // ゆれは 4分の1拍 まで
+    HOLD_MAX: 3,         // ためは 1曲で 3かい まで
+
+    expressive(phrases, take = [], beat = 0.6) {
+        const grid = [];
+        const midis = [];
+        phrases.forEach((phrase, b) => {
+            let n = 0;
+            phrase.rhythm.split('').forEach((mark, k) => {
+                if (mark !== '●') return;
+                grid.push(b * 4 + k);
+                midis.push(phrase.notes[n++]);
+            });
+        });
+        const count = grid.length;
+        const ok = Array.isArray(take) && take.length === count && take.every(x => x && typeof x.t === 'number');
+        // ふだんの はやさ（1拍の びょう）：となりあう 音の あいだを 拍で わった ものの まんなか
+        const ratios = [];
+        if (ok) for (let i = 1; i < count; i++) ratios.push((take[i].t - take[i - 1].t) / 1000 / (grid[i] - grid[i - 1]));
+        const sorted = [...ratios].sort((a, b) => a - b);
+        const pace = sorted.length ? sorted[Math.floor(sorted.length / 2)] : beat;
+        // つっかえ：ふだんの 2.5ばい いじょう、かつ 1.2びょう いじょう 長く まった ところ（大きい じゅんに 3つまで）
+        const pauses = [];
+        if (ok) for (let i = 1; i < count; i++) {
+            const expect = pace * (grid[i] - grid[i - 1]);
+            const gap = (take[i].t - take[i - 1].t) / 1000;
+            if (gap > expect * 2.5 && gap > expect + 1.2) pauses.push({ i, extra: gap - expect });
+        }
+        const holds = pauses.sort((a, b) => b.extra - a.extra).slice(0, this.HOLD_MAX).map(p => p.i).sort((a, b) => a - b);
+        // その子の 拍の いち（ためた ぶんは のぞく）と 格子との ずれ。全体の はやさの かわり（ドリフト）は まえうしろ 4つの へいきんで のぞく
+        const user = [0];
+        if (ok) for (let i = 1; i < count; i++) {
+            const step = holds.includes(i) ? grid[i] - grid[i - 1] : (take[i].t - take[i - 1].t) / 1000 / pace;
+            user.push(user[i - 1] + step);
+        }
+        const dev = grid.map((g, i) => (ok ? user[i] - g : 0));
+        const local = dev.map((d, i) => {
+            const near = dev.slice(Math.max(0, i - 4), i + 5);
+            return d - near.reduce((sum, x) => sum + x, 0) / near.length;
+        });
+        const clamp = x => Math.max(-this.RUBATO_MAX, Math.min(this.RUBATO_MAX, x));
+        const raw = local.map(x => clamp(x * this.RUBATO));
+        const shift = raw.map((x, i) => (i === 0 ? 0 : clamp(0.25 * (raw[i - 1] || 0) + 0.5 * x + 0.25 * (raw[i + 1] || 0))));
+        const holdBefore = i => holds.filter(h => h <= i).length;
+        const warp = g => g + holds.filter(h => grid[h] <= g).length; // 伴奏の いち（ゆれは メロディだけ、ためは みんな）
+        const notes = [];
+        midis.forEach((midi, i) => {
+            let at = grid[i] + holdBefore(i) + shift[i];
+            if (i > 0) at = Math.max(at, notes[i - 1].beat + 0.3); // じゅんばんは かえない
+            const graces = [];
+            (ok ? (take[i].wrongs || []).slice(-2) : []).forEach(w => {
+                let g = w;
+                while (g - midi > 7) g -= 12;
+                while (midi - g > 7) g += 12;
+                if (g !== midi && !graces.includes(g)) graces.push(g);
+            });
+            notes.push({ midi, beat: at, graces });
+        });
+        // えんそうの とくちょう（点数では なく ほめる ことば）
+        const spread = Math.sqrt(local.reduce((sum, x) => sum + x * x, 0) / Math.max(1, count));
+        const ratio = pace / beat;
+        const traits = {
+            pace: ratio > 1.6 ? 'yuttari' : ratio < 1.1 ? 'ikiiki' : 'choudo',
+            swing: spread < 0.12 ? 'pittari' : 'romantic',
+            holds: holds.length,
+            graces: notes.reduce((sum, n) => sum + n.graces.length, 0),
+        };
+        return { notes, holds: holds.map(i => ({ before: i, at: grid[i] })), warp, traits };
+    },
+
+    // えんそうの とくちょうを ことばに（ミスでは なく 味として）
+    traitWords(traits) {
+        const words = [
+            { yuttari: 'ゆったり バラードふう', choudo: 'ちょうどいい はやさ', ikiiki: 'いきいき アレグロふう' }[traits.pace],
+            { pittari: 'リズム ぴったり', romantic: 'ロマンチックな ゆれ' }[traits.swing],
+        ];
+        if (traits.holds) words.push(`ため（フェルマータ）${traits.holds}かい`);
+        if (traits.graces) words.push(`かざりの 音 ${traits.graces}こ`);
+        return words;
     },
 };
 

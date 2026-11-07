@@ -535,7 +535,7 @@ async function answerAll(page) {
     const { page, errors } = await openPage(browser, 'index.html#/music', MUSIC_ON);
     await page.click('#musicNotes'); await page.waitForTimeout(300);
     ok(await page.evaluate(() => location.hash) === '#/notes' && await page.isVisible('#openingScreen .title-notes'), 'おんがくのへやから おんぷよみへ（タイトル）');
-    ok((await page.$$('.select-level-buttons button')).length === 10, 'おんぷよみの レベルは 10こ（しくみ ＋ Lv1〜Lv8 ＋ オニ きょくふう）');
+    ok((await page.$$('.select-level-buttons button')).length === 10, 'おんぷよみの レベルは 10こ（しくみ ＋ Lv1〜Lv8 ＋ マスタークラス）');
     ok(await page.isVisible('#level1') && !(await page.isVisible('#level2')), 'さいしょは しくみ だけ');
     await page.evaluate(() => localStorage.setItem('notes_coins_1', JSON.stringify([{ image: '/img/Lmaru.png' }])));
     await page.reload(); await page.waitForTimeout(500);
@@ -864,6 +864,30 @@ async function answerAll(page) {
       if (scaleOf('yonanuki').join() !== '0,2,4,7,9' || scaleOf('minyo').join() !== '9,0,2,4,7' || scaleOf('shimauta').join() !== '0,4,5,7,11' || scaleOf('kachashi').join() !== '0,4,5,7,11') bad.push('5音音階');
       if (S.chordNotes('A5').join() !== '45,52' || !S.STYLES.find(x => x.id === 'minyo').chords.every(c => c.endsWith('5'))) bad.push('空5度');
       if (S.FAMILIES.nihon.name !== 'にほん' || S.FAMILIES.okinawa.name !== 'おきなわ') bad.push('にほん・おきなわ');
+      // えんそうの ひょうげん：ずれ → ゆれ、つっかえ → ため、まちがえた 音 → かざりの 音
+      {
+        const ph = S.make(S.STYLES.find(x => x.id === 'komuro'), Math.random, 'genki');
+        const grid = [];
+        ph.forEach((p, b) => p.rhythm.split('').forEach((m, k) => { if (m === '●') grid.push(b * 4 + k); }));
+        const even = grid.map(g => ({ t: g * 800, wrongs: [] }));
+        const e0 = S.expressive(ph, even, 0.54);
+        if (e0.holds.length || !e0.notes.every((n, i) => Math.abs(n.beat - grid[i]) < 1e-9) || e0.traits.swing !== 'pittari') bad.push('ひょうげん ずれなし');
+        const e1 = S.expressive(ph, even.map((x, i) => (i === 5 ? { ...x, t: x.t + 400 } : x)), 0.54);
+        const d = e1.notes[5].beat - grid[5];
+        if (!(d > 0 && d <= S.RUBATO_MAX) || e1.holds.length) bad.push(`ひょうげん ゆれ ${d}`);
+        const e2 = S.expressive(ph, even.map((x, i) => (i >= 10 ? { ...x, t: x.t + 4000 } : x)), 0.54);
+        if (e2.holds.length !== 1 || e2.holds[0].before !== 10 || Math.abs(e2.notes[10].beat - grid[10] - 1) > 1e-9 || e2.warp(grid[10]) !== grid[10] + 1 || e2.warp(grid[9]) !== grid[9]) bad.push('ひょうげん ため');
+        const target = ph.flatMap(p => p.notes)[3];
+        // まちがえた 音（さいごの 2つ）は 正しい 音の ちかくへ（オクターブ ちがいの 音も 5度 いないに よせる）
+        const e3 = S.expressive(ph, even.map((x, i) => (i === 3 ? { ...x, wrongs: [target + 5, target - 13, target + 14] } : x)), 0.54);
+        if (e3.notes[3].graces.join() !== `${target - 1},${target + 2}` || e3.traits.graces !== 2) bad.push(`ひょうげん かざり ${e3.notes[3].graces}`);
+        // 正しい 音と 同じ 音（オクターブ ちがい）は かざりに しない
+        if (S.expressive(ph, even.map((x, i) => (i === 3 ? { ...x, wrongs: [target - 12] } : x)), 0.54).notes[3].graces.length) bad.push('ひょうげん かざり 同じ 音');
+        const slow = S.expressive(ph, grid.map(g => ({ t: g * 1500, wrongs: [] })), 0.54);
+        const fast = S.expressive(ph, grid.map(g => ({ t: g * 500, wrongs: [] })), 0.54);
+        if (slow.traits.pace !== 'yuttari' || fast.traits.pace !== 'ikiiki' || !S.traitWords(slow.traits).join().includes('バラード')) bad.push('ひょうげん はやさ');
+        if (S.expressive(ph, [], 0.54).notes.some((n, i) => n.beat !== grid[i])) bad.push('ひょうげん きろくなし');
+      }
       // 曲調ごとの 音色（けんばん・メロディ／伴奏）は ある 音色
       S.STYLES.forEach(st => { const v = S.soundOf(st); if (![v.melody, v.chord].every(x => x === 'piano' || TamaSound.VOICES[x]) || !S.SOUND_NAMES[v.melody] || !S.SOUND_NAMES[v.chord]) bad.push(`${st.id} 音色`); });
       const used = new Set(S.STYLES.flatMap(st => Object.values(S.soundOf(st))));
@@ -1042,7 +1066,7 @@ async function answerAll(page) {
     ok(ready.msg.includes('さあ どうぞ') && ready.chord === 'Am' && ready.plays === 'Am', `イントロの あと「さあ どうぞ！」。はじめの 和音が 鳴りつづけて まって いる ${JSON.stringify(ready)}`);
     // まちがえても とまらない（すすまないだけ）
     const wrong = await page.evaluate(() => { const m = keysLesson.run.problem.notes[0]; return m === 60 ? 62 : 60; });
-    for (let i = 0; i < 6; i++) { await pressKey(page, wrong); await page.waitForTimeout(30); }
+    for (let i = 0; i < 6; i++) { await pressKey(page, i % 2 ? wrong : wrong + 2); await page.waitForTimeout(30); }
     ok(await page.$eval('#mistakeModal', e => e.style.display) !== 'flex' && await page.evaluate(() => keysLesson.run.pos) === 0, 'とおし えんそうは まちがえても とまらない');
     const total = await page.evaluate(() => keysLesson.run.problem.notes.length);
     // 2小節め まで ひいて、しばらく ひかないと 伴奏は きえる（テストでは 0.3びょう）
@@ -1060,22 +1084,18 @@ async function answerAll(page) {
     });
     for (let i = half; i < total; i++) { await pressKey(page, await expected(page)); await page.waitForTimeout(30); }
     await page.waitForTimeout(150);
-    const done = await page.evaluate(() => ({ plays: window.plays.filter((c, i, a) => i === 0 || c !== a[i - 1]).join(), chord: keysAccomp.chord, acc: keysLesson.run.accepting, buttons: document.querySelectorAll('#keysAnswers button').length }));
-    ok(done.plays === 'Am,F,G,C,Am,F,G,C' && done.chord === null && !done.acc && done.buttons === 0, `フレーズの はじめで その 和音へ。ひきおわると 伴奏は とまって アウトロ ${JSON.stringify(done)}`);
-    await page.waitForSelector('#keysAnswers .listen', { timeout: 8000 });
+    const done = await page.evaluate(() => ({ plays: window.plays.filter((c, i, a) => i === 0 || c !== a[i - 1]).join(), chord: keysAccomp.chord, acc: keysLesson.run.accepting,
+      take: keysLesson.run.take.length, wrongs: keysLesson.run.take[0].wrongs.length, msg: document.getElementById('keysMessage').textContent }));
+    ok(done.plays === 'Am,F,G,C,Am,F,G,C' && done.chord === null && !done.acc && done.take === total && done.wrongs === 2,
+      `フレーズの はじめで その 和音へ。ひいた きろく（まちがえた 音は さいごの 2つ）${JSON.stringify(done)}`);
+    ok(done.msg.includes('えんそう おわり') && /ゆったり|ちょうどいい|いきいき/.test(done.msg) && /ぴったり|ロマンチック/.test(done.msg) && done.msg.includes('かざりの 音'),
+      `えんそうの とくちょうを ほめる（ミスでは なく 味）${done.msg}`);
+    ok(await page.isVisible('#keysAnswers .listen') && await page.isVisible('#keysAnswers .finish'), 'ひきおわったら「じぶんの えんそうを きく」「ドロップを もらう」');
+    // すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロ F → C）
+    await page.waitForFunction(() => keysLesson.playback !== null, null, { timeout: 3000 });
+    ok(await page.textContent('#keysAnswers .listen') === 'とめる' && (await page.evaluate(() => window.chords.slice(-2).join())) === 'F,C',
+      `ひきおわると じぶんの えんそうが ながれる（アウトロは F → C）${await page.evaluate(() => window.chords.slice(-3).join())}`);
     ok(await page.evaluate(() => [...document.querySelectorAll('#keysCards .staff-rest')].every(r => r.classList.contains('on'))), 'とおし えんそうでも きゅうふが 光る');
-    ok((await page.evaluate(() => window.chords.slice(-2).join())) === 'F,C', `アウトロは 下属和音 → 主和音（F → C）${await page.evaluate(() => window.chords.join())}`);
-    ok(await page.isVisible('#keysAnswers .listen') && await page.isVisible('#keysAnswers .finish') && (await page.textContent('#keysMessage')).includes('えんそう おわり'),
-      'アウトロの あと「じぶんの えんそうを きく」「ドロップを もらう」');
-    const notesPlayed = await page.evaluate(() => {
-      window.played = 0;
-      const note = TamaSound.note.bind(TamaSound);
-      TamaSound.note = (m, o) => { if (!o || o.gain === undefined) window.played++; return note(m, o); }; // 和音の 中の 音は かぞえない
-      return keysLesson.run.problem.notes.length;
-    });
-    await page.click('#keysAnswers .listen'); await page.waitForTimeout(150);
-    ok(notesPlayed === total && await page.evaluate(() => window.played) === total && await page.textContent('#keysAnswers .listen') === 'とめる',
-      `じぶんの えんそうを きく（${total}おん。きいている あいだは「とめる」）`);
     // 「とめる」で 止まる（音の みちが きれて、ボタンも もどる）
     await page.evaluate(() => {
       window.cut = 0;
@@ -1085,8 +1105,24 @@ async function answerAll(page) {
     await page.click('#keysAnswers .listen'); await page.waitForTimeout(100);
     ok(await page.evaluate(() => keysLesson.playback === null && window.cut === (TamaSound.context() ? 1 : 0)) && await page.textContent('#keysAnswers .listen') === 'じぶんの えんそうを きく',
       '「とめる」を おすと、きくのが 止まる');
-    // 4/4拍子の マス目に そろえる：メロディは ● の 拍に（○ の 拍は おやすみ）。1拍めに 和音と ベース
+    // もういちど きく：メロディ ぜんぶと かざりの 音
+    const notesPlayed = await page.evaluate(() => {
+      window.played = 0;
+      window.graces = 0;
+      const note = TamaSound.note.bind(TamaSound);
+      TamaSound.note = (m, o) => { if (!o || o.gain === undefined) window.played++; if (o && o.gain === 0.22) window.graces++; return note(m, o); }; // 和音の 中の 音は かぞえない
+      return keysLesson.run.problem.notes.length;
+    });
+    await page.click('#keysAnswers .listen'); await page.waitForTimeout(150);
+    ok(notesPlayed === total && await page.evaluate(() => window.played) === total && await page.evaluate(() => window.graces) === 2 && await page.textContent('#keysAnswers .listen') === 'とめる',
+      `じぶんの えんそうを きく（${total}おん ＋ かざりの 音 2こ）`);
+    await page.click('#keysAnswers .listen'); await page.waitForTimeout(100);
+    // ずれの ない きろくなら 4/4 の マス目 どおり（イントロなし）→ アウトロ
     const grid = await page.evaluate(() => {
+      const song = keysLesson.run.song;
+      const beat = 60 / TamaSongs.RHYTHMS[song.rhythm].tempo;
+      const marks = song.phrases.map(p => p.rhythm).join('').split('');
+      keysLesson.run.take = marks.map((m, k) => (m === '●' ? { t: k * 700, wrongs: [] } : null)).filter(x => x);
       const when = [];
       const bars = [];
       const note = TamaSound.note.bind(TamaSound);
@@ -1096,26 +1132,22 @@ async function answerAll(page) {
       keysPlayback();
       TamaSound.note = note;
       TamaSound.chord = chord;
-      const song = keysLesson.run.song;
-      const beat = 60 / TamaSongs.RHYTHMS[song.rhythm].tempo;
-      const marks = song.phrases.map(p => p.rhythm).join('').split('');
-      const start = 0.3 + 8 * beat; // イントロ 2小節の あと
+      const start = 0.3; // イントロなし
       const want = marks.map((m, k) => (m === '●' ? start + k * beat : null)).filter(t => t !== null);
       const close = (a, b) => a.length === b.length && a.every((t, i) => Math.abs(t - b[i]) < 1e-6);
       const downbeats = song.phrases.map((p, b) => start + b * 4 * beat);
       const has = t => bars.some(w => Math.abs(w - t) < 1e-6);
       return {
         melody: close(when, want), notes: when.length, tempo: TamaSongs.RHYTHMS[song.rhythm].tempo,
-        down: downbeats.every(has),
-        intro: has(0.3) && has(0.3 + 2 * beat),                 // イントロ：さいごの 2つの 和音
+        down: downbeats.every(has), noIntro: Math.min(...bars) >= start - 1e-6,
         outro: has(start + 32 * beat) && has(start + 34 * beat), // アウトロ：下属和音 → 主和音
       };
     });
-    ok(grid.melody && grid.down && grid.intro && grid.outro && grid.tempo === 112, `じぶんの えんそうを きく は イントロ → 4/4 の マス目 → アウトロ ${JSON.stringify(grid)}`);
+    ok(grid.melody && grid.down && grid.noIntro && grid.outro && grid.tempo === 112, `ずれの ない えんそうは 4/4 の マス目 どおり（イントロなし）→ アウトロ ${JSON.stringify(grid)}`);
     // 「ドロップを もらう」でも 止まる
     await page.click('#keysAnswers .finish'); await page.waitForTimeout(400);
     ok(await page.evaluate(() => keysLesson.playback === null), '「ドロップを もらう」で、きくのが 止まる');
-    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'Lvオニ きょくふう、クリア！', 'オニ（きょくふう）クリア');
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'マスタークラス、クリア！', 'マスタークラス クリア');
     // きいている とちゅうで ほかの 画面へ いっても 止まる
     await page.evaluate(() => keysPlayback());
     const playing = await page.evaluate(() => keysLesson.playback !== null);
@@ -1176,8 +1208,8 @@ async function answerAll(page) {
     await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
     const oni = await page.evaluate(() => ({ label: document.getElementById('level10').textContent, eleven: !!document.getElementById('level11'), visible: getComputedStyle(document.getElementById('level10')).display !== 'none',
       style: MODES.notes.levels[9].style, drop: MODES.notes.levels[9].drop, need: MODES.notes.coinsToUnlock(10), drill: MODES.notes.levels.some(l => l.style === 'oni') }));
-    ok(oni.label.includes('オニ') && oni.label.includes('きょくふう') && !oni.eleven && oni.visible && oni.style === 'song' && oni.drop === 'S' && oni.need === 5 && !oni.drill,
-      `オニ ＝ きょくふう（Lv8 の ドロップ 5こで ひらく）${JSON.stringify(oni)}`);
+    ok(oni.label === 'マスタークラス' && !oni.eleven && oni.visible && oni.style === 'song' && oni.drop === 'S' && oni.need === 5 && !oni.drill,
+      `マスタークラス ＝ きょくふう（Lv8 の ドロップ 5こで ひらく。「オニ」は つかわない）${JSON.stringify(oni)}`);
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
