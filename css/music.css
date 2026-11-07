@@ -389,6 +389,15 @@ html[data-mode="black"] .select-level-buttons button {
     text-align: center;
 }
 
+/* けんばんの よみかた（おんぷよみ Lv5）：右上の スイッチ（右上の ドロップより 上に） */
+.keys-help {
+    z-index: 20;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 15px;
+    color: #4a235a;
+}
+
 /* おんぷよみ：五線の 音符（js/staff.js） */
 .keys-card.staff-card {
     width: auto;

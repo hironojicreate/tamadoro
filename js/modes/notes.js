@@ -42,6 +42,7 @@
 
         // view・active・guide・repeat は けんばんと 同じ（js/modes/keys.js）
         //   view の はしは、黒いけんばんの かたまりが かけないところ
+        //   labelSwitch：名前なしの レベルに「けんばんの よみかた」スイッチ（ON で けんばんに 名前）
         //   style: 'tour'（しくみ）、'dango'（おだんご。js/engines/keys.js の keysDangoDeck）
         //     dangos：[{ notes（下から）, chord（そろったときの 和音）, name, intro（名前つきの お手本） }]
         //     singles を repeat 回 ＋ extra の 1おんと、おだんごを dangoRepeat 回ずつ
@@ -75,7 +76,8 @@
               view: [F3, E5], active: [C4, C5], guide: 'all', sing: true,
               hint: 'せんの おだんごの つぎは シ（3ぼんめ）、あいだの おだんごの つぎは たかいド' },
             { label: 'Lv5 ド〜ド', comment: 'けんばんの もじなし', drop: 'K',
-              style: 'single', notes: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 2, view: [F3, E5], active: [C4, C5], guide: 'none' },
+              style: 'single', notes: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 2, view: [F3, E5], active: [C4, C5], guide: 'none',
+              labelSwitch: true }, // こまったら「けんばんの よみかた」を ON に（けんばんに 名前が 出る）
             { label: 'Lv6 うえの おと', comment: 'うえの おだんご（たかいド〜たかいソ）', drop: 'P',
               style: 'dango',
               dangos: [
@@ -83,7 +85,7 @@
                   { notes: [C5, E5, G5], chord: 'C', name: 'うえの あいだの おだんご', intro: true },
               ],
               singles: [B4, C5, D5, E5, F5, G5], repeat: 2, dangoRepeat: 2,
-              view: [F4, B5], active: [B4, G5], guide: 'all', sing: true,
+              view: [B3, B5], active: [B4, G5], guide: 'all', sing: true, // 左に くらい けんばん（まんなかの ドの あたり）
               hint: 'せんに シ・たかいレ・たかいファ（3〜5ほんめ）、あいだに たかいド・たかいミ・たかいソ（5ほんめの すぐ上）' },
             { label: 'Lv7 メロディ', comment: '3〜4おんの がくふ', drop: 'Y',
               style: 'phrase', count: 8, view: [F3, E5], active: [C4, C5], guide: 'none' },

@@ -622,6 +622,38 @@ async function answerAll(page) {
     await page.close();
   }
 
+  // 17d. おんぷよみ Lv5：けんばんの よみかた スイッチ／Lv6：あかるい けんばんは 右がわ
+  {
+    const unlock = { ...MUSIC_ON };
+    for (let l = 1; l <= 6; l++) unlock[`notes_coins_${l}`] = JSON.stringify(Array(3).fill({ image: '/img/Lmaru.png' }));
+    const { page, errors } = await openPage(browser, 'index.html#/notes', unlock);
+    await page.click('#level6'); await page.waitForTimeout(300);
+    const labels = () => page.$$eval('#keysKeyboard .tk-label', l => l.map(e => e.textContent).join(''));
+    ok(await page.isVisible('#keysHelp') && !(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'Lv5 は スイッチ OFF（けんばんに 名前なし）');
+    await page.click('#keysHelp label'); await page.waitForTimeout(100);
+    ok(await page.isChecked('#keysHelpCheckbox') && (await labels()) === 'ドレミファソラシド', 'スイッチ ON で けんばんに 名前');
+    await pressKey(page, await expected(page)); await page.waitForTimeout(1000);
+    ok((await labels()) === 'ドレミファソラシド', 'つぎの 問題でも 名前は 出たまま');
+    await page.click('#keysHelp label'); await page.waitForTimeout(100);
+    ok(!(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'もう1回 おすと OFF（トグル）');
+    await page.click('#keysHelp label'); await page.waitForTimeout(100);
+    await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
+    await page.click('#level7'); await page.waitForTimeout(300);
+    ok(!(await page.isVisible('#keysHelp')), 'Lv6（名前あり）には スイッチなし');
+    const kb = await page.evaluate(() => {
+      const keys = [...document.querySelectorAll('#keysKeyboard .tk-white-key')];
+      const bright = keys.filter(k => !k.classList.contains('tk-dim'));
+      const first = keys.indexOf(bright[0]);
+      return { all: keys.length, left: first, right: keys.length - 1 - keys.indexOf(bright[bright.length - 1]), from: keys[0].dataset.midi };
+    });
+    ok(kb.left > kb.right && kb.left >= 6 && kb.from === '59', `Lv6 は あかるい けんばんが 右がわ（左に くらい けんばん ${kb.left}こ、右に ${kb.right}こ）`);
+    await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
+    await page.click('#level6'); await page.waitForTimeout(300);
+    ok(!(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'もう一度 ひらくと スイッチは OFF から');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
   // 17b. おんぷよみ しくみ：せんは 5ほん → ドの ばしょ → のぼる・くだる（せん・あいだ）→ つづけて 読む
   {
     const { page, errors } = await openPage(browser, 'index.html#/notes', MUSIC_ON);

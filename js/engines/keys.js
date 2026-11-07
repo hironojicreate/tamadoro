@@ -319,6 +319,9 @@ function keysStartLevel(level) {
     keysRenderKeyboard(def.view || keysOniView());
 
     document.getElementById('keysHint').textContent = def.hint || '';
+    // けんばんの よみかた：名前なしの レベルでも、スイッチを ON に すると 名前が 出る（はじめは いつも OFF）
+    document.getElementById('keysHelp').style.display = def.labelSwitch ? 'block' : 'none';
+    document.getElementById('keysHelpCheckbox').checked = false;
 
     if (def.style === 'free') {
         keysShowFree();
@@ -356,9 +359,19 @@ function keysRenderKeyboard(view) {
         to: view[1],
         activeFrom: def.active[0],
         activeTo: def.active[1],
-        label: midi => def.guide === 'all' && midi >= def.active[0] && midi <= def.active[1] && !vanished.includes(midi),
+        label: midi => keysShowLabels(def) && midi >= def.active[0] && midi <= def.active[1] && !vanished.includes(midi),
     });
 }
+
+// けんばんに 名前を 書くか（名前ありの レベル、または「けんばんの よみかた」が ON）
+function keysShowLabels(def) {
+    return def.guide === 'all' || (!!def.labelSwitch && document.getElementById('keysHelpCheckbox').checked);
+}
+
+document.getElementById('keysHelpCheckbox').addEventListener('change', () => {
+    const run = keysLesson.run;
+    if (run && run.view) keysRenderKeyboard(run.view);
+});
 
 function keysRetryLevel() {
     document.getElementById('completionModal').style.display = 'none';
