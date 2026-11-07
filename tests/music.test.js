@@ -555,6 +555,15 @@ async function answerAll(page) {
       };
     });
     ok(s.count === 3 && s.xs === 1 && s.skewer === 1 && s.ys === s.want && s.names === 'ドミソ' && s.clef && s.lines === 5, `おだんご：1本の くしに ド・ミ・ソ（名前つき）${JSON.stringify(s)}`);
+    // おだんごの 色は 音の 色：ドミソ と レファラ は ちがう 色、シは あたらしい 色、たかいドは ドと 同じ
+    const colors = await page.evaluate(() => {
+      const fill = notes => { const box = document.createElement('div'); box.innerHTML = TamaStaff.svg(notes, { dango: true }); return [...box.querySelectorAll('.staff-head')].map(h => h.style.fill); };
+      const [c, e, g, b] = fill([60, 64, 67, 71]);
+      const [d, f, a, c5] = fill([62, 65, 69, 72]);
+      return { line: [c, e, g], space: [d, f, a], b, c, c5 };
+    });
+    ok(colors.line.every(x => !colors.space.includes(x)) && new Set([...colors.line, ...colors.space, colors.b]).size === 7 && colors.c5 === colors.c,
+      `おだんごの 色：ドミソ と レファラ は ちがう、シは あたらしい 色、たかいドは ドと 同じ ${JSON.stringify(colors)}`);
     ok(await page.$$eval('#keysKeyboard .tk-label', l => l.map(e => e.textContent).join('')) === 'ドレミファソ', 'Lv1 は けんばんに 名前あり');
     const ring = () => page.evaluate(() => { const r = document.querySelector('#keysKeyboard .tk-ring'); return r ? Number(r.parentElement.dataset.midi) : null; });
     ok((await ring()) === 60, 'お手本：ドの けんばんに わっか');
@@ -591,7 +600,9 @@ async function answerAll(page) {
           intros: d.filter(p => p.showNames).map(show),
           dangos: [...new Set(d.filter(p => p.dango && !p.showNames).map(show))].sort(),
           singlesInActive: d.filter(p => !p.dango).every(p => p.notes[0] >= def.active[0] && p.notes[0] <= def.active[1]),
-          chordsMatch: d.filter(p => !p.dango).every(p => def.dangos.find(g => g.notes.includes(p.notes[0])).chord === p.chord),
+          chordsMatch: d.filter(p => !p.dango).every(p => ((def.singleChords || {})[p.notes[0]] || def.dangos.find(g => g.notes.includes(p.notes[0])).chord) === p.chord),
+          singleChords: [...new Set(d.filter(p => !p.dango).map(p => `${p.notes[0]}:${p.chord}`))].sort().join(','),
+          dangoChords: [...new Set(d.filter(p => p.dango).map(p => p.chord))].sort().join(','),
           label: def.label,
         };
       });
@@ -601,8 +612,10 @@ async function answerAll(page) {
     });
     ok(r[3].label === 'Lv3 おだんご まぜ' && r[3].len === 16 && r[3].intros.length === 0 && r[3].dangos.join('|') === 'D60,64,67|D62,65,69' && r[3].singlesInActive && r[3].chordsMatch,
       `Lv3 おだんご まぜ：ド・ミ・ソ と レ・ファ・ラ（1おん 12 ＋ おだんご 4）${JSON.stringify(r[3])}`);
-    ok(r[4].label === 'Lv4 おだんごの つづき' && r[4].len === 18 && r[4].intros.join('|') === 'D60,64,67,71|D62,65,69,72' && r[4].singlesInActive && r[4].chordsMatch && r.chords,
+    ok(r[4].label === 'Lv4 おだんごの つづき' && r[4].len === 18 && r[4].intros.join('|') === 'D60,64,67,71|D62,65,69,72' && r[4].singlesInActive && r.chords,
       `Lv4 おだんごの つづき：4つだま（シ・たかいド）の お手本 2つ ${JSON.stringify(r[4])}`);
+    ok(r[4].singleChords === '60:C,62:Dm,64:C,65:Dm,67:C,69:Dm,71:Em,72:C' && r[4].dangoChords === 'Cmaj7,Dm7',
+      `Lv4 の 1おんは これまでと 同じ ひびき（C・Dm）、シは Em、たかいドは C。おだんごは Cmaj7・Dm7 ${r[4].singleChords} / ${r[4].dangoChords}`);
     ok(r[6].label === 'Lv6 うえの おと' && r[6].len === 18 && r[6].intros.join('|') === 'D71,74,77|D72,76,79' && r[6].singlesInActive && r[6].chordsMatch && r.upper,
       `Lv6 うえの おと：うえの せんの おだんご・あいだの おだんご ${JSON.stringify(r[6])}`);
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);

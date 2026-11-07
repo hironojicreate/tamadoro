@@ -69,6 +69,9 @@
                   { notes: [D4, F4, A4, C5], chord: 'Dm7', name: 'あいだの おだんごの つづきは たかいド', intro: true },
               ],
               singles: [C4, D4, E4, F4, G4, A4, B4, C5], repeat: 1, extra: [B4, C5, B4, C5], dangoRepeat: 2,
+              // 1おんは これまでと 同じ ひびき（ド・ミ・ソ は C、レ・ファ・ラ は Dm）。シは ミ・ソ・シ、たかいドは C
+              //   （4つだまの 和音 Cmaj7・Dm7 は、おだんごが そろった ときの ごほうび）
+              singleChords: { [C4]: 'C', [E4]: 'C', [G4]: 'C', [D4]: 'Dm', [F4]: 'Dm', [A4]: 'Dm', [B4]: 'Em', [C5]: 'C' },
               view: [F3, E5], active: [C4, C5], guide: 'all', sing: true,
               hint: 'せんの おだんごの つぎは シ（3ぼんめ）、あいだの おだんごの つぎは たかいド' },
             { label: 'Lv5 ド〜ド', comment: 'けんばんの もじなし', drop: 'K',

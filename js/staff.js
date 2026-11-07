@@ -10,7 +10,9 @@
 //                 まだ 1本も かぞえていない ときは、1ぽんめが やさしく 点滅して「おしてね」）
 //   正解した 音符は、class に sparkle を つけると キラリンと 光る（★ が はじける）
 //   おだんご（おんぷよみ Lv1・Lv2）：
-//     dango：音符を 1本の くしに さした 三色だんご に する（下から みどり・しろ・ピンク）。下から じゅんばんに 読む
+//     dango：音符を 1本の くしに さした おだんご に する。下から じゅんばんに 読む
+//            おだんごの 色は 音の 色（けんばんの 名前の 色を あわく）。ドミソ と レファラ は べつの 色、
+//            シは むらさき、たかいドは ドと 同じ 色
 //     names：おだんごの よこに 音の 名前（さいしょの お手本）
 
 const TamaStaff = {
@@ -111,6 +113,14 @@ const TamaStaff = {
         </svg>`;
     },
 
+    // 色を あわく（白に ちかづける。amount：0〜1）
+    tint(hex, amount = 0.35) {
+        const n = parseInt(hex.slice(1), 16);
+        const mix = c => Math.round(c + (255 - c) * amount);
+        const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(mix);
+        return `rgb(${r}, ${g}, ${b})`;
+    },
+
     // おだんご：1本の くしに、下から じゅんに 音符（まるい おだんご）。ドの みじかい せんは 1本だけ
     dango(notes, current, names, focusLedger) {
         const x = this.LEFT + 4;
@@ -127,7 +137,7 @@ const TamaStaff = {
                 : '';
             return `<g class="staff-note dango d${i} ${state}" data-i="${i}">
                 <circle class="staff-glow" cx="${x}" cy="${y}" r="20"/>
-                <circle class="staff-head" cx="${x}" cy="${y}" r="10.5"/>
+                <circle class="staff-head" cx="${x}" cy="${y}" r="10.5" style="fill: ${this.tint(TamaNotes.color(midi))}"/>
                 <text class="staff-star a" x="${x - 26}" y="${y - 12}">★</text>
                 <text class="staff-star b" x="${x + 24}" y="${y - 16}">★</text>
                 <text class="staff-star c" x="${x + 26}" y="${y + 16}">★</text>

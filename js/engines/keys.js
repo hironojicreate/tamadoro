@@ -61,6 +61,7 @@ const KEYS_REVEAL_DELAY = 550;
 // おだんご：
 //   dangos：[{ notes（下から）, chord（そろったときの 和音）, name, intro（さいしょに 名前つきの お手本） }]
 //   singles を repeat 回 ＋ extra（とくに おぼえたい 音を たす）の 1おんと、おだんごを dangoRepeat 回ずつ まぜる
+//   singleChords：1おんの 正解の 和音を 音ごとに きめる（ないときは その音の おだんごの 和音）
 function keysDangoDeck(def) {
     const names = d => d.notes.map(m => TamaNotes.lessonName(m)).join('・');
     const dango = (d, more = {}) => ({
@@ -73,6 +74,7 @@ function keysDangoDeck(def) {
     });
     // 1おんの 問題も、正解の 和音は その音の おだんごの 和音（Lv2 は Dm だけ。その レベルの 音だけを おぼえる）
     const chordOf = midi => {
+        if (def.singleChords && def.singleChords[midi]) return def.singleChords[midi];
         const home = def.dangos.find(d => d.notes.includes(midi));
         return home ? home.chord : keysChordFor(midi);
     };
