@@ -189,7 +189,8 @@ const TamaSound = {
     //   decay：sustain まで へる はやさ、fade：のこった 音が きえる はやさ（null は 押している あいだ のびる）、
     //   release：はなしてから きえる はやさ、bright：明るさ（フィルター。音の 高さの 何ばいまで）、
     //   level：大きさの そろえ、detune：2つの 音を すこし ずらして ひろがりを（セント）、vibrato：[はやさ Hz, ふかさ]
-    //   pluck：はじく 音（琴・ギター。Karplus-Strong で 一度 つくって つかいまわす）
+    //   breath：息の 音の 大きさ（ノイズを 音の 高さの あたりだけ とおす）、scoop：はじめに 下から ずりあげる（半音の 何わり）
+    //   pluck：はじく 音（琴。Karplus-Strong で 一度 つくって つかいまわす）。はじく 音は 伴奏には つかわない（ひびかない）
     VOICES: {
         epiano: { harmonics: [0, 1, 0.12, 0.05, 0.12, 0.02, 0.01], attack: 0.004, sustain: 0.35, decay: 0.25, fade: 1.4, release: 0.25, bright: 5, level: 1.1 },
         organ: { harmonics: [0, 1, 0.75, 0.45, 0.55, 0, 0.25, 0, 0.2], attack: 0.012, sustain: 0.85, decay: 0.08, fade: null, release: 0.06, bright: 10, level: 0.6, detune: 4 },
@@ -197,7 +198,7 @@ const TamaSound = {
         chip: { harmonics: [0, 1, 0.71, 0.33, 0, 0.2, 0.24, 0.1, 0, 0.11, 0.14, 0.06], attack: 0.002, sustain: 0.55, decay: 0.08, fade: 2.5, release: 0.05, bright: 40, level: 0.42 },
         musicbox: { harmonics: [0, 1, 0, 0.08, 0.32, 0, 0, 0, 0.08], attack: 0.002, sustain: 0.05, decay: 0.55, fade: 0.6, release: 0.5, bright: 12, level: 1.0 },
         koto: { pluck: true, bright: 0.65, length: 2.4, decay: 1.6, release: 0.25, level: 1.25 },
-        guitar: { pluck: true, bright: 0.3, length: 2.0, decay: 1.2, release: 0.2, level: 1.3 },
+        shakuhachi: { harmonics: [0, 1, 0.25, 0.1, 0.04, 0.02], attack: 0.09, sustain: 0.8, decay: 0.25, fade: null, release: 0.25, bright: 4, level: 0.7, vibrato: [4.3, 0.005], breath: 0.35, scoop: 0.4 },
     },
 
     // 倍音の 表 → PeriodicWave（AudioContext ごとに つくって つかいまわす）
@@ -210,6 +211,18 @@ const TamaSound = {
             this.waves[name] = ctx.createPeriodicWave(new Float32Array(harmonics.length), new Float32Array(harmonics));
         }
         return this.waves[name];
+    },
+
+    // 息の 音の もと（1びょうの ノイズ。AudioContext ごとに つくって ループで つかう）
+    noiseBuffer(ctx) {
+        if (this.noiseCtx !== ctx) {
+            this.noiseCtx = ctx;
+            const length = ctx.sampleRate;
+            this.noise = ctx.createBuffer(1, length, ctx.sampleRate);
+            const data = this.noise.getChannelData(0);
+            for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+        }
+        return this.noise;
     },
 
     // はじく 音（Karplus-Strong）：みじかい ノイズを くりかえし なまらせると 弦の 音に なる
@@ -280,6 +293,11 @@ const TamaSound = {
                 const osc = ctx.createOscillator();
                 osc.setPeriodicWave(this.periodicWave(ctx, name, spec.harmonics));
                 osc.frequency.value = freq;
+                if (spec.scoop) {
+                    // 下から ずりあげる（尺八の「メリ」から 「カリ」へ）
+                    osc.frequency.setValueAtTime(freq * Math.pow(2, -spec.scoop / 12), t);
+                    osc.frequency.exponentialRampToValueAtTime(freq, t + spec.attack * 1.6);
+                }
                 osc.detune.value = cents;
                 if (spec.vibrato) {
                     const lfo = ctx.createOscillator();
@@ -293,6 +311,22 @@ const TamaSound = {
                 osc.connect(filter);
                 sources.push(osc);
             });
+            if (spec.breath) {
+                // 息の 音：ノイズを 音の 高さの あたりだけ とおして まぜる
+                const noise = ctx.createBufferSource();
+                noise.buffer = this.noiseBuffer(ctx);
+                noise.loop = true;
+                const band = ctx.createBiquadFilter();
+                band.type = 'bandpass';
+                band.frequency.value = Math.min(freq * 2, 12000);
+                band.Q.value = 1.2;
+                const breath = ctx.createGain();
+                breath.gain.value = spec.breath;
+                noise.connect(band);
+                band.connect(breath);
+                breath.connect(filter);
+                sources.push(noise);
+            }
             const each = level / detunes.length;
             amp.gain.setValueAtTime(0.0001, t);
             amp.gain.linearRampToValueAtTime(each, t + spec.attack);

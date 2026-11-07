@@ -10,10 +10,18 @@
     const C5 = 72, D5 = 74, E5 = 76, F5 = 77, G5 = 79;
     const F3 = 53, A3 = 57, B3 = 59, B5 = 83;
 
-    // データの 版を 上げたときに、うしろへ ずれた レベルの ドロップ・タイム・きろくを うつす（まえの 版 → { まえの レベル: いまの レベル }）
-    //   版 3：Lv7 したの おと を 入れた。メロディ 8 → 9、きょくふう 9 → 10、オニ 10 → 11
-    //   版 2：（きょくふう も まだ なかった）メロディ 8 → 9、オニ 9 → 11
-    const LEVEL_MOVES = { 2: { 8: 9, 9: 11 }, 3: { 8: 9, 9: 10, 10: 11 } };
+    // データの 版を 上げたときに、レベルの ドロップ・タイム・きろくを うつす（消さない）
+    //   moves：{ まえの レベル: いまの レベル }。おなじ レベルへ あつまる ときは ドロップを たしあわせる
+    //   oni：まえの オニ（ドリルの オニ）。いまの オニ（きょくふう）へ ドロップ・きろくを うつす。
+    //        ベストタイムは 中身が ちがうので つかわない
+    //   版 4：Lv7 したの おと まで ある。オニ 11 → きょくふう（オニ）10
+    //   版 3：Lv7 したの おと が まだ ない。メロディ 8 → 9、きょくふう 9 → 10、オニ 10 → 10
+    //   版 2：きょくふう も まだ ない。メロディ 8 → 9、オニ 9 → 10
+    const LEVEL_MOVES = {
+        2: { moves: { 8: 9, 9: 10 }, oni: 9 },
+        3: { moves: { 8: 9, 9: 10, 10: 10 }, oni: 10 },
+        4: { moves: { 11: 10 }, oni: 11 },
+    };
 
     // せんに ささった おだんご（ド・ミ・ソ）と、せんの あいだの おだんご（レ・ファ・ラ）
     const LINE_DANGO = { notes: [C4, E4, G4], chord: 'C', name: 'せんに ささった おだんご', intro: true };
@@ -29,22 +37,33 @@
         backTo: '#/music',
         inRecords: false,
         storagePrefix: 'notes',           // ドロップの保存キー notes_coins_3 など
-        dataVersion: 4,                   // レベルの ならびを かえたら 1つ 上げる（まえの ドロップ・きろくを 消す。js/app.js）
-        // 版 2・3 → 4：レベルを 入れたので、うしろへ ずれた レベルの ドロップ・タイム・きろくを うつす（消さない。LEVEL_MOVES）
+        dataVersion: 5,                   // レベルの ならびを かえたら 1つ 上げる（まえの ドロップ・きろくを 消す。js/app.js）
+        // 版 2〜4 → 5：レベルの ならびを かえたので、ドロップ・タイム・きろくを うつす（消さない。LEVEL_MOVES）
         upgradeData(from) {
-            const moves = LEVEL_MOVES[from];
-            if (!moves) return false; // それより まえの 版は 消す
-            const move = (oldKey, newKey) => {
-                const value = localStorage.getItem(oldKey);
-                if (value === null) return;
-                localStorage.setItem(newKey, value);
-                localStorage.removeItem(oldKey);
-            };
-            // うしろの レベルから じゅんに（うつす さきを うわがき しないように）
-            Object.keys(moves).map(Number).sort((a, b) => b - a).forEach(old => {
-                move(`notes_coins_${old}`, `notes_coins_${moves[old]}`);
-                move(`notes_level_${old}_best_time`, `notes_level_${moves[old]}_best_time`);
+            const plan = LEVEL_MOVES[from];
+            if (!plan) return false; // それより まえの 版は 消す
+            const { moves, oni } = plan;
+            const olds = Object.keys(moves).map(Number).sort((a, b) => a - b);
+            // さきに ぜんぶ よんでから 消して、うつす さきごとに まとめて かく（うわがき しないように）
+            const coins = {};
+            const best = {};
+            // うつす さきに もとから ある ドロップは のこす（うつす もとに なっていない さき）
+            new Set(Object.values(moves)).forEach(to => {
+                if (moves[to] !== undefined) return;
+                const list = TamaStore.readJSON(`notes_coins_${to}`, []);
+                coins[to] = Array.isArray(list) ? list : [];
             });
+            olds.forEach(old => {
+                const to = moves[old];
+                const list = TamaStore.readJSON(`notes_coins_${old}`, []);
+                coins[to] = (coins[to] || []).concat(Array.isArray(list) ? list : []);
+                const time = localStorage.getItem(`notes_level_${old}_best_time`);
+                if (time !== null && old !== oni) best[to] = time;
+                localStorage.removeItem(`notes_coins_${old}`);
+                localStorage.removeItem(`notes_level_${old}_best_time`);
+            });
+            Object.entries(coins).forEach(([to, list]) => { if (list.length) TamaStore.writeJSON(`notes_coins_${to}`, list); });
+            Object.entries(best).forEach(([to, time]) => localStorage.setItem(`notes_level_${to}_best_time`, time));
             const log = History.getLog().map(entry =>
                 (entry.mode === 'notes' && moves[entry.level] ? { ...entry, level: moves[entry.level] } : entry));
             TamaStore.writeJSON(History.LOG_KEY, log);
@@ -53,7 +72,7 @@
         bestTimePrefix: 'notes',
         menuCoinSize: '25px',
         deleteMessage: 'おんぷよみのデータを消去しました',
-        rescue: { type: 'slider', max: 11 },
+        rescue: { type: 'slider', max: 10 },
         maxMistakes: 5,
         perfectClear: {},
         existingCoinsLevels: [],
@@ -63,8 +82,8 @@
             best: 'これまでのさいこうは',
         },
 
-        // しくみ → Lv1 は ドロップ1こ、オニは 5こ、ほかは 3こで つぎが ひらく
-        coinsToUnlock: level => (level === 2 ? 1 : level === 11 ? 5 : 3),
+        // しくみ → Lv1 は ドロップ1こ、オニ（きょくふう）は Lv8 の 5こ、ほかは 3こで つぎが ひらく
+        coinsToUnlock: level => (level === 2 ? 1 : level === 10 ? 5 : 3),
 
         // view・active・guide・repeat は けんばんと 同じ（js/modes/keys.js）
         //   view の はしは、黒いけんばんの かたまりが かけないところ
@@ -126,11 +145,10 @@
               hint: 'ドの 下の 2本めの みじかい せんが ひくいラ、ドの せんに ぶらさがるのが ひくいシ' },
             { label: 'Lv8 メロディ', comment: '3〜4おんの がくふ', drop: 'Y',
               style: 'phrase', count: 8, melody: 'leap', view: [F3, E5], active: [A3, C5], guide: 'none' },
-            { label: 'Lv9 きょくふう', comment: 'いろいろな きょくを ひこう', drop: 'C',
+            // オニ ＝ マスタークラス：1曲を ひきとおす（ユーザー：「音楽は それくらい 楽しむ 方が よい」）
+            { label: 'Lvオニ きょくふう', comment: 'マスタークラス：いろいろな きょくを ひこう', drop: 'S',
               style: 'song', view: [F3, B5], active: [A3, G5], guide: 'none', labelSwitch: true,
               hint: '8つの フレーズを れんしゅうしたら、さいごに ぜんぶ つなげて えんそう！' },
-            { label: 'Lvオニ', comment: 'ぜんぶ まぜて・もじなし', drop: 'S',
-              style: 'oni', singles: 12, phrases: 4, melody: 'leap', view: [F3, B5], active: [A3, G5], guide: 'none' },
         ],
     };
 })();

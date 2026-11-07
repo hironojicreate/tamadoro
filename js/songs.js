@@ -1,4 +1,4 @@
-// きょくふう メロディ（おんぷよみ Lv9）：曲調の 表と、その 曲調の メロディを つくる
+// きょくふう メロディ（おんぷよみ オニ）：曲調の 表と、その 曲調の メロディを つくる
 //   1つの 曲は 8つの 和音（1つの 和音に 3〜4おんの メロディ ＝ 1フレーズ）。8フレーズを つなぐと 1曲
 //   曲調には ノブ（weight）が ついている：0 で 出なくなり、2 で 2ばい 出やすい。
 //   系統（FAMILIES）にも weight が あるので、「ジャズ風は まとめて 止める」も 1か所で できる
@@ -61,13 +61,13 @@ const TamaSongs = {
             sound: { melody: 'piano', chord: 'organ' } },
         bossa: { name: 'ボサノバ', weight: 1, rhythms: ['zurashi', 'utau'],
             melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 3, octave: 2 } },
-            sound: { melody: 'epiano', chord: 'guitar' } },
+            sound: { melody: 'epiano', chord: 'strings' } }, // ボサノバの 名曲の ように うすく のばす ストリングス
         game: { name: 'ゲーム', weight: 1, rhythms: ['genki', 'hazumu'],
             melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 2, octave: 2, surge: 1 } },
             sound: { melody: 'chip', chord: 'chip' } },
         nihon: { name: 'にほん', weight: 1, rhythms: ['utau', 'setsunai', 'hazumu'],
             melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 3, surge: 1 } },
-            sound: { melody: 'koto', chord: 'koto' } },
+            sound: { melody: 'koto', chord: 'shakuhachi' } }, // ことの メロディに 尺八の のばし
         // おきなわ：「沖縄感が むずかしい」ので ほりゅう（ノブ 0 で おまかせでは 出ない。/song では ためせる）
         okinawa: { name: 'おきなわ', weight: 0, rhythms: ['hazumu', 'genki', 'utau'],
             melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 1 } },
@@ -342,7 +342,7 @@ const TamaSongs = {
     SURGE: { 2: [4, 12], 3: [3, 8, 12] }, // ぐぐぐっと：サビの 小節ごとの 上げかた（半音。サビが 2小節・3小節）
 
     // 音色の 名前（/song の 一覧に 出す）
-    SOUND_NAMES: { piano: 'ピアノ', epiano: 'エレピ', organ: 'オルガン', strings: 'ストリングス', chip: 'ピコピコ', musicbox: 'オルゴール', koto: 'こと', guitar: 'ギター' },
+    SOUND_NAMES: { piano: 'ピアノ', epiano: 'エレピ', organ: 'オルガン', strings: 'ストリングス', chip: 'ピコピコ', musicbox: 'オルゴール', koto: 'こと', shakuhachi: 'しゃくはち' },
 
     // その 曲調の 音色 { melody, chord }
     soundOf(style) {

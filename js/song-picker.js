@@ -1,15 +1,15 @@
-// きょくふうを えらぶ（おんぷよみ Lv9 きょくふう。おとなが ためすとき用）
+// きょくふうを えらぶ（おんぷよみ オニ きょくふう。おとなが ためすとき用）
 //   設定の 入力欄に /song だけ 入れて Enter で ひらく。
 //   上に リズム（おまかせ・5つ）、下に 系統ごとの 曲調の ボタン（系統の「ぜんぶ」は その 系統から おまかせ。
 //   系統の よこに 音色「♪ メロディ／伴奏」。ノブ 0 の 系統は「おやすみ中」＝ おまかせでは 出ないが ここで えらべる）。
 //   リズムの ボタンは えらぶだけ（ひらいた まま）。曲調を えらぶと きまって とじる。
-//   きょくふう（Lv9）を あそんでいる ときは、えらんだ 曲で はじめから やりなおす。
+//   きょくふう（オニ）を あそんでいる ときは、えらんだ 曲で はじめから やりなおす。
 //   えらんだ ものは おぼえておく（TamaSongs.force・forceRhythm。/song off⏎・/rhythm off⏎ でも もどせる）
 
 const TamaSongPicker = {
     ID: 'songPicker',
 
-    // いま きょくふう（Lv9）の 画面に いるか
+    // いま きょくふう（オニ）の 画面に いるか
     inSongLevel() {
         return typeof keysLesson !== 'undefined' && keysLesson.run && keysLesson.run.def.style === 'song'
             && document.getElementById('keysScreen').style.display !== 'none';
@@ -53,9 +53,9 @@ const TamaSongPicker = {
             </div>`;
         });
         const total = S.STYLES.reduce((sum, style) => sum + S.FAMILIES[style.family].rhythms.length, 0);
-        return `<h2>きょくふうを えらぶ（おんぷよみ Lv9）</h2>
+        return `<h2>きょくふうを えらぶ（おんぷよみ オニ）</h2>
             <p class="song-picker-note">曲調 ${S.STYLES.length}こ（${Object.keys(S.FAMILIES).length}系統）× リズム → ${total}とおり。
-                ${this.inSongLevel() ? '曲調を えらぶと、その 曲で Lv9 を はじめから やりなおします。' : 'えらぶと、つぎに Lv9 を あそぶ ときから その 曲に なります。'}</p>
+                ${this.inSongLevel() ? '曲調を えらぶと、その 曲で オニ を はじめから やりなおします。' : 'えらぶと、つぎに オニ を あそぶ ときから その 曲に なります。'}</p>
             <h3>リズム</h3>
             <div class="song-chips">${rhythms.join('')}</div>
             <h3>曲調</h3>
