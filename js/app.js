@@ -24,6 +24,7 @@ function closeEverything() {
         currentEngine().stop(); // けんばんなど：鳴っている音・タイマーを止める
     }
     TamaPiano.stop();
+    TamaSongPicker.close();
 
     document.querySelectorAll('.coin, .reward-coin').forEach(coin => coin.remove());
     ['completionModal', 'mistakeModal', 'deleteModal', 'rescueModal', 'congrats-panel', 'masterButton'].forEach(id => {

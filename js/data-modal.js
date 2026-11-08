@@ -126,8 +126,11 @@ document.getElementById('fileInput').addEventListener('change', function (event)
 //   どの画面でも：
 //   /music on    さいしょの画面に「おんがくのへや」を出す（ためしているあいだ。js/music.js）
 //   /music off   「おんがくのへや」をかくす
-//   /song jazz⏎  おんぷよみ Lv8 の 曲調を きめる（曲調の id か 系統。js/songs.js。Enter で きまる）
+//   /song⏎       おんぷよみ マスタークラス の 曲調と リズムを 一覧から えらぶ（js/song-picker.js）
+//   /song jazz⏎  おんぷよみ マスタークラス の 曲調を きめる（曲調の id か 系統。js/songs.js。Enter で きまる）
 //   /song off⏎   曲調を もとに もどす（ノブの わりあいで えらぶ）
+//   /rhythm genki⏎  おんぷよみ マスタークラス の リズムを きめる（genki・hazumu・setsunai・utau・zurashi。Enter で きまる）
+//   /rhythm off⏎    リズムを もとに もどす（曲調の 系統から ノブの わりあいで えらぶ）
 //   計算・けんばんの画面だけ：
 //   /rescue      レベルを復元するモーダル
 //   /delete      このページのデータを消すモーダル
@@ -154,7 +157,14 @@ if (commandInput) {
         // /song：Enter（改行）で きまる（とちゅうの 文字で うごかないように）
         if (command.startsWith('/song')) {
             if (!/\n$/.test(event.target.value)) return;
-            const id = command.slice(5).trim() || 'off';
+            const id = command.slice(5).trim();
+            if (!id) {
+                // /song だけ：一覧から えらぶ
+                event.target.value = '';
+                closeDataModal();
+                TamaSongPicker.open();
+                return;
+            }
             if (TamaSongs.force(id)) {
                 const style = TamaSongs.STYLES.find(s => s.id === id);
                 const family = TamaSongs.FAMILIES[id];
@@ -162,6 +172,20 @@ if (commandInput) {
                     : `きょくふうを「${style ? `${style.name}（${style.sub}）` : `${family.name}風`}」に しました。`);
             } else {
                 showNotification(`「${id}」という きょくふうは ありません。`);
+            }
+            event.target.value = '';
+            closeDataModal();
+            return;
+        }
+        // /rhythm：Enter（改行）で きまる
+        if (command.startsWith('/rhythm')) {
+            if (!/\n$/.test(event.target.value)) return;
+            const id = command.slice(7).trim() || 'off';
+            if (TamaSongs.forceRhythm(id)) {
+                showNotification(id === 'off' ? 'リズムを もとに もどしました。'
+                    : `リズムを「${TamaSongs.RHYTHMS[id].name}」に しました。`);
+            } else {
+                showNotification(`「${id}」という リズムは ありません。`);
             }
             event.target.value = '';
             closeDataModal();
