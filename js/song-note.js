@@ -7,6 +7,7 @@
 //   図鑑：とおし えんそうを ひきおわって「べつの 曲」「えんそうを おわる」で ドロップを もらった 系統を あつめる。
 //     はじめての 系統の ときは ごほうびの ドロップが 金（js/engines/keys.js の keysPerformFinish）
 //   ひらきかた：おんぷよみの レベルを えらぶ 画面の「📖 きょくノート」
+//   セーブファイル（歯車）にも 入る。「いまのデータに たして よみこむ」では、曲も ずかんも 入れかえずに あわせる（mergeSongs・mergeFamilies）
 
 const TamaSongNote = {
     KEY: 'tamadoro.notes.songbook',     // のこした 曲（新しい じゅん）
@@ -255,4 +256,38 @@ const TamaSongNote = {
 
     playing: null,    // いま ながしている 曲の id
     confirming: null, // 「ほんとうに けす？」の 曲の id
+
+    // ---------- 「いまのデータに たして よみこむ」で あわせる（js/data-modal.js） ----------
+
+    // 曲：両方の 曲を のこす（同じ 曲は 1つ。ファイルの ほうを つかう）。新しい じゅんに ならべて MAX 曲まで
+    mergeSongs(now, file) {
+        const parse = text => {
+            try {
+                const list = JSON.parse(text);
+                return Array.isArray(list) ? list : [];
+            } catch (error) {
+                return [];
+            }
+        };
+        const byId = new Map();
+        [...parse(now), ...parse(file)].forEach(entry => { if (entry && entry.id) byId.set(entry.id, entry); });
+        const time = entry => parseInt(String(entry.id), 10) || 0; // id の はじめは のこした 時刻
+        return JSON.stringify([...byId.values()].sort((a, b) => time(b) - time(a)).slice(0, this.MAX));
+    },
+
+    // ずかん：両方の 系統を あわせる
+    mergeFamilies(now, file) {
+        const parse = text => {
+            try {
+                const list = JSON.parse(text);
+                return Array.isArray(list) ? list : [];
+            } catch (error) {
+                return [];
+            }
+        };
+        return JSON.stringify([...new Set([...parse(now), ...parse(file)])]);
+    },
 };
+
+TamaStore.MERGERS[TamaSongNote.KEY] = (now, file) => TamaSongNote.mergeSongs(now, file);
+TamaStore.MERGERS[TamaSongNote.FAMILY_KEY] = (now, file) => TamaSongNote.mergeFamilies(now, file);

@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.79</span>
+                <span id="version">Ver.6.3.80</span>
             </p>
         </footer>
     </div>
@@ -1540,16 +1540,16 @@
             <h2>★おとなのひとに やりかたをきいてください★</h2>
             <p class="home-only">ゲットしたドロップのまいすうを、
                 <br>セーブ（ほぞん）したり、ロード（よみこみ）したりします。
-                <br>セーブファイルは、tamadoro_すうじ.txtです。
+                <br>セーブファイルは、tamadoro_すうじ.jsonです（まえの .txt も よみこめます）。
                 <br><b>※データは端末本体に保存されます。</b>
                 <br>※各計算ページからもセーブ機能できます。
             </p>
             <p class="mode-only">ゲットした ドロップのかずを、セーブ（ほぞん）します。
-                <br>セーブファイルは、tamadoro_すうじ.txtです。
+                <br>セーブファイルは、tamadoro_すうじ.jsonです（まえの .txt も よみこめます）。
                 <br><b>※データは端末本体に保存されます。</b>
             </p>
             <button id="exportData">データをセーブ</button>
-            <input type="file" id="fileInput" style="display: none;">
+            <input type="file" id="fileInput" accept=".json,.txt,application/json,text/plain" style="display: none;">
             <button id="importData" class="home-only">データをロード</button>
             <button id="toggleDateButton" class="mode-only">ひづけON</button>
             　<!--　←空白あり-->
@@ -1559,7 +1559,7 @@
                 style="display:none; max-width: 420px; margin: 14px auto 0; padding: 10px 14px; border: 1px dashed #999; border-radius: 10px; text-align: left;">
                 <p style="margin: 0 0 8px;"><b>よみこみかたを えらんでください。</b></p>
                 <button id="importMerge">いまのデータに たして よみこむ</button>
-                <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータは のこします。おなじ しゅるいのデータは、ファイルのほうに なります。</p>
+                <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータは のこします。おなじ しゅるいのデータは、ファイルのほうに なります（きょくノートの 曲と ずかんは、りょうほうを あわせます）。</p>
                 <button id="importReplace">ぜんぶ うわがきして よみこむ</button>
                 <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータ（ドロップ・きろく・せってい）を ぜんぶ けしてから、ファイルのデータに おきかえます。</p>
                 <button id="importCancel">やめる</button>

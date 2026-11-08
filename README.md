@@ -369,6 +369,8 @@ tools/make_drop_pngs.js 小さいドロップの PNG（img/drops/small/）を im
 | `tamadoro.notes.song` | /song で きめた きょくふう（曲調の id か 系統。ないときは ノブの わりあいで えらぶ） |
 | `tamadoro.notes.rhythm` | /rhythm で きめた リズム（ないときは 曲調の 系統から ノブの わりあいで えらぶ） |
 | `tamadoro.notes.dataVersion` | おんぷよみの データの 版（js/modes/notes.js の `dataVersion` と ちがうと、まえの データを 消す） |
+| `tamadoro.notes.songbook` | きょくノートに のこした 曲（新しい じゅん・50曲まで。js/song-note.js） |
+| `tamadoro.notes.families` | きょくふう ずかんに のった 系統（`pops` など） |
 | `rhythm_coins_3` など | リズムの ドロップ（レベル1 が ちょうせい） |
 | `tamadoro.rhythm.offset` | リズムの ちょうせいで はかった ずれ（秒。プラスは おそめに たたく） |
 | `tamadoro.music.enabled` | `/music on` にしたか（`true` で「おんがくのへや」が出る） |
@@ -376,11 +378,27 @@ tools/make_drop_pngs.js 小さいドロップの PNG（img/drops/small/）を im
 | `tamadoro.piano.names` | じゆうにひこうの「音名かくにん」を ON にしたか |
 | `tamadoro.piano.keyWidth` | じゆうにひこうの「けんばんの はば」（px。ないときは 画面の はばに合わせた めやす） |
 
-「データをセーブ」は localStorage をまるごと `tamadoro_月日時分.txt` に書き出します。
+「データをセーブ」は localStorage をまるごと `tamadoro_月日時分.json` に書き出します（`js/data-modal.js` の `buildSaveFile`）。中身は ふつうの JSON で、人が 読んでも わかる ように 改行・字下げ つき です。
+
+```json
+{
+  "format": "tamadoro-save",
+  "version": 2,
+  "savedAt": "2026-11-08T06:30:00.000Z",
+  "data": {
+    "add_coins_1": [{ "level": 1, "order": 1, "image": "/img/Amaru.png", "date": "11/8" }],
+    "tamadoro.notes.families": ["pops", "jazz"]
+  },
+  "text": {}
+}
+```
+
+- `data`：JSON の データ（入れ子の まま）。`text`：JSON では ない 文字（そのまま）。どちらも、読みこむと もとの localStorage と まったく 同じ 文字に もどります。
+- 読みこみは、この 形と、まえの 形（`tamadoro_月日時分.txt`。`{ "キー": "文字" }` だけ）の どちらも 読めます（`readSaveFile`）。
 
 「データをロード」は、読みこみかたを2つから選べます。
 
-- **いまのデータに たして よみこむ**：ファイルにあるデータだけ入れかえます。ファイルにないデータ（ほかのモードのドロップ・記録・設定）は、そのままのこります。
+- **いまのデータに たして よみこむ**：ファイルにあるデータだけ入れかえます。ファイルにないデータ（ほかのモードのドロップ・記録・設定）は、そのままのこります。きょくノートの 曲と きょくふう ずかんは、入れかえずに 1つずつ あわせます（同じ 曲は 1つ・新しい じゅん・50曲まで。`TamaStore.MERGERS`）。
 - **ぜんぶ うわがきして よみこむ**：いまの localStorage をぜんぶ消してから、ファイルのデータを入れます。ファイルがこわれているときは、何も消しません。
 
 どちらも、読みこんだあとに `tamadoro.schema` がなければ（むかしのアプリのセーブファイルなど）、ドロップを記録に取りこみます。
