@@ -12,7 +12,7 @@
 //       （きゅうふは おさなくて いい。その 拍に なると すこし 光って みどりに）→
 //       ぜんぶの がくふで さいごまで ひきとおす（ばんそうが ついてくる。じぶんの ペースで。まちがえても とまらない）→
 //       ひきおわると すぐ じぶんの えんそうが 4/4拍子の マス目に そろえて 伴奏つきで ながれる →
-//       「べつの きょく」「えんそうを おわる」で 拍手 → ごほうびの ドロップ（クリアの 画面は 出さない）
+//       「もういちど きく」で もういちど。「べつの 曲」「えんそうを おわる」で 拍手 → ごほうびの ドロップ（クリアの 画面は 出さない）
 //     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
 //       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる。
 //       正解の 和音は、1おんの 問題も その音の おだんごの 和音（Lv1 は C、Lv2 は Dm だけ）
@@ -875,9 +875,9 @@ function keysOnPerform(midi) {
 }
 
 // ひきおわった：えんそうの とくちょうを ほめて、すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロで しめくくる）。
-//   ボタンは「この きょくを もういちど」（同じ 曲を イントロから ひきなおす）・「べつの きょく」・「えんそうを おわる」。
-//   「べつの きょく」「えんそうを おわる」は、拍手の あと ごほうびの ドロップ（クリアの 画面は 出さない）→
-//   べつの きょくで マスタークラスを はじめから／レベルを えらぶ 画面へ
+//   ボタンは「もういちど きく」（じぶんの えんそうを はじめから）・「この 曲を もういちど」（同じ 曲を イントロから ひきなおす）・
+//   「べつの 曲」・「えんそうを おわる」。「べつの 曲」「えんそうを おわる」は、拍手の あと ごほうびの ドロップ（クリアの 画面は 出さない）→
+//   べつの 曲で マスタークラスを はじめから／レベルを えらぶ 画面へ
 const KEYS_AUTO_PLAYBACK = 0.6; // ひきおわって から ながれる までの びょう
 
 function keysPerformDone() {
@@ -889,9 +889,14 @@ function keysPerformDone() {
     keysShowMessage(`えんそう おわり！ ${style.name}（${style.sub}）を ひけたよ！`, `${TamaSongs.traitWords(traits).join('・')} ♪`);
     const answers = document.getElementById('keysAnswers');
     answers.innerHTML = `
-        <button type="button" class="keys-perform-button again">この きょくを もういちど</button>
-        <button type="button" class="keys-perform-button another">べつの きょく</button>
+        <button type="button" class="keys-perform-button listen">もういちど きく</button>
+        <button type="button" class="keys-perform-button again">この 曲を もういちど</button>
+        <button type="button" class="keys-perform-button another">べつの 曲</button>
         <button type="button" class="keys-perform-button finish">えんそうを おわる</button>`;
+    answers.querySelector('.listen').addEventListener('click', () => {
+        keysStopPlayback(); // ながれている ときも はじめから
+        keysPlayback();
+    });
     answers.querySelector('.again').addEventListener('click', keysPerformAgain);
     answers.querySelector('.another').addEventListener('click', () => keysPerformFinish('another'));
     answers.querySelector('.finish').addEventListener('click', () => keysPerformFinish('menu'));
@@ -899,7 +904,7 @@ function keysPerformDone() {
     keysLesson.later(() => { if (run.round === round && !keysLesson.playback) keysPlayback(); }, KEYS_AUTO_PLAYBACK * 1000);
 }
 
-// 「べつの きょく」（next: 'another'）・「えんそうを おわる」（next: 'menu'）：
+// 「べつの 曲」（next: 'another'）・「えんそうを おわる」（next: 'menu'）：
 //   きくのを とめて 拍手 → ごほうびの ドロップが とんでくる → つぎへ
 const KEYS_DROP_LANDING = 1400; // ドロップが 右上に おさまる までの ミリびょう（js/drops.js の createRewardCoin）
 
@@ -925,7 +930,7 @@ function keysPerformFinish(next) {
     }, seconds * 1000);
 }
 
-// この きょくを もういちど：同じ 曲で イントロ（カウント）から ひきなおす
+// この 曲を もういちど：同じ 曲で イントロ（カウント）から ひきなおす
 function keysPerformAgain() {
     const run = keysLesson.run;
     keysStopPlayback();
@@ -1095,7 +1100,7 @@ function keysPerformIntro() {
 //   まちがえた 音を かざりの 音に（TamaSongs.expressive）。ミスでは なく えんそうの 味として
 //   伴奏：曲調ごとの 型（TamaSongs.ACCOMPS：4分で きざむ・ズン・チャッ・はねる・分散和音・のばす。ほかは 1拍めと 3拍めに 和音と ベース）。
 //     ためでは 伴奏が そっと 分散和音で まつ。
-//   音符・きゅうふは その 拍で 光る。ボタン（もういちど・べつの きょく・えんそうを おわる）や ほかの 画面で 止まる
+//   音符・きゅうふは その 拍で 光る。「もういちど きく」で はじめから。ほかの ボタン（この 曲を もういちど・べつの 曲・えんそうを おわる）や ほかの 画面で 止まる
 const PLAYBACK_START = 0.3; // 何秒 あとから
 
 function keysPlayback() {
