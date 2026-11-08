@@ -15,6 +15,8 @@
 //   TamaSongs.melodyOf(style)        その 曲調の メロディの 性格（高さ・広さ・とび・サビの むき）
 //   TamaSongs.scaleWhites(style)     その 曲調の メロディに つかう 白いけんばん（5音音階の 曲調は その 音だけ）
 //   TamaSongs.soundOf(style)         その 曲調の 音色 { melody（けんばん・メロディ）, chord（伴奏） }
+//   TamaSongs.accompOf(style)        その 曲調の「じぶんの えんそう」の 伴奏の 型（ACCOMPS。ズン・チャッ・分散和音 など）
+//   TamaSongs.accompBar(id, chord)   伴奏の 型で 1小節ぶんの 音の ならび
 //   TamaSongs.expressive(phrases, take, beat)  とおし えんそうの きろくを、おしゃれな えんそうに（下の「えんそうの ひょうげん」）
 //   TamaSongs.restsAfter(bars)       休符の まえの 音符の ばんごう（-1 は 音符より まえ）。休符を ひからせる ときに 使う
 //   TamaSongs.chordNotes(name)       和音記号（'Dm7' など）→ 伴奏の 音（MIDI）
@@ -28,14 +30,15 @@ const TamaSongs = {
     HIGH: 79, // メロディの いちばん上（たかいソ）
 
     // 系統（weight が 系統の ノブ。rhythms：その 系統で 使う リズム、melody：メロディの 性格。下の「メロディ」、
-    //   sound：音色。melody ＝ けんばん・メロディ、chord ＝ 伴奏（js/sound.js の VOICES。'piano' は いつもの 音）。曲調の sound で 上書き）
+    //   sound：音色。melody ＝ けんばん・メロディ、chord ＝ 伴奏（js/sound.js の VOICES。'piano' は いつもの 音）。曲調の sound で 上書き、
+    //   accomp：「じぶんの えんそう」の 伴奏の 型（下の ACCOMPS。ない 系統は 'basic'。曲調の accomp で 上書き））
     FAMILIES: {
         classic: { name: 'クラシック', weight: 1, rhythms: ['utau', 'setsunai'],
             melody: { center: 'mid', width: 'wide', leap: 'normal', sabi: { up: 4, surge: 1 } },
             sound: { melody: 'piano', chord: 'strings' } },
         pops: { name: 'ポップス', weight: 1, rhythms: ['genki', 'hazumu', 'utau'],
             melody: { center: 'mid', width: 'normal', leap: 'normal', verse: -3, lift: 9, sabi: { up: 4, surge: 1 } },
-            sound: { melody: 'piano', chord: 'piano' } },
+            sound: { melody: 'piano', chord: 'piano' }, accomp: 'beat' },
         minor: { name: 'マイナー', weight: 1, rhythms: ['setsunai', 'utau'],
             melody: { center: 'low', width: 'normal', leap: 'few', lift: 9, sabi: { up: 4, surge: 1 } },
             sound: { melody: 'piano', chord: 'strings' } },
@@ -53,19 +56,19 @@ const TamaSongs = {
             sound: { melody: 'piano', chord: 'strings' } },
         church: { name: 'きょうかい', weight: 1, rhythms: ['utau', 'setsunai'],
             melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } },
-            sound: { melody: 'organ', chord: 'organ' } },
+            sound: { melody: 'organ', chord: 'organ' }, accomp: 'pad' },
         blues: { name: 'ブルース', weight: 1, rhythms: ['genki', 'zurashi'],
             melody: { center: 'low', width: 'normal', leap: 'normal', sabi: { up: 3, down: 2 } },
-            sound: { melody: 'piano', chord: 'organ' } },
+            sound: { melody: 'piano', chord: 'organ' }, accomp: 'shuffle' },
         rock: { name: 'ロック', weight: 1, rhythms: ['genki', 'hazumu'],
             melody: { center: 'low', width: 'normal', leap: 'normal', sabi: { up: 3, down: 2, surge: 1 } },
-            sound: { melody: 'piano', chord: 'organ' } },
+            sound: { melody: 'piano', chord: 'organ' }, accomp: 'beat' },
         bossa: { name: 'ボサノバ', weight: 1, rhythms: ['zurashi', 'utau'],
             melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 3, octave: 2 } },
-            sound: { melody: 'epiano', chord: 'strings' } }, // ボサノバの 名曲の ように うすく のばす ストリングス
+            sound: { melody: 'epiano', chord: 'strings' }, accomp: 'bossa' }, // ボサノバの 名曲の ように うすく のばす ストリングス
         game: { name: 'ゲーム', weight: 1, rhythms: ['genki', 'hazumu'],
             melody: { center: 'mid', width: 'wide', leap: 'many', sabi: { up: 2, octave: 2, surge: 1 } },
-            sound: { melody: 'chip', chord: 'chip' } },
+            sound: { melody: 'chip', chord: 'chip' }, accomp: 'arpeggio' },
         nihon: { name: 'にほん', weight: 1, rhythms: ['utau', 'setsunai', 'hazumu'],
             melody: { center: 'mid', width: 'normal', leap: 'normal', sabi: { up: 3, surge: 1 } },
             sound: { melody: 'koto', chord: 'shakuhachi' } }, // ことの メロディに 尺八の のばし
@@ -75,7 +78,7 @@ const TamaSongs = {
             sound: { melody: 'piano', chord: 'piano' } },
         doyo: { name: 'どうよう', weight: 1, rhythms: ['hazumu', 'utau'],
             melody: { center: 'mid', width: 'narrow', leap: 'few', lift: 3, sabi: { up: 1 } },
-            sound: { melody: 'musicbox', chord: 'piano' } },
+            sound: { melody: 'musicbox', chord: 'piano' }, accomp: 'oompah' },
     },
 
     // リズムの パターン（4/4拍子・8小節。weight が リズムの ノブ、tempo が ひきおわると ながれる「じぶんの えんそう」の はやさ（1分に 何拍））
@@ -92,6 +95,54 @@ const TamaSongs = {
         utau: { name: 'うたう リズム', weight: 1, tempo: 96, bars: '●●●●｜●●●○｜●●●●｜●●●○ ／ ●●●●｜●●●○｜●●●●｜●●●○' },
         // 1拍めを 休んで、うしろに ずらす（ジャズ・ボサノバ）。ひくのは 音符だけ
         zurashi: { name: 'ずらす リズム', weight: 1, tempo: 104, bars: '○●●●｜●●●●｜○●●●｜●●●○ ／ ○●●●｜●●●●｜●●●●｜●●●○' },
+    },
+
+    // 伴奏の 型（ひきおわると ながれる「じぶんの えんそう」の 伴奏。1小節 ＝ 4拍）
+    //   bar(c)：その 小節の 音（c.notes：ひくめの 和音の 音、c.bass：ベース（ね音）、c.fifth：ベースの 5度）→ 鳴らす ものの ならび
+    //     { at：何拍め（0〜3.99。はねる うら拍は 1.67 など）, chord: true（和音を ポロロン）か notes：音（MIDI）,
+    //       gain, hold：のばす 拍, strum：和音を ずらす びょう }
+    //   ためが あると その ぶん うしろへ ずれる（えんそうの ひょうげん。のばす 拍も ためで のびる）
+    ACCOMPS: {
+        // ふつう：1拍めに 和音と ベース、3拍めに 小さく 和音と ベース
+        basic: { name: 'ふつう', bar: c => [
+            { at: 0, chord: true, gain: 0.17, hold: 2, strum: 0.02 }, { at: 0, notes: [c.bass], gain: 0.3, hold: 2 },
+            { at: 2, chord: true, gain: 0.09, hold: 2, strum: 0.015 }, { at: 2, notes: [c.bass], gain: 0.2, hold: 2 },
+        ] },
+        // 4分で きざむ（ポップス・ロック）：和音を 1拍ずつ（1拍めが つよく、3拍めが すこし つよい）。ベースは 1拍め・3拍め
+        beat: { name: '4分で きざむ', bar: c => [
+            ...[0.15, 0.08, 0.12, 0.08].map((gain, at) => ({ at, chord: true, gain, hold: 0.8, strum: 0.008 })),
+            { at: 0, notes: [c.bass], gain: 0.3, hold: 1.8 }, { at: 2, notes: [c.bass], gain: 0.24, hold: 1.8 },
+        ] },
+        // ズン・チャッ（どうよう）：ズン ＝ ベース（1拍めは ね音、3拍めは 5度）、チャッ ＝ みじかい 和音（2拍め・4拍め）
+        oompah: { name: 'ズン・チャッ', bar: c => [
+            { at: 0, notes: [c.bass], gain: 0.3, hold: 0.9 }, { at: 1, chord: true, gain: 0.11, hold: 0.45, strum: 0 },
+            { at: 2, notes: [c.fifth], gain: 0.26, hold: 0.9 }, { at: 3, chord: true, gain: 0.1, hold: 0.45, strum: 0 },
+        ] },
+        // はねる（ブルース）：シャッフル。ベースは ね音・5度・6度・5度 と あるき、和音は はねた うら拍に みじかく
+        shuffle: { name: 'はねる（シャッフル）', bar: c => [
+            ...[0, 7, 9, 7].map((up, at) => ({ at, notes: [c.bass + up], gain: at === 0 ? 0.3 : 0.24, hold: 0.85 })),
+            { at: 0, chord: true, gain: 0.13, hold: 0.6, strum: 0.01 }, { at: 1 + 2 / 3, chord: true, gain: 0.08, hold: 0.3, strum: 0 },
+            { at: 2, chord: true, gain: 0.11, hold: 0.6, strum: 0.01 }, { at: 3 + 2 / 3, chord: true, gain: 0.08, hold: 0.3, strum: 0 },
+        ] },
+        // はねる（ボサノバ）：ベースが ドーン・ド ドーン・ド（ね音 → 5度）。和音は うすく のばす
+        bossa: { name: 'はねる（ボサノバ）', bar: c => [
+            { at: 0, chord: true, gain: 0.12, hold: 4, strum: 0.03 },
+            { at: 0, notes: [c.bass], gain: 0.3, hold: 1.4 }, { at: 1.5, notes: [c.fifth], gain: 0.21, hold: 0.5 },
+            { at: 2, notes: [c.bass], gain: 0.27, hold: 1.4 }, { at: 3.5, notes: [c.fifth], gain: 0.21, hold: 0.5 },
+        ] },
+        // 分散和音（ゲーム）：8分音符で 和音の 音を のぼって おりる（1オクターブ 上）。和音は 1拍めに 小さく、ベースは 1拍め・3拍め
+        arpeggio: { name: '分散和音', bar: c => {
+            const up = [c.notes[0], c.notes[1], c.notes[2], c.notes[0] + 12].map(m => m + 12);
+            return [
+                ...[0, 1, 2, 3, 2, 1, 0, 1].map((k, i) => ({ at: i / 2, notes: [up[k]], gain: i % 2 ? 0.07 : 0.09, hold: 0.4 })),
+                { at: 0, chord: true, gain: 0.06, hold: 1.8, strum: 0 },
+                { at: 0, notes: [c.bass], gain: 0.26, hold: 0.9 }, { at: 2, notes: [c.bass], gain: 0.2, hold: 0.9 },
+            ];
+        } },
+        // のばす（きょうかい）：1小節 まるごと 和音と ベースを のばす
+        pad: { name: 'のばす', bar: c => [
+            { at: 0, chord: true, gain: 0.15, hold: 4, strum: 0.03 }, { at: 0, notes: [c.bass], gain: 0.28, hold: 4 },
+        ] },
     },
 
     // 曲調（weight が 曲調の ノブ）。key：おわりの 音（'C' は ドで、'Am' は ラで おわる）。melody：系統の 性格を 上書き
@@ -346,6 +397,19 @@ const TamaSongs = {
     SOUND_NAMES: { piano: 'ピアノ', epiano: 'エレピ', organ: 'オルガン', strings: 'ストリングス', chip: 'ピコピコ', musicbox: 'オルゴール', koto: 'こと', shakuhachi: 'しゃくはち' },
 
     // その 曲調の 音色 { melody, chord }
+    // その 曲調の 伴奏の 型の 名前（ACCOMPS の キー）
+    accompOf(style) {
+        const id = style.accomp || this.FAMILIES[style.family].accomp || 'basic';
+        return this.ACCOMPS[id] ? id : 'basic';
+    },
+
+    // 伴奏の 型で 1小節ぶんの 音の ならび（ACCOMPS の bar）
+    accompBar(id, chord) {
+        const root = this.chordNotes(chord) || [48, 52, 55]; // ね音から ならんだ 和音（ベースに つかう）
+        const notes = TamaSound.CHORDS[chord] || root;           // 伴奏の 和音の 音（ひくめに まとめた ならび）
+        return (this.ACCOMPS[id] || this.ACCOMPS.basic).bar({ notes, bass: root[0] - 12, fifth: root[2] - 12 });
+    },
+
     soundOf(style) {
         return { melody: 'piano', chord: 'piano', ...this.FAMILIES[style.family].sound, ...(style.sound || {}) };
     },

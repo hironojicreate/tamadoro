@@ -1093,7 +1093,8 @@ function keysPerformIntro() {
 // じぶんの えんそうを きく：イントロなしで すぐ 曲 → アウトロ。はやさは リズムの tempo。
 //   メロディは 4/4拍子の マス目を もとに、ひいた ときの ずれを ゆれ（ルバート）に、つっかえを ため（フェルマータ）に、
 //   まちがえた 音を かざりの 音に（TamaSongs.expressive）。ミスでは なく えんそうの 味として
-//   伴奏：1拍めに 和音と ひくい 音（ベース）、3拍めに 小さく 和音と ベース。ためでは 伴奏が そっと 分散和音で まつ。
+//   伴奏：曲調ごとの 型（TamaSongs.ACCOMPS：4分で きざむ・ズン・チャッ・はねる・分散和音・のばす。ほかは 1拍めと 3拍めに 和音と ベース）。
+//     ためでは 伴奏が そっと 分散和音で まつ。
 //   音符・きゅうふは その 拍で 光る。ボタン（もういちど・べつの きょく・えんそうを おわる）や ほかの 画面で 止まる
 const PLAYBACK_START = 0.3; // 何秒 あとから
 
@@ -1127,14 +1128,17 @@ function keysPlayback() {
     const expr = TamaSongs.expressive(phrases, run.take, beat);
     const time = b => PLAYBACK_START + b * beat; // 拍 → びょう
     let restIndex = 0;
+    const accomp = TamaSongs.accompOf(run.song.style);
     phrases.forEach((phrase, b) => {
-        const bass = TamaSongs.chordNotes(phrase.chord)[0] - 12;
-        // 1拍めと 3拍め（ためが あれば その ぶん うしろへ。のびる 音色は 2拍 のばす）
-        [0, 2].forEach(k => {
-            const at = time(expr.warp(b * 4 + k));
-            const strong = k === 0;
-            TamaSound.chord(phrase.chord, { when: at, gain: strong ? 0.17 : 0.09, strum: strong ? 0.02 : 0.015, bus, voice: chord, hold: 2 * beat * 0.95 });
-            TamaSound.note(bass, { when: at, gain: strong ? 0.3 : 0.2, bus, voice: chord, hold: 2 * beat * 0.95 }).release();
+        // 曲調の 伴奏の 型（TamaSongs.ACCOMPS）。ためが あれば その ぶん うしろへ、のばす 拍も のびる
+        TamaSongs.accompBar(accomp, phrase.chord).forEach(e => {
+            const at = time(expr.warp(b * 4 + e.at));
+            const hold = (time(expr.warp(b * 4 + e.at + e.hold)) - at) * 0.95;
+            if (e.chord) {
+                TamaSound.chord(phrase.chord, { when: at, gain: e.gain, strum: e.strum, bus, voice: chord, hold });
+            } else {
+                e.notes.forEach(midi => TamaSound.note(midi, { when: at, gain: e.gain, bus, voice: chord, hold }).release());
+            }
         });
         phrase.rhythm.split('').forEach((mark, k) => {
             if (mark === '○') flash(`#keysCards [data-r="${restIndex++}"]`, 'on', time(expr.warp(b * 4 + k)));
