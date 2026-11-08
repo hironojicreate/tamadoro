@@ -7,10 +7,12 @@
 //     from〜to       見せる けんばん（白いけんばんで はじまり、白いけんばんで おわる）
 //     activeFrom〜To あかるく見せる けんばん（そのレベルで使う けんばん）。そとがわは うすく見せる（おせば鳴る）
 //     label(midi)    けんばんに 名前を書くか
+//     mark(midi)     白いけんばんに 小さな しるし（'★' など。ヘおんよみ の まんなかの ド）。'' なら なし
 //   kb.mark(midi, 'ok' | 'ng')   正解・まちがいの 色を一瞬つける
 //   kb.balloon(midi, 'ミ')       けんばんの上に ふきだし
 //   kb.vanishLabels([60, 67])    名前が まほうで きえる
-//   kb.guide(60, '→')           その けんばんを 光らせて 矢印（くろいけんばんの ♯・♭）。kb.clearGuide() で けす
+//   kb.guide(60, '↗', 'up right') その けんばんを ふちどりして 矢印（くろいけんばんの ♯・♭）。kb.clearGuide() で けす
+//                                 3つめは 矢印の 場所：'up right'・'up left'（黒いけんばんへ ななめ上）、'right'・'left'（よこ）
 //   kb.beckon(60)               その けんばんに ポワンポワン 光る わっか（「ここを おしてね」）。kb.clearGuide() で けす
 
 class TamaKeyboard {
@@ -33,7 +35,7 @@ class TamaKeyboard {
         container.addEventListener('contextmenu', event => event.preventDefault());
     }
 
-    render({ from, to, activeFrom = from, activeTo = to, label = () => false }) {
+    render({ from, to, activeFrom = from, activeTo = to, label = () => false, mark = () => '' }) {
         this.releaseAll();
         this.range = { from, to, activeFrom, activeTo };
         this.container.innerHTML = '';
@@ -47,6 +49,13 @@ class TamaKeyboard {
             const key = this.makeKey(midi, 'tk-white-key');
             key.style.left = `${i * whiteWidth}%`;
             key.style.width = `${whiteWidth}%`;
+            const sign = mark(midi);
+            if (sign) {
+                const star = document.createElement('span');
+                star.className = 'tk-mark';
+                star.textContent = sign;
+                key.appendChild(star);
+            }
             if (label(midi)) {
                 const text = document.createElement('span');
                 text.className = 'tk-label';
@@ -160,13 +169,13 @@ class TamaKeyboard {
         setTimeout(() => balloon.remove(), ms);
     }
 
-    guide(midi, arrow) {
+    guide(midi, arrow, place = '') {
         this.clearGuide();
         const key = this.keys.get(midi);
         if (!key) return;
         key.classList.add('tk-guide');
         const mark = document.createElement('span');
-        mark.className = 'tk-arrow';
+        mark.className = `tk-arrow ${place}`.trim();
         mark.textContent = arrow;
         key.appendChild(mark);
     }

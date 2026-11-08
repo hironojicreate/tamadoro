@@ -247,6 +247,9 @@ html[data-mode="music"] body {
 html[data-mode="keys"] #openingScreen .title-keys,
 html[data-mode="black"] #openingScreen .title-black,
 html[data-mode="notes"] #openingScreen .title-notes,
+html[data-mode="notesBass"] #openingScreen .title-notesBass,
+html[data-mode="bassTb"] #openingScreen .title-bassTb,
+html[data-mode="bassTuba"] #openingScreen .title-bassTuba,
 html[data-mode="rhythm"] #openingScreen .title-rhythm {
     display: inline;
 }
@@ -271,10 +274,23 @@ html[data-mode="rhythm"] .select-level-buttons button {
     color: #7b241c;
 }
 
-html[data-mode="notes"] .select-level-buttons button {
+html[data-mode="notes"] .select-level-buttons button,
+html[data-mode="notesBass"] .select-level-buttons button {
     background-color: #dff3ff;
     border-color: #1e3799;
     color: #0b3c5d;
+}
+
+html[data-mode="bassTb"] .select-level-buttons button,
+html[data-mode="bassTuba"] .select-level-buttons button {
+    background-color: #fff3d1;
+    border-color: #9a5b00;
+    color: #5a3a00;
+}
+
+html[data-mode="bassTb"] #openingScreen .opening-board,
+html[data-mode="bassTuba"] #openingScreen .opening-board {
+    border-color: #f0a500; /* ヘおんよみは 金管の 金色の枠 */
 }
 
 html[data-mode="black"] .select-level-buttons button {
@@ -924,6 +940,12 @@ html[data-mode="black"] #completionModal,
 html[data-mode="black"] #mistakeModal,
 html[data-mode="notes"] #completionModal,
 html[data-mode="notes"] #mistakeModal,
+html[data-mode="notesBass"] #completionModal,
+html[data-mode="notesBass"] #mistakeModal,
+html[data-mode="bassTb"] #completionModal,
+html[data-mode="bassTb"] #mistakeModal,
+html[data-mode="bassTuba"] #completionModal,
+html[data-mode="bassTuba"] #mistakeModal,
 html[data-mode="rhythm"] #completionModal,
 html[data-mode="rhythm"] #mistakeModal {
     z-index: 5;
@@ -936,6 +958,9 @@ html[data-mode="rhythm"] #mistakeModal {
 html[data-mode="keys"] .reward-coin,
 html[data-mode="black"] .reward-coin,
 html[data-mode="notes"] .reward-coin,
+html[data-mode="notesBass"] .reward-coin,
+html[data-mode="bassTb"] .reward-coin,
+html[data-mode="bassTuba"] .reward-coin,
 html[data-mode="rhythm"] .reward-coin {
     z-index: 6;
 }
@@ -1055,10 +1080,19 @@ html[data-mode="rhythm"] .reward-coin {
     text-shadow: 0 0 3px #fff, 0 0 3px #fff;
 }
 
-/* ♯・♭ の ガイド：もとの音を 光らせて 矢印 */
+/* けんばんの しるし（ヘおんよみ：まんなかの ド に ★） */
+.tk-mark {
+    font-size: clamp(12px, 2vw, 20px);
+    line-height: 1;
+    color: #f39c12;
+    text-shadow: 0 0 3px #fff;
+    margin-bottom: 4px;
+    pointer-events: none;
+}
+
+/* ♯・♭ の ガイド：もとの音は ふちどりだけ（ぬりつぶすと「ここを おす」に 見えるので）。矢印は おす けんばんの ほうへ */
 .tk-white-key.tk-guide {
-    background: linear-gradient(180deg, #fff9c4 0%, #ffe082 100%);
-    box-shadow: inset 0 0 0 3px #ffb300, 0 3px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: inset 0 0 0 4px #ffb300, 0 3px 4px rgba(0, 0, 0, 0.15);
 }
 
 .tk-arrow {
@@ -1071,7 +1105,28 @@ html[data-mode="rhythm"] .reward-coin {
     color: #e67e22;
     text-shadow: 0 0 4px #fff, 0 0 4px #fff;
     pointer-events: none;
+    --tk-arrow-x: 4px;
+    --tk-arrow-y: 0px;
     animation: tk-arrow 0.9s ease-in-out infinite alternate;
+}
+
+.tk-arrow.left {
+    --tk-arrow-x: -4px;
+}
+
+/* 黒いけんばんへ：黒いけんばんの すぐ下から、ななめ上を さす */
+.tk-arrow.up {
+    top: 62%;
+    font-size: clamp(28px, 4.6vw, 50px);
+    --tk-arrow-y: -4px;
+}
+
+.tk-arrow.up.right {
+    right: 2%;
+}
+
+.tk-arrow.up.left {
+    left: 2%;
 }
 
 /* 「ここを おしてね」：ポワンポワン 光る わっか（おんぷよみ しくみの さいしょの ド） */
@@ -1098,8 +1153,8 @@ html[data-mode="rhythm"] .reward-coin {
 }
 
 @keyframes tk-arrow {
-    from { transform: translateX(-4px); }
-    to { transform: translateX(4px); }
+    from { transform: translate(calc(var(--tk-arrow-x) * -1), calc(var(--tk-arrow-y) * -1)); }
+    to { transform: translate(var(--tk-arrow-x), var(--tk-arrow-y)); }
 }
 
 /* まほうで 名前が きえる */

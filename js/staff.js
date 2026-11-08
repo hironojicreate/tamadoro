@@ -1,4 +1,6 @@
-// 五線（ト音記号）と 音符の絵（おんぷよみ）
+// 五線（ト音記号・ヘ音記号）と 音符の絵（おんぷよみ・ヘおんよみ）
+//   TamaStaff.kind：'treble'（ト音記号。ふだん）か 'bass'（ヘ音記号。ヘおんよみ）。レッスンを はじめる ときに きめる（js/engines/keys.js）
+//     ト音記号は いちばん下の 線が ミ4、ヘ音記号は ソ2。せん・あいだ の きまりは どちらも 同じ
 //   TamaStaff.svg([60, 62, 64], { current: 1 })  → 五線に 音符を ならべた SVG（文字列）
 //   音符は 白いけんばん（ド〜シ）だけ。下第2線の ひくいラ から、上第1線の ラ くらいまで
 //   current：いま 読む音符（ピンクに 光る）。それより前の 音符は 読みおわり（みどり）
@@ -27,13 +29,19 @@ const TamaStaff = {
     TOP: 100,          // いちばん上の 線（ファ）の 高さ
     LEFT: 124,         // 1こめの 音符の x（左は ト音記号）
     STEP_X: 64,        // 音符と 音符の あいだ
+    kind: 'treble',    // 'treble'（ト音記号）・'bass'（ヘ音記号）
 
-    // 白いけんばん → 五線の上の 高さ（y）。いちばん下の線（ミ）が TOP + 4 * GAP
+    // いちばん下の 線の 音の ばんごう（オクターブ × 7 ＋ ド〜シ）：ト音記号は ミ4 = 30、ヘ音記号は ソ2 = 18
+    bottomIndex() {
+        return this.kind === 'bass' ? 18 : 30;
+    },
+
+    // 白いけんばん → 五線の上の 高さ（y）。いちばん下の線（ト音記号は ミ、ヘ音記号は ソ）が TOP + 4 * GAP
     y(midi) {
         const step = TamaNotes.stepOf(midi);
         const octave = Math.floor(midi / 12) - 1;
         const index = octave * 7 + step;           // ド4 = 28、ミ4 = 30
-        return this.TOP + 4 * this.GAP - (index - 30) * (this.GAP / 2);
+        return this.TOP + 4 * this.GAP - (index - this.bottomIndex()) * (this.GAP / 2);
     },
 
     // 五線の 外に はみだす 音符の、みじかい線（加線）の 高さ
@@ -52,11 +60,29 @@ const TamaStaff = {
     onLine(midi) {
         const step = TamaNotes.stepOf(midi);
         const octave = Math.floor(midi / 12) - 1;
-        return (octave * 7 + step - 30) % 2 === 0;
+        return (octave * 7 + step - this.bottomIndex()) % 2 === 0;
+    },
+
+    // 音部記号（ト音記号・ヘ音記号）
+    clef() {
+        return this.kind === 'bass' ? this.bassClef() : this.trebleClef();
+    },
+
+    // ヘ音記号：まるい 点から はじまって 右に まがる かたちと、2つの 点。2つの 点に はさまれた 線（下から 4ほんめ）が ファ
+    bassClef() {
+        const f = this.TOP + this.GAP; // ファの線
+        return `<g class="staff-clef bass">
+            <path d="M 28,${f} C 26,${f - 18} 40,${f - 24} 52,${f - 22} C 70,${f - 18} 76,${f + 4} 69,${f + 24}
+                     C 62,${f + 44} 44,${f + 60} 22,${f + 70}"
+                  fill="none" stroke="#2d3436" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="30" cy="${f}" r="8.5" fill="#2d3436"/>
+            <circle cx="86" cy="${f - this.GAP / 2}" r="4.5" fill="#2d3436"/>
+            <circle cx="86" cy="${f + this.GAP / 2}" r="4.5" fill="#2d3436"/>
+        </g>`;
     },
 
     // ト音記号（うずまきの まんなかが ソの線）
-    clef() {
+    trebleClef() {
         const g = this.TOP + 3 * this.GAP; // ソの線
         return `<g class="staff-clef" transform="translate(0, ${g - 160})">
             <path d="M 52,160 C 40,158 38,144 50,139 C 64,134 78,146 75,162 C 72,182 46,190 33,176
@@ -150,7 +176,10 @@ const TamaStaff = {
                 + (counts ? this.counts(rhythm, first, this.STEP_X) : '')
             : notes.map((midi, i) => this.note(midi, this.LEFT + i * this.STEP_X, i, stateOf(i), { focusLedger, tags })).join('');
         const chord = chordName ? `<text class="staff-chord" x="${first - 6}" y="52">${chordName}</text>` : '';
-        return `<svg class="staff${dango ? ' dango' : ''}" viewBox="0 0 ${width} 260" role="img" aria-label="ト音記号の 五線の 音符">
+        const label = this.kind === 'bass' ? 'ヘ音記号の 五線の 音符' : 'ト音記号の 五線の 音符';
+        // 下の 加線が おおい 音（チューバの ひくいひくいファ など）は、絵を 下へ のばす
+        const height = Math.max(260, ...notes.map(m => this.y(m) + 32));
+        return `<svg class="staff${dango ? ' dango' : ''}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${label}">
             <g class="staff-lines">${lines}</g>
             ${this.clef()}
             ${chord}

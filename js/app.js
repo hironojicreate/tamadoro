@@ -101,6 +101,9 @@ function openRecords(tab) {
 
 function route() {
     const [id, sub] = location.hash.replace(/^#\/?/, '').split('/');
+    // ヘおんよみ で かえた 五線・名前を もとに もどす（レッスンを はじめる ときに また きめる。js/engines/keys.js）
+    TamaStaff.kind = 'treble';
+    TamaNotes.home = 4;
     // おんがくの画面は、ためしているあいだ「/music on」のときだけ開ける
     const music = id === 'music' || id === 'piano' || (MODES[id] && MODES[id].music);
     if (music && !TamaMusic.enabled()) {
