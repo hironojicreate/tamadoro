@@ -1055,10 +1055,9 @@ html[data-mode="rhythm"] .reward-coin {
     text-shadow: 0 0 3px #fff, 0 0 3px #fff;
 }
 
-/* ♯・♭ の ガイド：もとの音を 光らせて 矢印 */
+/* ♯・♭ の ガイド：もとの音は ふちどりだけ（ぬりつぶすと「ここを おす」に 見えるので）。矢印は おす けんばんの ほうへ */
 .tk-white-key.tk-guide {
-    background: linear-gradient(180deg, #fff9c4 0%, #ffe082 100%);
-    box-shadow: inset 0 0 0 3px #ffb300, 0 3px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: inset 0 0 0 4px #ffb300, 0 3px 4px rgba(0, 0, 0, 0.15);
 }
 
 .tk-arrow {
@@ -1071,7 +1070,28 @@ html[data-mode="rhythm"] .reward-coin {
     color: #e67e22;
     text-shadow: 0 0 4px #fff, 0 0 4px #fff;
     pointer-events: none;
+    --tk-arrow-x: 4px;
+    --tk-arrow-y: 0px;
     animation: tk-arrow 0.9s ease-in-out infinite alternate;
+}
+
+.tk-arrow.left {
+    --tk-arrow-x: -4px;
+}
+
+/* 黒いけんばんへ：黒いけんばんの すぐ下から、ななめ上を さす */
+.tk-arrow.up {
+    top: 62%;
+    font-size: clamp(28px, 4.6vw, 50px);
+    --tk-arrow-y: -4px;
+}
+
+.tk-arrow.up.right {
+    right: 2%;
+}
+
+.tk-arrow.up.left {
+    left: 2%;
 }
 
 /* 「ここを おしてね」：ポワンポワン 光る わっか（おんぷよみ しくみの さいしょの ド） */
@@ -1098,8 +1118,8 @@ html[data-mode="rhythm"] .reward-coin {
 }
 
 @keyframes tk-arrow {
-    from { transform: translateX(-4px); }
-    to { transform: translateX(4px); }
+    from { transform: translate(calc(var(--tk-arrow-x) * -1), calc(var(--tk-arrow-y) * -1)); }
+    to { transform: translate(var(--tk-arrow-x), var(--tk-arrow-y)); }
 }
 
 /* まほうで 名前が きえる */
