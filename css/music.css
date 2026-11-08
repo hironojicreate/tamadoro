@@ -247,6 +247,7 @@ html[data-mode="music"] body {
 html[data-mode="keys"] #openingScreen .title-keys,
 html[data-mode="black"] #openingScreen .title-black,
 html[data-mode="notes"] #openingScreen .title-notes,
+html[data-mode="notesBass"] #openingScreen .title-notesBass,
 html[data-mode="bassTb"] #openingScreen .title-bassTb,
 html[data-mode="bassTuba"] #openingScreen .title-bassTuba,
 html[data-mode="rhythm"] #openingScreen .title-rhythm {
@@ -273,7 +274,8 @@ html[data-mode="rhythm"] .select-level-buttons button {
     color: #7b241c;
 }
 
-html[data-mode="notes"] .select-level-buttons button {
+html[data-mode="notes"] .select-level-buttons button,
+html[data-mode="notesBass"] .select-level-buttons button {
     background-color: #dff3ff;
     border-color: #1e3799;
     color: #0b3c5d;
@@ -938,6 +940,8 @@ html[data-mode="black"] #completionModal,
 html[data-mode="black"] #mistakeModal,
 html[data-mode="notes"] #completionModal,
 html[data-mode="notes"] #mistakeModal,
+html[data-mode="notesBass"] #completionModal,
+html[data-mode="notesBass"] #mistakeModal,
 html[data-mode="bassTb"] #completionModal,
 html[data-mode="bassTb"] #mistakeModal,
 html[data-mode="bassTuba"] #completionModal,
@@ -954,6 +958,7 @@ html[data-mode="rhythm"] #mistakeModal {
 html[data-mode="keys"] .reward-coin,
 html[data-mode="black"] .reward-coin,
 html[data-mode="notes"] .reward-coin,
+html[data-mode="notesBass"] .reward-coin,
 html[data-mode="bassTb"] .reward-coin,
 html[data-mode="bassTuba"] .reward-coin,
 html[data-mode="rhythm"] .reward-coin {

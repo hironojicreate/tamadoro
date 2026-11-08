@@ -36,10 +36,14 @@ const KEYS_TOUR_RUNS = {
     down: [[71, 69, 67, 65, 64], [67, 65, 64, 62, 60], [72, 71, 69, 67, 65], [69, 67, 65, 64, 62]],
 };
 
-function keysTourDeck() {
-    const up = KEYS_SCALE_UP;
+// def.tourShift：音を ずらす（おんぷよみ ヘおん は -12。ヘ音記号の だい2かんの ド から たかいド まで）
+//   def.tourStart：さいしょの ドの せつめい（ないときは ト音記号の「みじかい せん」）
+function keysTourDeck(def = {}) {
+    const shift = def.tourShift || 0;
+    const move = list => list.map(m => m + shift);
+    const up = move(KEYS_SCALE_UP);
     const down = [...up].reverse();
-    const pick = list => list[Math.floor(Math.random() * list.length)];
+    const pick = list => move(list[Math.floor(Math.random() * list.length)]);
     const run = (notes, say, more = {}) => ({
         notes,
         say,
@@ -49,8 +53,10 @@ function keysTourDeck() {
     });
     return [
         { type: 'lines', notes: [], key: 'せんは5ほん', chord: 'C', pause: 1800 },
-        run([60], 'ドは、五線の 下に みじかい せんを 1本 たした ところ。ここから スタート！ ひかっている けんばんを おしてね',
-            { tags: true, focusLedger: true, beckon: true, pause: 1300 }),
+        def.tourStart
+            ? run([60 + shift], def.tourStart, { tags: true, beckon: true, pause: 1300 })
+            : run([60], 'ドは、五線の 下に みじかい せんを 1本 たした ところ。ここから スタート！ ひかっている けんばんを おしてね',
+                { tags: true, focusLedger: true, beckon: true, pause: 1300 }),
         run(up, 'のぼるよ！ せん → あいだ → せん → あいだ … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
         run(down, 'くだるよ！ あいだ → せん → あいだ → せん … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
         run(up, 'ド・レ・ミ・ファ・ソ・ラ・シ・ド！ つづけて 読もう'),
@@ -422,7 +428,7 @@ function keysPhraseBars(deck) {
 
 function keysBuildDeck(def) {
     if (def.style === 'free') return [];
-    if (def.style === 'tour') return def.tour === 'bass' ? keysBassTourDeck() : keysTourDeck();
+    if (def.style === 'tour') return def.tour === 'bass' ? keysBassTourDeck() : keysTourDeck(def);
     if (def.style === 'bassline') return keysBassLineDeck(def);
     if (def.style === 'song') return keysSongDeck();
     if (def.style === 'dango') return keysDangoDeck(def);
@@ -538,9 +544,10 @@ function keysStartLevel(level) {
     const voice = keysVoice('melody');
     keysLesson.keyboard.sound = def.sing ? keysSingingSound : midi => TamaSound.note(midi, { voice });
     if (def.sing) {
-        // うたう 声を さきに つくっておく（まんなかの ドの ちかくから）
+        // うたう 声を さきに つくっておく（あかるい けんばんの まんなかの ちかくから。ヘ音記号は ひくい 声）
         const whites = TamaNotes.whiteKeys(def.active[0], def.active[1]);
-        TamaSing.prepare(whites.sort((a, b) => Math.abs(a - 66) - Math.abs(b - 66)), 'doremi');
+        const middle = (def.active[0] + def.active[1]) / 2;
+        TamaSing.prepare(whites.sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle)), 'doremi');
     }
     keysRenderKeyboard(keysLevelView(def));
 

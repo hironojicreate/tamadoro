@@ -72,12 +72,12 @@ const TamaStaff = {
     bassClef() {
         const f = this.TOP + this.GAP; // ファの線
         return `<g class="staff-clef bass">
-            <path d="M 34,${f} C 32,${f - 18} 48,${f - 24} 62,${f - 22} C 84,${f - 18} 90,${f + 4} 82,${f + 24}
-                     C 74,${f + 44} 54,${f + 60} 30,${f + 70}"
+            <path d="M 28,${f} C 26,${f - 18} 40,${f - 24} 52,${f - 22} C 70,${f - 18} 76,${f + 4} 69,${f + 24}
+                     C 62,${f + 44} 44,${f + 60} 22,${f + 70}"
                   fill="none" stroke="#2d3436" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="36" cy="${f}" r="8.5" fill="#2d3436"/>
-            <circle cx="98" cy="${f - this.GAP / 2}" r="4.5" fill="#2d3436"/>
-            <circle cx="98" cy="${f + this.GAP / 2}" r="4.5" fill="#2d3436"/>
+            <circle cx="30" cy="${f}" r="8.5" fill="#2d3436"/>
+            <circle cx="86" cy="${f - this.GAP / 2}" r="4.5" fill="#2d3436"/>
+            <circle cx="86" cy="${f + this.GAP / 2}" r="4.5" fill="#2d3436"/>
         </g>`;
     },
 
