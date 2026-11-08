@@ -11,7 +11,8 @@
 //     きょくふう メロディ（style: 'song'。js/songs.js）：曲調と リズム（4/4拍子）を えらんで、8フレーズ（8小節）を 1つずつ れんしゅう →
 //       （きゅうふは おさなくて いい。その 拍に なると すこし 光って みどりに）→
 //       ぜんぶの がくふで さいごまで ひきとおす（ばんそうが ついてくる。じぶんの ペースで。まちがえても とまらない）→
-//       「じぶんの えんそうを きく」で 4/4拍子の マス目に そろえて 伴奏つきで きける（とちゅうで 止められる）
+//       ひきおわると すぐ じぶんの えんそうが 4/4拍子の マス目に そろえて 伴奏つきで ながれる →
+//       「べつの きょく」「えんそうを おわる」で 拍手 → ごほうびの ドロップ（クリアの 画面は 出さない）
 //     おだんご（style: 'dango'）：和音の 3つの 音を 1本の くしに さした おだんご。下から じゅんばんに おす。
 //       さいしょは 名前つきの お手本（おす けんばんに ポワンポワンの わっか）。あとは 1おんの 問題と まぜる。
 //       正解の 和音は、1おんの 問題も その音の おだんごの 和音（Lv1 は C、Lv2 は Dm だけ）
@@ -226,6 +227,7 @@ const keysLesson = {
     run: null,      // いま遊んでいるレベルの状態（やめたら null）
     timers: [],
     playback: null, // じぶんの えんそうを きいている あいだ：{ bus, timers }
+    cheer: null,    // 拍手の 音の みち（マスタークラスの おわり）
 
     later(fn, ms) {
         const run = this.run;
@@ -542,6 +544,10 @@ function keysRetryLevel() {
 // やめるとき（はじめにもどる・ほかの画面へ）
 function keysStopLevel() {
     keysStopPlayback();
+    if (keysLesson.cheer) {
+        keysLesson.cheer.disconnect(); // 拍手の とちゅうで やめたら 拍手も けす
+        keysLesson.cheer = null;
+    }
     keysAccomp.halt();
     keysLesson.stopTimers();
     keysLesson.run = null;
@@ -868,9 +874,10 @@ function keysOnPerform(midi) {
     keysPerformDone();
 }
 
-// ひきおわった：えんそうの とくちょうを ほめて、「じぶんの えんそうを きく」「ドロップを もらう」。
-//   すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロで しめくくる）。
-//   「この きょくを もういちど」で 同じ 曲を イントロから ひきなおせる
+// ひきおわった：えんそうの とくちょうを ほめて、すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロで しめくくる）。
+//   ボタンは「この きょくを もういちど」（同じ 曲を イントロから ひきなおす）・「べつの きょく」・「えんそうを おわる」。
+//   「べつの きょく」「えんそうを おわる」は、拍手の あと ごほうびの ドロップ（クリアの 画面は 出さない）→
+//   べつの きょくで マスタークラスを はじめから／レベルを えらぶ 画面へ
 const KEYS_AUTO_PLAYBACK = 0.6; // ひきおわって から ながれる までの びょう
 
 function keysPerformDone() {
@@ -883,17 +890,39 @@ function keysPerformDone() {
     const answers = document.getElementById('keysAnswers');
     answers.innerHTML = `
         <button type="button" class="keys-perform-button again">この きょくを もういちど</button>
-        <button type="button" class="keys-perform-button listen">じぶんの えんそうを きく</button>
-        <button type="button" class="keys-perform-button finish">ドロップを もらう</button>`;
+        <button type="button" class="keys-perform-button another">べつの きょく</button>
+        <button type="button" class="keys-perform-button finish">えんそうを おわる</button>`;
     answers.querySelector('.again').addEventListener('click', keysPerformAgain);
-    answers.querySelector('.listen').addEventListener('click', keysPlayback);
-    answers.querySelector('.finish').addEventListener('click', () => {
-        keysStopPlayback();
-        answers.innerHTML = '';
-        keysFinish();
-    });
+    answers.querySelector('.another').addEventListener('click', () => keysPerformFinish('another'));
+    answers.querySelector('.finish').addEventListener('click', () => keysPerformFinish('menu'));
     const round = run.round;
     keysLesson.later(() => { if (run.round === round && !keysLesson.playback) keysPlayback(); }, KEYS_AUTO_PLAYBACK * 1000);
+}
+
+// 「べつの きょく」（next: 'another'）・「えんそうを おわる」（next: 'menu'）：
+//   きくのを とめて 拍手 → ごほうびの ドロップが とんでくる → つぎへ
+const KEYS_DROP_LANDING = 1400; // ドロップが 右上に おさまる までの ミリびょう（js/drops.js の createRewardCoin）
+
+function keysPerformFinish(next) {
+    const run = keysLesson.run;
+    keysStopPlayback();
+    document.getElementById('keysAnswers').innerHTML = ''; // 2かい おせないように
+    run.round = (run.round || 0) + 1;                       // まだ ながれていない「じぶんの えんそう」も ながさない
+    keysShowMessage('パチパチパチ…！ すてきな えんそうだったね！');
+    const bus = TamaSound.bus();
+    keysLesson.cheer = bus;
+    const seconds = TamaSound.applause({ bus });
+    keysLesson.later(() => {
+        keysRecordClear(); // ドロップを もらう（クリアの 画面は 出さない）
+        keysLesson.later(() => {
+            if (next === 'another') {
+                clearCoinsOnDOM();
+                keysStartLevel(problemState.level); // あたらしい 曲で はじめから
+            } else {
+                returnMenu(); // レベルを えらぶ 画面へ
+            }
+        }, KEYS_DROP_LANDING);
+    }, seconds * 1000);
 }
 
 // この きょくを もういちど：同じ 曲で イントロ（カウント）から ひきなおす
@@ -1065,20 +1094,18 @@ function keysPerformIntro() {
 //   メロディは 4/4拍子の マス目を もとに、ひいた ときの ずれを ゆれ（ルバート）に、つっかえを ため（フェルマータ）に、
 //   まちがえた 音を かざりの 音に（TamaSongs.expressive）。ミスでは なく えんそうの 味として
 //   伴奏：1拍めに 和音と ひくい 音（ベース）、3拍めに 小さく 和音と ベース。ためでは 伴奏が そっと 分散和音で まつ。
-//   音符・きゅうふは その 拍で 光る。きいている あいだ ボタンは「とめる」。ほかの ボタン・ほかの 画面で 止まる
+//   音符・きゅうふは その 拍で 光る。ボタン（もういちど・べつの きょく・えんそうを おわる）や ほかの 画面で 止まる
 const PLAYBACK_START = 0.3; // 何秒 あとから
 
 function keysPlayback() {
     const run = keysLesson.run;
     if (!run || !run.song) return;
     if (keysLesson.playback) {
-        keysStopPlayback(); // 「とめる」
+        keysStopPlayback(); // ながれている ときは とめる
         return;
     }
     const playback = { bus: TamaSound.bus(), timers: [] };
     keysLesson.playback = playback;
-    const button = document.querySelector('#keysAnswers .listen');
-    if (button) button.textContent = 'とめる';
     const later = (fn, seconds) => playback.timers.push(setTimeout(() => {
         if (keysLesson.playback === playback) fn();
     }, seconds * 1000));
@@ -1139,8 +1166,6 @@ function keysStopPlayback() {
     keysLesson.playback = null;
     playback.timers.forEach(clearTimeout);
     if (playback.bus) playback.bus.disconnect();
-    const button = document.querySelector('#keysAnswers .listen');
-    if (button) button.textContent = 'じぶんの えんそうを きく';
 }
 
 // くろいけんばんの問題で 正解したら、その けんばんの 名前を ぜんぶ見せる（ド♯ で こたえても「ド♯／レ♭」）
@@ -1281,11 +1306,8 @@ function keysPileCoin(special) {
 // ---------- クリア・ミス ----------
 
 function keysFinish() {
-    const run = keysLesson.run;
-    run.finished = true;
-    run.accepting = false;
     const level = problemState.level;
-    const clearTime = stopTimer();
+    const clearTime = keysRecordClear();
 
     document.getElementById('keysRemaining').textContent = `のこり0${currentMode.texts.unit}！おわったよ！！`;
     document.getElementById('modalTitle').textContent = currentMode.texts.clearTitle(level);
@@ -1293,12 +1315,22 @@ function keysFinish() {
     const weakResult = document.getElementById('weakClearResult');
     if (weakResult) weakResult.style.display = 'none';
 
-    saveBestTime(level, endTime - startTime);
     const bestTime = getBestTime(level);
     document.getElementById('bestTime').textContent =
         `${currentMode.texts.best} ${bestTime !== null ? formatTime(bestTime) : '--:--'}`;
 
     document.getElementById('completionModal').style.display = 'flex';
+}
+
+// クリアの きろく：タイム・ごほうびの ドロップ・プレイの きろく。かえすのは クリアタイム（「分:秒」）
+//   マスタークラスは クリアの 画面を 出さずに これだけ（keysPerformFinish）
+function keysRecordClear() {
+    const run = keysLesson.run;
+    run.finished = true;
+    run.accepting = false;
+    const level = problemState.level;
+    const clearTime = stopTimer();
+    saveBestTime(level, endTime - startTime);
     // おとあそび・しくみは、いつも そのレベルの色のドロップ（金は、まちがえずに こたえたとき）
     const drop = createRewardCoin(level, !['free', 'tour'].includes(run.def.style));
 
@@ -1313,6 +1345,7 @@ function keysFinish() {
         paused: run.paused,
         weakChallenge: false,
     });
+    return clearTime;
 }
 
 function keysShowMistakeModal() {

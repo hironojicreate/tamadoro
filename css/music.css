@@ -688,7 +688,7 @@ html[data-mode="black"] .select-level-buttons button {
     flex: none;
 }
 
-/* ひきおわったあとの ボタン（じぶんの えんそうを きく・ドロップを もらう） */
+/* ひきおわったあとの ボタン（この きょくを もういちど・べつの きょく・えんそうを おわる） */
 .keys-perform-button {
     padding: 8px 18px;
     font-family: 'M PLUS Rounded 1c', sans-serif;
