@@ -688,8 +688,16 @@ function keysOnLine(number) {
     keysSolved();
 }
 
-function keysShowMessage(text) {
-    document.getElementById('keysMessage').textContent = text;
+// sub：2だんめに 小さく（えんそうの とくちょう など）
+function keysShowMessage(text, sub = '') {
+    const message = document.getElementById('keysMessage');
+    message.textContent = text;
+    if (sub) {
+        const line = document.createElement('span');
+        line.className = 'keys-message-sub';
+        line.textContent = sub;
+        message.appendChild(line);
+    }
 }
 
 function keysShowFree() {
@@ -830,7 +838,8 @@ function keysOnPerform(midi) {
 }
 
 // ひきおわった：えんそうの とくちょうを ほめて、「じぶんの えんそうを きく」「ドロップを もらう」。
-//   すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロで しめくくる）
+//   すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロで しめくくる）。
+//   「この きょくを もういちど」で 同じ 曲を イントロから ひきなおせる
 const KEYS_AUTO_PLAYBACK = 0.6; // ひきおわって から ながれる までの びょう
 
 function keysPerformDone() {
@@ -839,18 +848,33 @@ function keysPerformDone() {
     const style = run.song.style;
     keysAccomp.stop();
     const { traits } = TamaSongs.expressive(run.song.phrases, run.take, keysBeat());
-    keysShowMessage(`えんそう おわり！ ${style.name}（${style.sub}）を ひけたよ！ ${TamaSongs.traitWords(traits).join('・')} ♪`);
+    keysShowMessage(`えんそう おわり！ ${style.name}（${style.sub}）を ひけたよ！`, `${TamaSongs.traitWords(traits).join('・')} ♪`);
     const answers = document.getElementById('keysAnswers');
     answers.innerHTML = `
+        <button type="button" class="keys-perform-button again">この きょくを もういちど</button>
         <button type="button" class="keys-perform-button listen">じぶんの えんそうを きく</button>
         <button type="button" class="keys-perform-button finish">ドロップを もらう</button>`;
+    answers.querySelector('.again').addEventListener('click', keysPerformAgain);
     answers.querySelector('.listen').addEventListener('click', keysPlayback);
     answers.querySelector('.finish').addEventListener('click', () => {
         keysStopPlayback();
         answers.innerHTML = '';
         keysFinish();
     });
-    keysLesson.later(() => { if (!keysLesson.playback) keysPlayback(); }, KEYS_AUTO_PLAYBACK * 1000);
+    const round = run.round;
+    keysLesson.later(() => { if (run.round === round && !keysLesson.playback) keysPlayback(); }, KEYS_AUTO_PLAYBACK * 1000);
+}
+
+// この きょくを もういちど：同じ 曲で イントロ（カウント）から ひきなおす
+function keysPerformAgain() {
+    const run = keysLesson.run;
+    keysStopPlayback();
+    document.getElementById('keysAnswers').innerHTML = '';
+    run.pos = 0;
+    keysShowCards(); // がくふを はじめの ようすに
+    const first = document.querySelector('#keysCards .score-row');
+    if (first && first.scrollIntoView) first.scrollIntoView({ block: 'nearest' });
+    keysPerformIntro();
 }
 
 // ---------- とおし えんそうの 伴奏（つづく 伴奏・イントロ・アウトロ） ----------
@@ -990,6 +1014,7 @@ function keysPerformIntro() {
     const beat = keysBeat();
     const at = 0.3;
     run.accepting = false;
+    run.round = (run.round || 0) + 1; // なんかいめの とおし えんそうか（まえの 回の よやくを うごかさない）
     run.take = [];       // ひいた きろく（音ごとの 時刻と、その まえに まちがえた 音）
     run.takeWrongs = [];
     keysAccomp.halt();

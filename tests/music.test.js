@@ -652,6 +652,19 @@ async function answerAll(page) {
       return { all: keys.length, left: first, right: keys.length - 1 - keys.indexOf(bright[bright.length - 1]), from: keys[0].dataset.midi };
     });
     ok(kb.left > kb.right && kb.left >= 6 && kb.from === '59', `Lv6 は あかるい けんばんが 右がわ（左に くらい けんばん ${kb.left}こ、右に ${kb.right}こ）`);
+    // けんばんは 画面の 下。はじめにもどる は まん丸（けんばんに かさなる）で、マウスを のせると のびる
+    const layout = await page.evaluate(() => {
+      const kb = document.getElementById('keysKeyboard').getBoundingClientRect();
+      const back = document.querySelector('#keysScreen .round-return');
+      const r = back.getBoundingClientRect();
+      return { kbBottom: innerHeight - kb.bottom, kbHeight: kb.height, w: r.width, h: r.height, label: back.getAttribute('aria-label'), over: r.top < kb.bottom && r.bottom > kb.top,
+        z: Number(getComputedStyle(back).zIndex) > Number(getComputedStyle(document.getElementById('keysKeyboard')).zIndex) };
+    });
+    await page.hover('#keysScreen .round-return'); await page.waitForTimeout(500);
+    const wide = await page.evaluate(() => document.querySelector('#keysScreen .round-return').getBoundingClientRect().width);
+    await page.mouse.move(640, 10); await page.waitForTimeout(400);
+    ok(layout.kbBottom <= 10 && layout.kbHeight <= 270 && Math.abs(layout.w - layout.h) < 2 && layout.label === 'はじめにもどる' && layout.over && layout.z && wide > layout.w * 2,
+      `けんばんは 画面の 下・はじめにもどる は まん丸で 上に かさなり、マウスで のびる ${JSON.stringify({ ...layout, wide })}`);
     await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
     await page.click('#level6'); await page.waitForTimeout(300);
     ok(!(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'もう一度 ひらくと スイッチは OFF から');
@@ -1065,8 +1078,9 @@ async function answerAll(page) {
     const ready = await page.evaluate(() => ({ msg: document.getElementById('keysMessage').textContent, chord: keysAccomp.chord, plays: window.plays.join() }));
     ok(ready.msg.includes('さあ どうぞ') && ready.chord === 'Am' && ready.plays === 'Am', `イントロの あと「さあ どうぞ！」。はじめの 和音が 鳴りつづけて まって いる ${JSON.stringify(ready)}`);
     // まちがえても とまらない（すすまないだけ）
-    const wrong = await page.evaluate(() => { const m = keysLesson.run.problem.notes[0]; return m === 60 ? 62 : 60; });
-    for (let i = 0; i < 6; i++) { await pressKey(page, i % 2 ? wrong : wrong + 2); await page.waitForTimeout(30); }
+    // まちがいは 正しい 音の 半音上・全音上（オクターブ ちがいの 同じ 音に ならないように。かざりの 音が 2つ）
+    const wrong = await page.evaluate(() => keysLesson.run.problem.notes[0] + 1);
+    for (let i = 0; i < 6; i++) { await pressKey(page, i % 2 ? wrong : wrong + 1); await page.waitForTimeout(30); }
     ok(await page.$eval('#mistakeModal', e => e.style.display) !== 'flex' && await page.evaluate(() => keysLesson.run.pos) === 0, 'とおし えんそうは まちがえても とまらない');
     const total = await page.evaluate(() => keysLesson.run.problem.notes.length);
     // 2小節め まで ひいて、しばらく ひかないと 伴奏は きえる（テストでは 0.3びょう）
@@ -1090,7 +1104,10 @@ async function answerAll(page) {
       `フレーズの はじめで その 和音へ。ひいた きろく（まちがえた 音は さいごの 2つ）${JSON.stringify(done)}`);
     ok(done.msg.includes('えんそう おわり') && /ゆったり|ちょうどいい|いきいき/.test(done.msg) && /ぴったり|ロマンチック/.test(done.msg) && done.msg.includes('かざりの 音'),
       `えんそうの とくちょうを ほめる（ミスでは なく 味）${done.msg}`);
-    ok(await page.isVisible('#keysAnswers .listen') && await page.isVisible('#keysAnswers .finish'), 'ひきおわったら「じぶんの えんそうを きく」「ドロップを もらう」');
+    ok(await page.isVisible('#keysAnswers .again') && await page.isVisible('#keysAnswers .listen') && await page.isVisible('#keysAnswers .finish'),
+      'ひきおわったら「この きょくを もういちど」「じぶんの えんそうを きく」「ドロップを もらう」');
+    ok(await page.evaluate(() => { const sub = document.querySelector('#keysMessage .keys-message-sub'); return !!sub && /ゆれ|ぴったり/.test(sub.textContent) && !document.getElementById('keysMessage').firstChild.textContent.includes('ゆれ'); }),
+      'えんそうの とくちょうは 2だんめに');
     // すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロ F → C）
     await page.waitForFunction(() => keysLesson.playback !== null, null, { timeout: 3000 });
     ok(await page.textContent('#keysAnswers .listen') === 'とめる' && (await page.evaluate(() => window.chords.slice(-2).join())) === 'F,C',
@@ -1115,7 +1132,7 @@ async function answerAll(page) {
     });
     await page.click('#keysAnswers .listen'); await page.waitForTimeout(150);
     ok(notesPlayed === total && await page.evaluate(() => window.played) === total && await page.evaluate(() => window.graces) === 2 && await page.textContent('#keysAnswers .listen') === 'とめる',
-      `じぶんの えんそうを きく（${total}おん ＋ かざりの 音 2こ）`);
+      `じぶんの えんそうを きく（${total}おん ＋ かざりの 音 2こ）${JSON.stringify(await page.evaluate(() => ({ played: window.played, graces: window.graces, text: document.querySelector('#keysAnswers .listen').textContent })))}`);
     await page.click('#keysAnswers .listen'); await page.waitForTimeout(100);
     // ずれの ない きろくなら 4/4 の マス目 どおり（イントロなし）→ アウトロ
     const grid = await page.evaluate(() => {
@@ -1144,7 +1161,19 @@ async function answerAll(page) {
       };
     });
     ok(grid.melody && grid.down && grid.noIntro && grid.outro && grid.tempo === 112, `ずれの ない えんそうは 4/4 の マス目 どおり（イントロなし）→ アウトロ ${JSON.stringify(grid)}`);
+    // この きょくを もういちど：きくのを とめて、がくふを はじめに もどし、イントロ（カウント）から ひきなおす
+    await page.click('#keysAnswers .listen'); await page.waitForTimeout(100); // きいている とちゅうでも
+    await page.click('#keysAnswers .again'); await page.waitForTimeout(200);
+    const retry = await page.evaluate(() => ({ playback: keysLesson.playback, buttons: document.querySelectorAll('#keysAnswers button').length, pos: keysLesson.run.pos, acc: keysLesson.run.accepting,
+      done: document.querySelectorAll('#keysCards .staff-note.done').length, msg: document.getElementById('keysMessage').textContent, take: keysLesson.run.take.length }));
+    ok(retry.playback === null && retry.buttons === 0 && retry.pos === 0 && !retry.acc && retry.done === 0 && retry.msg.includes('イントロ') && retry.take === 0,
+      `この きょくを もういちど：イントロから ひきなおす ${JSON.stringify(retry)}`);
+    await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 15000 });
+    for (let i = 0; i < total; i++) { await pressKey(page, await expected(page)); await page.waitForTimeout(20); }
+    await page.waitForSelector('#keysAnswers .finish', { timeout: 5000 });
+    ok(await page.evaluate(() => keysLesson.run.take.length) === total, 'もういちど ひいた きろくで きく');
     // 「ドロップを もらう」でも 止まる
+    await page.waitForFunction(() => keysLesson.playback !== null, null, { timeout: 3000 });
     await page.click('#keysAnswers .finish'); await page.waitForTimeout(400);
     ok(await page.evaluate(() => keysLesson.playback === null), '「ドロップを もらう」で、きくのが 止まる');
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'マスタークラス、クリア！', 'マスタークラス クリア');

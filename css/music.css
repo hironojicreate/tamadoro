@@ -300,7 +300,7 @@ html[data-mode="black"] .select-level-buttons button {
     top: 6vh;
     left: 0;
     right: 0;
-    bottom: calc(var(--keys-height) + 64px);
+    bottom: calc(var(--keys-height) + 12px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -310,7 +310,7 @@ html[data-mode="black"] .select-level-buttons button {
 }
 
 #keysScreen {
-    --keys-height: clamp(130px, 40vh, 320px);
+    --keys-height: clamp(120px, 33vh, 270px); /* けんばんは 画面の 下に ひくめに（まんなかを ひろく） */
 }
 
 .keys-cards {
@@ -376,6 +376,17 @@ html[data-mode="black"] .select-level-buttons button {
     font-size: clamp(16px, 2.6vh, 24px);
     color: #6c5ce7;
     text-align: center;
+}
+
+/* メッセージ・ヒント・こたえの ボタンは ちぢめない（場所が たりない ときは カードの ほうが ちぢむ。文字が かさならないように） */
+#keysScreen .keys-message,
+#keysScreen .keys-hint,
+#keysScreen .keys-answers {
+    flex-shrink: 0;
+}
+
+#keysScreen .keys-cards {
+    min-height: 0;
 }
 
 .keys-hint {
@@ -624,6 +635,18 @@ html[data-mode="black"] .select-level-buttons button {
     background: linear-gradient(135deg, #ff9ff3, #f368e0);
 }
 
+.keys-perform-button.again {
+    background: linear-gradient(135deg, #74b9ff, #0984e3);
+}
+
+/* メッセージの 2だんめ（えんそうの とくちょう など） */
+.keys-message-sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.82em;
+    color: #e17055;
+}
+
 .keys-perform-button:disabled {
     opacity: 0.55;
     cursor: default;
@@ -790,12 +813,12 @@ html[data-mode="black"] .select-level-buttons button {
     animation: keys-card-pop 0.4s ease;
 }
 
-/* けんばんの場所（下に「はじめにもどる」のぶん あける） */
+/* けんばんの場所（画面の いちばん下。「はじめにもどる」は まん丸の ボタンで けんばんの 上に かさなる） */
 #keysScreen .keys-keyboard {
     position: absolute;
     z-index: 2; /* 投げたドロップ（.coin、z-index 1）は けんばんの うしろに おちる（けんばんを ふさがない） */
     left: 50%;
-    bottom: 56px;
+    bottom: 4px;
     transform: translateX(-50%);
     width: min(96vw, 1100px);
     height: var(--keys-height);
@@ -1042,8 +1065,51 @@ html[data-mode="rhythm"] .reward-coin {
 /* スマホのたて画面：けんばんを すこし ひくく */
 @media (max-width: 600px) {
     #keysScreen {
-        --keys-height: clamp(120px, 30vh, 220px);
+        --keys-height: clamp(110px, 26vh, 200px);
     }
+}
+
+/* はじめにもどる（まん丸。くるりん やじるし）：けんばんの 左下に かさなる（左下は たいてい くらい けんばん）。
+   マウスを のせると 横に のびて「はじめにもどる」が 出る */
+#keysScreen .round-return {
+    z-index: 3;
+    left: 8px;
+    bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    padding: 0 9px;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+    transition: max-width 0.3s ease, gap 0.3s ease, transform 0.2s, box-shadow 0.3s;
+}
+
+#keysScreen .round-return-icon {
+    flex: none;
+    width: 24px;
+    height: 24px;
+}
+
+#keysScreen .round-return-label {
+    opacity: 0;
+    font-size: 18px;
+    transition: opacity 0.2s ease;
+}
+
+#keysScreen .round-return:hover {
+    max-width: 260px;
+    gap: 6px;
+    transform: none;
+}
+
+#keysScreen .round-return:hover .round-return-label {
+    opacity: 1;
 }
 
 

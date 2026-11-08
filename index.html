@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.69</span>
+                <span id="version">Ver.6.3.70</span>
             </p>
         </footer>
     </div>
@@ -1420,7 +1420,13 @@
         </svg>
         <div id="keysRemaining" class="remaining-problems"></div>
 
-        <button class="returnButton" onclick="returnMenu()">はじめにもどる</button>
+        <!-- はじめにもどる：まん丸の ボタンに くるりん やじるし（けんばんの じゃまを しない）。マウスを のせると 横に のびて 名前が 出る -->
+        <button class="returnButton round-return" onclick="returnMenu()" aria-label="はじめにもどる" title="はじめにもどる">
+            <svg class="round-return-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M 6.5 8.5 A 7 7 0 1 1 5 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M 2.6 4.6 L 6.8 8.9 L 1.9 9.9 Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+            </svg><span class="round-return-label">はじめにもどる</span>
+        </button>
 
         <h1 class="page-title"></h1>
         <!-- けんばんの よみかた：名前なしの レベル（labelSwitch）で、けんばんに 名前を 出す スイッチ（js/engines/keys.js） -->
