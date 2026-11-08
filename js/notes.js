@@ -42,13 +42,20 @@ const TamaNotes = {
         return [`${this.NAMES[this.stepOf(midi - 1)]}♯`, `${this.NAMES[this.stepOf(midi + 1)]}♭`];
     },
 
-    // レッスンで使う名前：まんなかのドの段はそのまま、1つ上の段のドは「たかいド」
-    //   （もっと上・下の段は、いまのレッスンでは こたえに 出さない）
+    // レッスンで使う名前：home の 段は そのまま、1つ上の段は「たかい」、1つ下は「ひくい」、2つ下は「ひくいひくい」
+    //   home：「ただの ド」の 段（オクターブの ばんごう）。ふだんは 4（まんなかの ド）。
+    //   ヘおんよみ は 3（ヘ音記号の 五線の まんなかの ド。ド4 は「たかいド」、ファ1 は「ひくいひくいファ」）。
+    //   レッスンを はじめる ときに きめる（js/engines/keys.js）。ほかの 画面へ いくと 4 に もどる（js/app.js）
+    //   （それより 上・下の 段は、いまの レッスンでは こたえに 出さない）
+    home: 4,
+
     lessonName(midi) {
         const names = this.namesOf(midi);
         const name = names.join('／');
-        if (midi >= 72 && midi < 84) return `たかい${name}`;
-        if (midi >= 48 && midi < 60) return `ひくい${name}`;
+        const shift = Math.floor(midi / 12) - 1 - this.home;
+        if (shift === 1) return `たかい${name}`;
+        if (shift === -1) return `ひくい${name}`;
+        if (shift === -2) return `ひくいひくい${name}`;
         return name;
     },
 

@@ -247,6 +247,8 @@ html[data-mode="music"] body {
 html[data-mode="keys"] #openingScreen .title-keys,
 html[data-mode="black"] #openingScreen .title-black,
 html[data-mode="notes"] #openingScreen .title-notes,
+html[data-mode="bassTb"] #openingScreen .title-bassTb,
+html[data-mode="bassTuba"] #openingScreen .title-bassTuba,
 html[data-mode="rhythm"] #openingScreen .title-rhythm {
     display: inline;
 }
@@ -275,6 +277,18 @@ html[data-mode="notes"] .select-level-buttons button {
     background-color: #dff3ff;
     border-color: #1e3799;
     color: #0b3c5d;
+}
+
+html[data-mode="bassTb"] .select-level-buttons button,
+html[data-mode="bassTuba"] .select-level-buttons button {
+    background-color: #fff3d1;
+    border-color: #9a5b00;
+    color: #5a3a00;
+}
+
+html[data-mode="bassTb"] #openingScreen .opening-board,
+html[data-mode="bassTuba"] #openingScreen .opening-board {
+    border-color: #f0a500; /* ヘおんよみは 金管の 金色の枠 */
 }
 
 html[data-mode="black"] .select-level-buttons button {
@@ -924,6 +938,10 @@ html[data-mode="black"] #completionModal,
 html[data-mode="black"] #mistakeModal,
 html[data-mode="notes"] #completionModal,
 html[data-mode="notes"] #mistakeModal,
+html[data-mode="bassTb"] #completionModal,
+html[data-mode="bassTb"] #mistakeModal,
+html[data-mode="bassTuba"] #completionModal,
+html[data-mode="bassTuba"] #mistakeModal,
 html[data-mode="rhythm"] #completionModal,
 html[data-mode="rhythm"] #mistakeModal {
     z-index: 5;
@@ -936,6 +954,8 @@ html[data-mode="rhythm"] #mistakeModal {
 html[data-mode="keys"] .reward-coin,
 html[data-mode="black"] .reward-coin,
 html[data-mode="notes"] .reward-coin,
+html[data-mode="bassTb"] .reward-coin,
+html[data-mode="bassTuba"] .reward-coin,
 html[data-mode="rhythm"] .reward-coin {
     z-index: 6;
 }
@@ -1053,6 +1073,16 @@ html[data-mode="rhythm"] .reward-coin {
     white-space: nowrap;
     pointer-events: none;
     text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+}
+
+/* けんばんの しるし（ヘおんよみ：まんなかの ド に ★） */
+.tk-mark {
+    font-size: clamp(12px, 2vw, 20px);
+    line-height: 1;
+    color: #f39c12;
+    text-shadow: 0 0 3px #fff;
+    margin-bottom: 4px;
+    pointer-events: none;
 }
 
 /* ♯・♭ の ガイド：もとの音は ふちどりだけ（ぬりつぶすと「ここを おす」に 見えるので）。矢印は おす けんばんの ほうへ */

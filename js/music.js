@@ -6,7 +6,8 @@
 //     タブレット：「たしざん」を おさえた まま、べつの 指で「ひきざん」を 5かい タップ
 //   で 出る。出ている ときに 同じ ことを すると かくれる（TamaMusicSecret）
 //   へやの中：けんばん（#/keys）・くろいけんばん（#/black。けんばんの Lv6 を クリアすると ひらく）・
-//             じゆうにひこう（#/piano）・おんぷよみ（#/notes）・リズム（#/rhythm）・おとを けす
+//             じゆうにひこう（#/piano）・おんぷよみ（#/notes）・
+//             ヘおんよみ（#/bassTb：トロンボーン・ユーフォ、#/bassTuba：チューバ。js/modes/bass.js）・リズム（#/rhythm）・おとを けす
 
 const TamaMusic = {
     KEY: 'tamadoro.music.enabled',

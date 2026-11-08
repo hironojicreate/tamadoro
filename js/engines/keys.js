@@ -60,6 +60,43 @@ function keysTourDeck() {
     ];
 }
 
+// ヘおんよみ の しくみ：せんを かぞえる → ファの せん（ヘ音記号の 2つの 点の あいだ）→ いちばん下の せん（ひくいソ）から のぼる・くだる
+//   名前は ド3 の 段が「ただの ド」（js/notes.js の home）
+function keysBassTourDeck() {
+    const G2 = 43, A2 = 45, B2 = 47, C3 = 48, D3 = 50, E3 = 52, F3 = 53, G3 = 55;
+    const up = [G2, A2, B2, C3, D3, E3, F3, G3];
+    const down = [...up].reverse();
+    const run = (notes, say, more = {}) => ({
+        notes,
+        say,
+        chord: keysChordFor(notes[notes.length - 1]),
+        key: notes.map(m => TamaNotes.lessonName(m)).join(''),
+        ...more,
+    });
+    return [
+        { type: 'lines', notes: [], key: 'せんは5ほん', chord: 'C', pause: 1800 },
+        run([F3], 'ヘ音記号の 2つの 点に はさまれた せん（下から 4ほんめ）が ファ。ヘ音記号の「ヘ」は ファの こと！ ひかっている けんばんを おしてね',
+            { tags: true, beckon: true, pause: 1300 }),
+        run([G2], 'いちばん 下の せん（1ぽんめ）は ひくいソ。ここから スタート！ ひかっている けんばんを おしてね',
+            { tags: true, beckon: true, pause: 1300 }),
+        run(up, 'のぼるよ！ せん → あいだ → せん → あいだ … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
+        run(down, 'くだるよ！ あいだ → せん → あいだ → せん … と じゅんばんに', { tags: true, reveal: true, pause: 1300 }),
+        run(up, 'ひくいソ・ひくいラ・ひくいシ・ド・レ・ミ・ファ・ソ！ つづけて 読もう'),
+        run(down, 'ソ・ファ・ミ・レ・ド・ひくいシ・ひくいラ・ひくいソ！ くだって 読もう'),
+    ];
+}
+
+// ベースの うごき（チューバ）：lines：[[音（左から）, 和音], …] から count こ（同じ ものが つづかない）
+function keysBassLineDeck(def) {
+    const deck = [];
+    for (let i = 0; i < def.count; i++) {
+        const choices = def.lines.filter(([notes]) => !deck.length || deck[deck.length - 1].notes.join() !== notes.join());
+        const [notes, chord] = choices[Math.floor(Math.random() * choices.length)];
+        deck.push(keysPhrase(notes, chord));
+    }
+    return deck;
+}
+
 // 1つずつ あらわれる 音符：正解の キラリンの あと、つぎが 出るまで（ミリ秒）
 const KEYS_REVEAL_DELAY = 550;
 
@@ -68,13 +105,14 @@ const KEYS_REVEAL_DELAY = 550;
 //   singles を repeat 回 ＋ extra（とくに おぼえたい 音を たす）の 1おんと、おだんごを dangoRepeat 回ずつ まぜる
 //   singleChords：1おんの 正解の 和音を 音ごとに きめる（ないときは その音の おだんごの 和音）
 function keysDangoDeck(def) {
+    const byName = def.answer === 'name'; // 名前の ボタンで こたえる（ヘおんよみ の まえはん）
     const names = d => d.notes.map(m => TamaNotes.lessonName(m)).join('・');
     const dango = (d, more = {}) => ({
         notes: d.notes,
         dango: true,
         chord: d.chord,
         key: `おだんご ${names(d)}`,
-        say: 'おだんごを 下から じゅんばんに おしてね',
+        say: byName ? 'おだんごを 下から じゅんばんに、なまえの ボタンで こたえてね' : 'おだんごを 下から じゅんばんに おしてね',
         ...more,
     });
     // 1おんの 問題も、正解の 和音は その音の おだんごの 和音（Lv2 は Dm だけ。その レベルの 音だけを おぼえる）
@@ -91,8 +129,10 @@ function keysDangoDeck(def) {
     });
     const intros = def.dangos.filter(d => d.intro).map(d => dango(d, {
         showNames: true,
-        beckon: true,
-        say: `${d.name}！ 下から ${names(d)}。ひかっている けんばんを じゅんばんに おしてね`,
+        beckon: !byName,
+        say: byName
+            ? `${d.name}！ 下から ${names(d)}。なまえの ボタンを じゅんばんに おしてね`
+            : `${d.name}！ 下から ${names(d)}。ひかっている けんばんを じゅんばんに おしてね`,
         pause: 1300,
     }));
     return [...intros, ...keysShuffleNoRepeat(items)];
@@ -382,7 +422,8 @@ function keysPhraseBars(deck) {
 
 function keysBuildDeck(def) {
     if (def.style === 'free') return [];
-    if (def.style === 'tour') return keysTourDeck();
+    if (def.style === 'tour') return def.tour === 'bass' ? keysBassTourDeck() : keysTourDeck();
+    if (def.style === 'bassline') return keysBassLineDeck(def);
     if (def.style === 'song') return keysSongDeck();
     if (def.style === 'dango') return keysDangoDeck(def);
     const pools = { sharp: KEYS_SHARPS, flat: KEYS_FLATS, both: [...KEYS_SHARPS, ...KEYS_FLATS] };
@@ -408,7 +449,17 @@ function keysBuildDeck(def) {
         ]).map(p => ({ ...p, part: 2 }));
         return [...press, ...names];
     }
-    if (def.style === 'phrase') return keysPhraseDeck(def.count, def.melody);
+    if (def.style === 'phrase') {
+        const deck = keysPhraseDeck(def.count, def.melody);
+        // shift：音を ずらす（ヘおんよみ の メロディは 1オクターブ 下。-12）
+        if (def.shift) {
+            deck.forEach(problem => {
+                problem.notes = problem.notes.map(m => m + def.shift);
+                problem.key = problem.notes.map(m => TamaNotes.lessonName(m)).join('');
+            });
+        }
+        return deck;
+    }
     if (def.style === 'oni') {
         const whites = TamaNotes.whiteKeys(def.active[0], def.active[1]);
         const singles = [];
@@ -449,6 +500,9 @@ function keysStartLevel(level) {
     problemState.isWeakChallenge = false;
     problemState.isSpecialCourse = false;
     const def = keysLevelDef();
+    // ヘおんよみ：五線は ヘ音記号、名前は ド3 の 段が「ただの ド」（ふだんは ト音記号・ド4）
+    TamaStaff.kind = currentMode.clef || 'treble';
+    TamaNotes.home = currentMode.home || 4;
 
     restoreCoins(level); // これまでのドロップを右上に
 
@@ -540,6 +594,8 @@ function keysRenderKeyboard(view) {
         activeFrom: def.active[0],
         activeTo: def.active[1],
         label: midi => keysShowLabels(def) && midi >= def.active[0] && midi <= def.active[1] && !vanished.includes(midi),
+        // ヘおんよみ：まんなかの ド（ト音記号の ド）に ★
+        mark: midi => (currentMode.middleC && midi === TamaNotes.MIDDLE_C ? '★' : ''),
     });
 }
 
@@ -739,6 +795,16 @@ function keysShowCards() {
         cards.className = `keys-cards staff ${notes.length > 1 ? 'phrase' : 'single'}${run.def.style === 'tour' ? ' tour' : ''}`;
         const options = { reveal: problem.reveal, tags: problem.tags, focusLedger: problem.focusLedger, dango: problem.dango, names: problem.showNames, chordName: problem.chordName, rhythm: problem.rhythm, counts: problem.counts };
         cards.innerHTML = `<div class="keys-card staff-card">${TamaStaff.svg(notes, options)}</div>`;
+        if (run.def.answer === 'name') {
+            // 名前の ボタン（ド〜シ。オクターブは とわない）で こたえる。けんばんは 鳴るだけ
+            answers.innerHTML = TamaNotes.NAMES.map((n, step) =>
+                `<button type="button" class="keys-answer" data-step="${step}" style="color: ${TamaNotes.COLORS[step]}">${n}</button>`).join('');
+            answers.querySelectorAll('.keys-answer').forEach(button => {
+                button.addEventListener('click', () => keysOnReadName(Number(button.dataset.step), button));
+            });
+            keysShowMessage(problem.say || (notes.length > 1 ? 'ひだりから じゅんばんに、なまえの ボタンで こたえてね' : 'この おんぷの なまえは？'));
+            return;
+        }
         keysShowMessage(problem.say || (notes.length > 1 ? 'ひだりから じゅんばんに おしてね' : 'この おんぷは どの けんばん？'));
         return;
     }
@@ -764,7 +830,8 @@ function keysShowLines() {
 }
 
 // せんの 音（下から ミ・ソ・シ・たかいレ・たかいファ）
-const KEYS_LINE_NOTES = [64, 67, 71, 74, 77];
+const KEYS_LINE_NOTES = [64, 67, 71, 74, 77];      // ト音記号の せん（ミ・ソ・シ・たかいレ・たかいファ）
+const KEYS_BASS_LINE_NOTES = [43, 47, 50, 53, 57]; // ヘ音記号の せん（ひくいソ・ひくいシ・レ・ファ・ラ）
 const KEYS_LINE_COUNTS = TamaStaff.LINE_COUNTS; // 1ぽんめ・2ほんめ・3ぼんめ・4ほんめ・5ほんめ
 
 function keysOnLine(number) {
@@ -777,7 +844,7 @@ function keysOnLine(number) {
         return;
     }
     run.pos++;
-    TamaSound.note(KEYS_LINE_NOTES[number - 1]).release();
+    TamaSound.note((TamaStaff.kind === 'bass' ? KEYS_BASS_LINE_NOTES : KEYS_LINE_NOTES)[number - 1]).release();
     keysShowLines();
     if (run.pos < 5) {
         keysShowMessage(`${KEYS_LINE_COUNTS[run.pos - 1]}！ つぎは その上の せん`);
@@ -813,7 +880,8 @@ function keysShowFree() {
 
 // ---------- けんばんを おしたとき ----------
 
-function keysOnPress(midi, inRange) {
+// fromName：名前の ボタン（keysOnReadName）から、正しい けんばんを おした ことに する
+function keysOnPress(midi, inRange, fromName = false) {
     const run = keysLesson.run;
     const keyboard = keysLesson.keyboard;
     if (!run || run.finished) return;
@@ -833,6 +901,7 @@ function keysOnPress(midi, inRange) {
     if (!run.accepting) return; // つぎの問題を じゅんびしているあいだは、鳴るだけ
     if (run.problem.type === 'name') return; // 「ド♯ ＝ ？♭」は ボタンで こたえる（けんばんは 鳴るだけ）
     if (run.problem.type === 'lines') return; // せんを かぞえている あいだは 鳴るだけ
+    if (run.def.answer === 'name' && !fromName) return; // 名前の ボタンで こたえる レベル（けんばんは 鳴るだけ）
 
     if (!inRange) {
         keyboard.balloon(midi, 'あかるい けんばんで さがしてね', { color: '#555', ms: 1300 });
@@ -1357,6 +1426,31 @@ function keysShowBothNames(midi) {
         keyboard.balloon(midi, `${problem.names[0]}は ${TamaNotes.namesOf(midi)[0]}！`, { ms: 1600 }); // 「シ♯は ド！」（オクターブは いわない）
     } else if (TamaNotes.isBlack(midi)) {
         keyboard.balloon(midi, TamaNotes.namesOf(midi).join('／'), { ms: 1600 });
+    }
+}
+
+// 五線の 音符を 名前の ボタン（ド〜シ）で こたえる（ヘおんよみ の まえはん。オクターブは とわない）
+//   正解すると その 高さの 音が 鳴って、けんばんの その 場所が 光り、上に 名前（「ひくいソ」など）。おだんご・メロディは つぎの 音へ
+function keysOnReadName(step, button) {
+    const run = keysLesson.run;
+    if (!run || run.finished || !run.accepting || !run.problem) return;
+    const expected = run.problem.notes[run.pos];
+    if (expected === undefined) return;
+    const flash = cls => {
+        button.classList.remove('ok', 'ng');
+        void button.offsetWidth;
+        button.classList.add(cls);
+        setTimeout(() => button.classList.remove(cls), 450);
+    };
+    if (step === TamaNotes.stepOf(expected)) {
+        flash('ok');
+        const voice = keysLesson.keyboard.sound(expected);
+        setTimeout(() => voice.release(), 450);
+        keysLesson.keyboard.balloon(expected, TamaNotes.lessonName(expected));
+        keysOnPress(expected, true, true);
+    } else {
+        flash('ng');
+        keysMistake(TamaNotes.NAMES[step], TamaNotes.NAMES[TamaNotes.stepOf(expected)]);
     }
 }
 

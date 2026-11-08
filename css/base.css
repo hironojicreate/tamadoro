@@ -542,6 +542,7 @@ footer p {
     opacity: 0;
     transition: opacity 0.5s ease;
     z-index: 3;
+    pointer-events: none; /* 見えない ときも 画面の まんなかに あるので、下の ボタンを おせなく しない */
 }
 
 #deleteModal {

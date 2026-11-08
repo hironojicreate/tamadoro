@@ -69,7 +69,7 @@ async function answerAll(page) {
     await page.click('#homeMusic'); await page.waitForTimeout(300);
     ok(await page.evaluate(() => location.hash) === '#/music' && await page.isVisible('#musicScreen'), 'ボタンで おんがくのへやへ');
     ok(await page.evaluate(() => document.title) === 'タマの おんがくのへや', 'へやの タイトル');
-    ok((await page.$$('#musicScreen .music-lesson.coming')).length === 0 && (await page.$$('#musicScreen .music-lesson')).length === 5, 'レッスンは 5こ（じゅんびちゅう なし）');
+    ok((await page.$$('#musicScreen .music-lesson.coming')).length === 0 && (await page.$$('#musicScreen .music-lesson')).length === 7, 'レッスンは 7こ（ヘおんよみ 2つを ふくむ。じゅんびちゅう なし）');
 
     // おと あり／なし
     ok((await page.textContent('#musicSound')).includes('あり'), 'さいしょは おと あり');
@@ -1818,6 +1818,148 @@ async function answerAll(page) {
     ok(r.high === 'たかいド', '1つ上のドは「たかいド」');
     ok(r.csharp === r.dflat && r.csharp === 61, 'ド♯ と レ♭ は 同じけんばん');
     ok(r.esharp === 65, 'ミ♯ は ファ（白いけんばん）');
+    await page.close();
+  }
+
+  // ---------- ヘおんよみ（js/modes/bass.js）：ヘ音記号。トロンボーン・ユーフォ と チューバ ----------
+  const bassAll = { ...MUSIC_ON };
+  for (const id of ['bassTb', 'bassTuba']) for (let l = 1; l <= 10; l++) bassAll[`${id}_coins_${l}`] = JSON.stringify(Array(3).fill({ image: '/img/Lmaru.png' }));
+
+  // いまの レベルを ぜんぶ こたえる（せんを かぞえる・名前の ボタン・けんばん）
+  async function answerBass(page) {
+    for (let guard = 0; guard < 800; guard++) {
+      const s = await page.evaluate(() => {
+        const r = keysLesson.run;
+        if (!r || r.finished) return { done: true };
+        if (!r.accepting || !r.problem) return { wait: true };
+        if (r.problem.type === 'lines') return { line: r.pos + 1 };
+        const m = r.problem.notes[r.pos];
+        if (m === undefined) return { wait: true };
+        return r.def.answer === 'name' ? { step: TamaNotes.stepOf(m) } : { midi: m };
+      });
+      if (s.done) return;
+      if (s.wait) { await page.waitForTimeout(120); continue; }
+      if (s.line) await page.click(`#keysCards .staff-line-hit[data-line="${s.line}"]`);
+      else if (s.step !== undefined) await page.click(`#keysAnswers .keys-answer[data-step="${s.step}"]`);
+      else await pressKey(page, s.midi);
+      await page.waitForTimeout(40);
+    }
+  }
+
+  // 30. へやに 2つの ボタン → それぞれの レベル選択。名前は ド3 の 段が「ただの ド」、ほかの 画面では もとに もどる
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/music', bassAll);
+    ok(await page.isVisible('#musicBassTb') && await page.isVisible('#musicBassTuba'), 'おんがくのへやに ヘおんよみ（トロンボーン・ユーフォ／チューバ）');
+    await page.click('#musicBassTb'); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => location.hash) === '#/bassTb' && await page.isVisible('#openingScreen .title-bassTb'), 'トロンボーン・ユーフォ の レベル選択（タイトル）');
+    ok((await page.$$('.select-level-buttons button')).length === 9, 'トロンボーン・ユーフォ は しくみ ＋ Lv1〜Lv8');
+    await page.click('#level2'); await page.waitForTimeout(300);
+    const names = await page.evaluate(() => ({
+      home: TamaNotes.home, kind: TamaStaff.kind,
+      names: [29, 36, 43, 48, 53, 60, 65].map(m => TamaNotes.lessonName(m)).join(' '),
+      clef: !!document.querySelector('#keysCards .staff-clef.bass'), label: document.querySelector('#keysCards svg.staff').getAttribute('aria-label'),
+      y: [TamaStaff.y(43), TamaStaff.y(53), TamaStaff.y(60), TamaStaff.y(29)], line: [43, 45, 53, 60].map(m => TamaStaff.onLine(m)),
+    }));
+    ok(names.home === 3 && names.kind === 'bass' && names.names === 'ひくいひくいファ ひくいド ひくいソ ド ファ たかいド たかいファ',
+      `名前：ド3 の 段が「ド」、上は たかい、下は ひくい・ひくいひくい ${names.names}`);
+    ok(names.clef && names.label.includes('ヘ音記号'), '五線は ヘ音記号');
+    ok(names.y.join() === '180,120,80,260' && names.line.join() === 'true,false,true,true',
+      `ヘ音記号の 高さ：いちばん下の せんが ひくいソ、4ほんめが ファ、上の かせん 1本が たかいド、下の かせん 4本が ひくいひくいファ ${JSON.stringify(names)}`);
+    await page.evaluate(() => { location.hash = '#/music'; }); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => TamaNotes.home === 4 && TamaStaff.kind === 'treble' && TamaNotes.lessonName(60) === 'ド'), 'ほかの 画面へ いくと ト音記号・まんなかの ド に もどる');
+    await page.click('#musicBassTuba'); await page.waitForTimeout(300);
+    ok(await page.isVisible('#openingScreen .title-bassTuba') && (await page.$$('.select-level-buttons button')).length === 10, 'チューバ は しくみ ＋ Lv1〜Lv9');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 31. しくみ（ヘ音記号）：せんを かぞえる → ファの せん → ひくいソ から のぼる・くだる
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/bassTb', bassAll);
+    await page.click('#level1'); await page.waitForTimeout(300);
+    const deck = await page.evaluate(() => keysLesson.run.deck.map(p => p.key));
+    ok(deck.length === 7 && deck[0] === 'せんは5ほん' && deck[1] === 'ファ' && deck[2] === 'ひくいソ' && deck[3] === 'ひくいソひくいラひくいシドレミファソ', `しくみの ながれ ${deck.join(' / ')}`);
+    await answerBass(page);
+    await page.waitForTimeout(400);
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'しくみ クリア');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 32. まえはんは 名前の ボタン（ド〜シ。オクターブは とわない）。けんばんは 鳴るだけ。正解すると その 高さの けんばんが 光って 名前
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/bassTb', bassAll);
+    await page.click('#level2'); await page.waitForTimeout(300);
+    ok((await page.$$eval('#keysAnswers .keys-answer', l => l.map(b => b.textContent))).join(' ') === 'ド レ ミ ファ ソ ラ シ', '名前の ボタン ド〜シ');
+    const first = await page.evaluate(() => ({ m: keysLesson.run.problem.notes[0], dango: !!keysLesson.run.problem.dango, beckon: !!keysLesson.run.problem.beckon, msg: document.getElementById('keysMessage').textContent }));
+    ok(first.dango && !first.beckon && first.msg.includes('なまえの ボタン'), `おだんごの お手本は ボタンで（けんばんの わっかは 出さない）${JSON.stringify(first)}`);
+    await pressKey(page, first.m); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => keysLesson.run.pos === 0 && problemState.mistakeCount === 0), 'けんばんを おしても こたえに ならない（鳴るだけ）');
+    const wrongStep = await page.evaluate(m => (TamaNotes.stepOf(m) + 1) % 7, first.m);
+    await page.click(`#keysAnswers .keys-answer[data-step="${wrongStep}"]`); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => problemState.mistakeCount === 1 && /^(ド|レ|ミ|ファ|ソ|ラ|シ)$/.test(problemState.mistakes[0].correct)), 'ちがう 名前は まちがい（せいかいは オクターブ なしの 名前）');
+    await page.click(`#keysAnswers .keys-answer[data-step="${await page.evaluate(m => TamaNotes.stepOf(m), first.m)}"]`); await page.waitForTimeout(100);
+    const hit = await page.evaluate(m => ({ pos: keysLesson.run.pos, balloon: (document.querySelector(`#keysKeyboard .tk-balloon[data-midi="${m}"]`) || {}).textContent, name: TamaNotes.lessonName(m) }), first.m);
+    ok(hit.pos === 1 && hit.balloon === hit.name, `正解すると つぎの おだんご へ。けんばんの その 高さに 名前（${hit.balloon}）`);
+    await answerBass(page);
+    await page.waitForTimeout(400);
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv1 クリア（名前の ボタン）');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 33. うしろはんは けんばんで 高さまで（同じ 名前でも オクターブが ちがうと まちがい）。トロンボーン・ユーフォ の そとの おと・メロディ
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/bassTb', bassAll);
+    await page.click('#level6'); await page.waitForTimeout(300);
+    const outer = await page.evaluate(() => ({ notes: [...new Set(keysLesson.run.deck.flatMap(p => p.notes))].sort((a, b) => a - b).join(), star: document.querySelectorAll('#keysKeyboard .tk-mark').length,
+      starKey: Number((document.querySelector('#keysKeyboard .tk-mark') || { parentElement: { dataset: {} } }).parentElement.dataset.midi) }));
+    ok(outer.notes === '41,57,59,60,62,64,65' && outer.star === 1 && outer.starKey === 60, `そとの おと：ひくいファ と うえの おと（たかいファ まで）。まんなかの ド に ★ ${JSON.stringify(outer)}`);
+    await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
+    await page.click('#level8'); await page.waitForTimeout(300);
+    ok((await page.$$('#keysAnswers .keys-answer')).length === 0, 'けんばんで こたえる レベルは ボタンなし');
+    const m = await expected(page);
+    const other = m + 12 <= 65 ? m + 12 : m - 12; // ひくいファ〜たかいファ の なかで 1オクターブ ちがい
+    await pressKey(page, other); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => problemState.mistakeCount) === 1, '同じ 名前でも オクターブが ちがうと まちがい');
+    await answerBass(page);
+    await page.waitForTimeout(400);
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv7 ファ〜ファ クリア');
+    await page.click('#completionModal >> text=もんだいをえらぶ').catch(() => {}); await page.waitForTimeout(300);
+    await page.evaluate(() => { location.hash = '#/music'; }); await page.waitForTimeout(200);
+    await page.evaluate(() => { location.hash = '#/bassTb'; }); await page.waitForTimeout(300);
+    await page.click('#level9'); await page.waitForTimeout(300);
+    const melody = await page.evaluate(() => keysLesson.run.deck.flatMap(p => p.notes));
+    ok(melody.length > 0 && melody.every(n => n >= 45 && n <= 60), `メロディは 1オクターブ 下（ひくいラ〜たかいド）${Math.min(...melody)}〜${Math.max(...melody)}`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 34. チューバ：下の かせん（ひくいひくいファ まで）・ベースの うごき・せまい 画面
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/bassTuba', bassAll);
+    await page.click('#level7'); await page.waitForTimeout(300);
+    const low = await page.evaluate(() => ({ notes: [...new Set(keysLesson.run.deck.flatMap(p => p.notes))].sort((a, b) => a - b).join(),
+      height: Number(document.querySelector('#keysCards svg.staff').getAttribute('viewBox').split(' ')[3]), star: document.querySelectorAll('#keysKeyboard .tk-mark').length }));
+    ok(low.notes === '29,31,33,35,36,38' && low.height > 260 && low.star === 0, `もっと したの おと：ひくいひくいファ〜ひくいレ（かせん 4本 まで。五線の 絵が 下に のびる）${JSON.stringify(low)}`);
+    await answerBass(page);
+    await page.waitForTimeout(400);
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv6 もっと したの おと クリア');
+    await page.evaluate(() => { location.hash = '#/music'; }); await page.waitForTimeout(200);
+    await page.evaluate(() => { location.hash = '#/bassTuba'; }); await page.waitForTimeout(300);
+    await page.click('#level10'); await page.waitForTimeout(300);
+    const line = await page.evaluate(() => ({ n: keysLesson.run.deck.length, notes: keysLesson.run.deck.flatMap(p => p.notes), multi: keysLesson.run.deck.every(p => p.notes.length >= 2) }));
+    ok(line.n === 10 && line.multi && line.notes.every(n => n >= 29 && n <= 50), `ベースの うごき 10もん（ひくいひくいファ〜レ）`);
+    await answerBass(page);
+    await page.waitForTimeout(400);
+    ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv9 ベースの うごき クリア');
+    // せまい 画面では つかわない けんばんを 見せない（ひくいひくいファ〜レ の 白 13こ）
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => { location.hash = '#/music'; }); await page.waitForTimeout(200);
+    await page.evaluate(() => { location.hash = '#/bassTuba'; }); await page.waitForTimeout(300);
+    await page.click('#level9'); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => document.querySelectorAll('#keysKeyboard .tk-white-key').length) === 13, 'せまい 画面の チューバ Lv8 は 白 13こ');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
 
