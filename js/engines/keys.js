@@ -155,9 +155,8 @@ function keysLightRests(after) {
 }
 
 // いまの きょくふう の 音色（part：'melody' けんばん・メロディ、'chord' 伴奏）。きょくふう でなければ ピアノ
-function keysVoice(part) {
-    const run = keysLesson.run;
-    return run && run.song ? TamaSongs.soundOf(run.song.style)[part] : 'piano';
+function keysVoice(part, song = keysLesson.run && keysLesson.run.song) {
+    return song ? TamaSongs.soundOf(song.style)[part] : 'piano';
 }
 
 // sing: true の レベル：ピアノの音を すこし 小さくして、名前を うたう（白いけんばん）
@@ -544,6 +543,7 @@ function keysRetryLevel() {
 // やめるとき（はじめにもどる・ほかの画面へ）
 function keysStopLevel() {
     keysStopPlayback();
+    keysStage(false); // ステージの 明かりを もどす
     if (keysLesson.cheer) {
         keysLesson.cheer.disconnect(); // 拍手の とちゅうで やめたら 拍手も けす
         keysLesson.cheer = null;
@@ -876,7 +876,7 @@ function keysOnPerform(midi) {
 
 // ひきおわった：えんそうの とくちょうを ほめて、すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロで しめくくる）。
 //   ボタンは「もういちど きく」（じぶんの えんそうを はじめから）・「この 曲を もういちど」（同じ 曲を イントロから ひきなおす）・
-//   「べつの 曲」・「えんそうを おわる」。「べつの 曲」「えんそうを おわる」は、拍手の あと ごほうびの ドロップ（クリアの 画面は 出さない）→
+//   「ノートに のこす」（名前を つけて きょくノートへ。js/song-note.js）・「べつの 曲」・「えんそうを おわる」。「べつの 曲」「えんそうを おわる」は、拍手の あと ごほうびの ドロップ（クリアの 画面は 出さない）→
 //   べつの 曲で マスタークラスを はじめから／レベルを えらぶ 画面へ
 const KEYS_AUTO_PLAYBACK = 0.6; // ひきおわって から ながれる までの びょう
 
@@ -887,10 +887,12 @@ function keysPerformDone() {
     keysAccomp.stop();
     const { traits } = TamaSongs.expressive(run.song.phrases, run.take, keysBeat());
     keysShowMessage(`えんそう おわり！ ${style.name}（${style.sub}）を ひけたよ！`, `${TamaSongs.traitWords(traits).join('・')} ♪`);
+    keysAudienceClap(KEYS_CLAP_MS); // タマが 拍手
     const answers = document.getElementById('keysAnswers');
     answers.innerHTML = `
         <button type="button" class="keys-perform-button listen">もういちど きく</button>
         <button type="button" class="keys-perform-button again">この 曲を もういちど</button>
+        <button type="button" class="keys-perform-button save">ノートに のこす</button>
         <button type="button" class="keys-perform-button another">べつの 曲</button>
         <button type="button" class="keys-perform-button finish">えんそうを おわる</button>`;
     answers.querySelector('.listen').addEventListener('click', () => {
@@ -898,6 +900,13 @@ function keysPerformDone() {
         keysPlayback();
     });
     answers.querySelector('.again').addEventListener('click', keysPerformAgain);
+    answers.querySelector('.save').addEventListener('click', event => {
+        // きょくノートに のこす（js/song-note.js）。名前を つけて、あとで きける
+        const entry = TamaSongNote.save(run);
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = 'のこしたよ！';
+        keysShowMessage(`「${TamaSongNote.nameOf(entry)}」を きょくノートに のこしたよ！`, `${entry.words.join('・')} ♪`);
+    });
     answers.querySelector('.another').addEventListener('click', () => keysPerformFinish('another'));
     answers.querySelector('.finish').addEventListener('click', () => keysPerformFinish('menu'));
     const round = run.round;
@@ -913,12 +922,17 @@ function keysPerformFinish(next) {
     keysStopPlayback();
     document.getElementById('keysAnswers').innerHTML = ''; // 2かい おせないように
     run.round = (run.round || 0) + 1;                       // まだ ながれていない「じぶんの えんそう」も ながさない
-    keysShowMessage('パチパチパチ…！ すてきな えんそうだったね！');
+    // 図鑑に のせる。はじめての 系統なら ごほうびの ドロップは 金
+    const family = run.song.style.family;
+    const first = TamaSongNote.addFamily(family);
+    keysShowMessage('パチパチパチ…！ すてきな えんそうだったね！',
+        first ? `はじめての ${TamaSongs.FAMILIES[family].name}風！ ずかんに のったよ。きんの ドロップ！` : '');
+    keysAudienceClap(); // タマも 拍手
     const bus = TamaSound.bus();
     keysLesson.cheer = bus;
     const seconds = TamaSound.applause({ bus });
     keysLesson.later(() => {
-        keysRecordClear(); // ドロップを もらう（クリアの 画面は 出さない）
+        keysRecordClear(first); // ドロップを もらう（クリアの 画面は 出さない。はじめての 系統は 金）
         keysLesson.later(() => {
             if (next === 'another') {
                 clearCoinsOnDOM();
@@ -1028,9 +1042,8 @@ const keysAccomp = {
 };
 
 // いまの きょくふう の 1拍の 秒
-function keysBeat() {
-    const run = keysLesson.run;
-    return 60 / TamaSongs.RHYTHMS[run && run.song ? run.song.rhythm : 'utau'].tempo;
+function keysBeat(song = keysLesson.run && keysLesson.run.song) {
+    return 60 / TamaSongs.RHYTHMS[song ? song.rhythm : 'utau'].tempo;
 }
 
 // アウトロに つかう 和音：下属和音（主和音の 4度 上。曲の 中に あれば その 和音、なければ F か Dm）と 主和音（さいごの 和音）
@@ -1057,22 +1070,50 @@ function keysIntroSounds(bus, at) {
 }
 
 // アウトロ（at びょうから）。おわるまでの びょうを かえす
-function keysOutro(bus, at) {
-    const run = keysLesson.run;
-    const { sub, tonic } = keysCadence(run.song.style);
-    const beat = keysBeat();
-    const voice = keysVoice('chord');
+function keysOutro(bus, at, song = keysLesson.run.song) {
+    const { sub, tonic } = keysCadence(song.style);
+    const beat = keysBeat(song);
+    const voice = keysVoice('chord', song);
     TamaSound.chord(sub, { when: at, gain: 0.18, strum: 0.03, bus, voice, hold: 2 * beat * 0.95 });
     TamaSound.note(TamaSongs.chordNotes(sub)[0] - 12, { when: at, gain: 0.26, bus, voice, hold: 2 * beat * 0.95 }).release();
     const end = at + 2 * beat;
     TamaSound.chord(tonic, { when: end, gain: 0.24, strum: 0.05, bus, voice, hold: 1.8 });
     TamaSound.note(TamaSongs.chordNotes(tonic)[0] - 12, { when: end, gain: 0.3, bus, voice, hold: 1.8 }).release();
     const tones = TamaSongs.chordWhites(tonic).filter(m => m >= 67).slice(0, 4);
-    tones.forEach((midi, i) => TamaSound.note(midi, { gain: 0.3, when: end + 0.1 + i * 0.09, bus, voice: keysVoice('melody') }).release());
+    tones.forEach((midi, i) => TamaSound.note(midi, { gain: 0.3, when: end + 0.1 + i * 0.09, bus, voice: keysVoice('melody', song) }).release());
     return end + 1.2;
 }
 
 // とおし えんそうの はじまり：イントロ（2小節）→「さあ どうぞ！」。イントロの あいだは けんばんを うけつけない
+// ---------- ステージ（とおし えんそうの あいだ） ----------
+//   まわりが 暗く なって がくふに スポットライト。タマが 観客として 曲に あわせて ゆれて、おわったら 拍手（css/music.css）。
+//   とおし えんそうの イントロから、その 曲を はなれる（べつの 曲・えんそうを おわる・ほかの 画面）まで
+const KEYS_CLAP_MS = 1800; // ひきおわった ときの タマの 拍手の ながさ
+
+function keysStage(on) {
+    const screen = document.getElementById('keysScreen');
+    const audience = screen.querySelector('.keys-audience');
+    screen.classList.toggle('on-stage', on);
+    if (on) screen.style.setProperty('--beat', `${keysBeat()}s`);
+    audience.classList.toggle('sway', on);
+    if (!on) audience.classList.remove('clap');
+}
+
+// タマの 拍手（ms ミリびょう。0 は おわるまで ずっと）。そのあいだは ゆれない
+function keysAudienceClap(ms = 0) {
+    const audience = document.querySelector('#keysScreen .keys-audience');
+    const turn = keysLesson.claps = (keysLesson.claps || 0) + 1; // あとの 拍手を まえの 拍手の おわりで とめない
+    audience.classList.add('clap');
+    audience.classList.remove('sway');
+    if (ms) {
+        keysLesson.later(() => {
+            if (keysLesson.claps !== turn) return;
+            audience.classList.remove('clap');
+            audience.classList.add('sway');
+        }, ms);
+    }
+}
+
 function keysPerformIntro() {
     const run = keysLesson.run;
     const style = run.song.style;
@@ -1083,6 +1124,7 @@ function keysPerformIntro() {
     run.take = [];       // ひいた きろく（音ごとの 時刻と、その まえに まちがえた 音）
     run.takeWrongs = [];
     keysAccomp.halt();
+    keysStage(true); // まわりが 暗く なって スポットライト。タマが ゆれる
     keysIntroSounds(keysAccomp.output(), at);
     keysShowMessage('♪ イントロ ♪ よく きいてね');
     keysLesson.later(() => keysAccomp.play(style.chords[0]), (at + 4 * beat) * 1000);
@@ -1110,13 +1152,20 @@ function keysPlayback() {
         keysStopPlayback(); // ながれている ときは とめる
         return;
     }
-    const playback = { bus: TamaSound.bus(), timers: [] };
+    keysPlaySong(run.song, run.take, { flash: true });
+}
+
+// 曲を 鳴らす（song：{ style, rhythm, phrases }、take：ひいた きろく）。flash：がくふを 光らせる、onEnd：おわったら。
+//   きょくノート（js/song-note.js）からも つかう。かえすのは ながしている もの（keysStopPlayback で とまる）
+function keysPlaySong(song, take, { flash: lights = false, onEnd = null } = {}) {
+    keysStopPlayback();
+    const playback = { bus: TamaSound.bus(), timers: [], onEnd };
     keysLesson.playback = playback;
     const later = (fn, seconds) => playback.timers.push(setTimeout(() => {
         if (keysLesson.playback === playback) fn();
     }, seconds * 1000));
     // その 拍で もういちど 光らせる（音符は キラリン、きゅうふは ぽわっと）
-    const flash = (selector, cls, seconds) => later(() => {
+    const flash = (selector, cls, seconds) => lights && later(() => {
         const el = document.querySelector(selector);
         if (!el) return;
         el.classList.remove(cls);
@@ -1126,14 +1175,14 @@ function keysPlayback() {
         if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }, seconds);
     const bus = playback.bus;
-    const beat = keysBeat();
-    const melody = keysVoice('melody');
-    const chord = keysVoice('chord');
-    const phrases = run.song.phrases;
-    const expr = TamaSongs.expressive(phrases, run.take, beat);
+    const beat = keysBeat(song);
+    const melody = keysVoice('melody', song);
+    const chord = keysVoice('chord', song);
+    const phrases = song.phrases;
+    const expr = TamaSongs.expressive(phrases, take, beat);
     const time = b => PLAYBACK_START + b * beat; // 拍 → びょう
     let restIndex = 0;
-    const accomp = TamaSongs.accompOf(run.song.style);
+    const accomp = TamaSongs.accompOf(song.style);
     phrases.forEach((phrase, b) => {
         // 曲調の 伴奏の 型（TamaSongs.ACCOMPS）。ためが あれば その ぶん うしろへ、のばす 拍も のびる
         TamaSongs.accompBar(accomp, phrase.chord).forEach(e => {
@@ -1164,8 +1213,9 @@ function keysPlayback() {
         TamaSound.note(note.midi, { when: at, bus, voice: melody, hold: beat * 0.9 }).release();
         flash(`#keysCards [data-i="${i}"]`, 'sparkle', at);
     });
-    const end = keysOutro(bus, time(expr.warp(phrases.length * 4)));
+    const end = keysOutro(bus, time(expr.warp(phrases.length * 4)), song);
     later(keysStopPlayback, end + 1);
+    return playback;
 }
 
 // きくのを やめる：まだ 鳴っていない 音も、鳴っている 音も ぜんぶ けす
@@ -1175,6 +1225,7 @@ function keysStopPlayback() {
     keysLesson.playback = null;
     playback.timers.forEach(clearTimeout);
     if (playback.bus) playback.bus.disconnect();
+    if (playback.onEnd) playback.onEnd();
 }
 
 // くろいけんばんの問題で 正解したら、その けんばんの 名前を ぜんぶ見せる（ド♯ で こたえても「ド♯／レ♭」）
@@ -1332,8 +1383,8 @@ function keysFinish() {
 }
 
 // クリアの きろく：タイム・ごほうびの ドロップ・プレイの きろく。かえすのは クリアタイム（「分:秒」）
-//   マスタークラスは クリアの 画面を 出さずに これだけ（keysPerformFinish）
-function keysRecordClear() {
+//   マスタークラスは クリアの 画面を 出さずに これだけ（keysPerformFinish。gold：はじめての 系統で かならず 金）
+function keysRecordClear(gold = false) {
     const run = keysLesson.run;
     run.finished = true;
     run.accepting = false;
@@ -1341,7 +1392,7 @@ function keysRecordClear() {
     const clearTime = stopTimer();
     saveBestTime(level, endTime - startTime);
     // おとあそび・しくみは、いつも そのレベルの色のドロップ（金は、まちがえずに こたえたとき）
-    const drop = createRewardCoin(level, !['free', 'tour'].includes(run.def.style));
+    const drop = createRewardCoin(level, !['free', 'tour'].includes(run.def.style), gold);
 
     History.addEntry({
         mode: currentMode.id,

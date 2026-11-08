@@ -157,12 +157,13 @@ function enableDrag(coin) {
 
 //ご褒美コイン生成（もらったドロップの画像名を返す）
 //   allowGold: false のときは、ノーミスでも そのレベルの色のドロップ（けんばんの おとあそび）
-function createRewardCoin(level, allowGold = true) {
+//   forceGold: true のときは、いつも 金のドロップ（マスタークラスで はじめての 系統の 曲を ひいたとき）
+function createRewardCoin(level, allowGold = true, forceGold = false) {
     const existingCoins = document.querySelectorAll('.reward-coin');
     const offset = existingCoins.length * 50;  // 新しいコインは前のコインの左に50pxずつずれます。
 
     // ノーミスなら金のドロップ
-    const coinImage = allowGold && problemState.mistakeCount === 0 ? '/img/Gmaru.png' : problemState.levelToImage[level];
+    const coinImage = forceGold || (allowGold && problemState.mistakeCount === 0) ? '/img/Gmaru.png' : problemState.levelToImage[level];
 
     const rewardCoin = document.createElement('img');
     rewardCoin.src = dropSrc(coinImage);

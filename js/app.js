@@ -25,6 +25,7 @@ function closeEverything() {
     }
     TamaPiano.stop();
     TamaSongPicker.close();
+    TamaSongNote.close();
 
     document.querySelectorAll('.coin, .reward-coin').forEach(coin => coin.remove());
     ['completionModal', 'mistakeModal', 'deleteModal', 'rescueModal', 'congrats-panel', 'masterButton'].forEach(id => {
@@ -54,6 +55,8 @@ function openMode(id) {
     document.title = currentMode.pageTitle;
     // 「タマのきろく」に まだ出さないモード（けんばん）は、「きろく」ボタンも出さない
     document.getElementById('goToRecords').style.display = currentMode.inRecords === false ? 'none' : '';
+    // おんぷよみは「📖 きょくノート」（マスタークラスで のこした 曲と きょくふう ずかん。js/song-note.js）
+    document.getElementById('goToSongNote').style.display = currentMode.id === 'notes' ? '' : 'none';
     renderLevelButtons();
     renderRescueModal();
     document.getElementById('maxMistakes').textContent = currentMode.maxMistakes || '';

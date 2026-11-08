@@ -1021,6 +1021,69 @@ async function answerAll(page) {
     await page.close();
   }
 
+  // 17i. きょくノート（js/song-note.js）：のこした 曲・曲名・ほかの なまえ・きく・けす・きょくふう ずかん
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/notes', { ...MUSIC_ON });
+    ok(await page.isVisible('#goToSongNote'), 'おんぷよみの メニューに「📖 きょくノート」');
+    await page.evaluate(() => {
+      // ずれの ない きろくで 2曲 のこす（ジャズ と どうよう）
+      const fake = (id, rhythm) => {
+        const style = TamaSongs.STYLES.find(s => s.id === id);
+        const phrases = TamaSongs.make(style, Math.random, rhythm);
+        const take = phrases.map(p => p.rhythm).join('').split('').map((m, k) => (m === '●' ? { t: k * 560, wrongs: [] } : null)).filter(x => x);
+        return { song: { style, rhythm, phrases }, take };
+      };
+      TamaSongNote.save(fake('twofive', 'zurashi'));
+      TamaSongNote.save(fake('doyo', 'hazumu'));
+      TamaSongNote.addFamily('jazz');
+    });
+    await page.click('#goToSongNote'); await page.waitForTimeout(200);
+    const book = await page.evaluate(() => ({
+      head: [...document.querySelectorAll('#songNote h3')].map(h => h.textContent).join('|'),
+      on: [...document.querySelectorAll('#songNote .zukan-card.on')].map(c => c.textContent.trim()).join(),
+      cards: document.querySelectorAll('#songNote .zukan-card').length,
+      names: [...document.querySelectorAll('#songNote .note-song-name')].map(n => n.textContent),
+      want: TamaSongNote.list().map(e => TamaSongNote.nameOf(e)),
+      info: document.querySelector('#songNote .note-song-info').textContent,
+    }));
+    ok(book.head.includes('ずかん　1 / 14') && book.on === 'ジャズ' && book.cards === 14 && book.head.includes('2きょく'),
+      `きょくふう ずかん（あつめた 系統。おやすみ中の おきなわは のせない）${JSON.stringify(book)}`);
+    ok(book.names.join() === book.want.join() && book.names[0] !== book.names[1] && book.info.includes('どうよう風') && /^.+の (うた|さんぽ|セレナーデ|メロディ|マーチ|ダンス|ロンド|パレード|バラード|こもりうた|ノクターン|ゆめ)$/.test(book.names[0]),
+      `のこした 曲は 新しい じゅん。名前は 系統の ばめん × はやさの 曲の しゅるい ${JSON.stringify(book.names)}`);
+    // ほかの なまえ：つぎの こうほへ（なんど ひらいても 同じ 名前）
+    await page.click('#songNote [data-rename]'); await page.waitForTimeout(100);
+    const renamed = await page.evaluate(() => ({ shown: document.querySelector('#songNote .note-song-name').textContent, saved: TamaSongNote.nameOf(TamaSongNote.list()[0]), seed: TamaSongNote.list()[0].seed }));
+    ok(renamed.shown !== book.names[0] && renamed.shown === renamed.saved && renamed.seed === 1, `ほかの なまえ ${JSON.stringify(renamed)}`);
+    // ▶ きく → ■ とめる（もういちど おすと とまる）
+    const notes = await page.evaluate(() => {
+      window.played = 0;
+      const note = TamaSound.note.bind(TamaSound);
+      TamaSound.note = (m, o) => { if (!o || o.gain === undefined) window.played++; return note(m, o); };
+      return TamaSongNote.list()[0].take.length;
+    });
+    await page.click('#songNote [data-play]'); await page.waitForTimeout(150);
+    const playing = await page.evaluate(() => ({ playback: !!keysLesson.playback, text: document.querySelector('#songNote .note-play').textContent, played: window.played }));
+    ok(playing.playback && playing.text === '■ とめる' && playing.played === notes, `▶ きく：のこした えんそうが ながれる（${notes}おん）${JSON.stringify(playing)}`);
+    await page.click('#songNote [data-play]'); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => !keysLesson.playback && document.querySelector('#songNote .note-play').textContent === '▶ きく'), '■ とめる で とまる');
+    // けす：1かいめは「ほんとうに けす？」、2かいめで けす
+    await page.click('#songNote [data-remove]'); await page.waitForTimeout(100);
+    const sure = await page.evaluate(() => ({ text: document.querySelector('#songNote [data-remove]').textContent, n: TamaSongNote.list().length }));
+    await page.click('#songNote [data-remove]'); await page.waitForTimeout(100);
+    ok(sure.text === 'ほんとうに けす？' && sure.n === 2 && await page.evaluate(() => TamaSongNote.list().length) === 1, `けす（たしかめて から）${JSON.stringify(sure)}`);
+    // ノブ：RENAME を false に すると「ほかの なまえ」は 出ない
+    await page.evaluate(() => { TamaSongNote.RENAME = false; TamaSongNote.refresh(); });
+    ok(await page.evaluate(() => !document.querySelector('#songNote [data-rename]')), 'ノブ RENAME: false で 名前を かえられない');
+    // とじる・ほかの 画面へ いくと とじる（ながれていれば とまる）
+    await page.click('#songNote [data-play]'); await page.waitForTimeout(100);
+    await page.evaluate(() => { location.hash = '#/'; }); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => !document.getElementById('songNote') && !keysLesson.playback), 'ほかの 画面へ いくと きょくノートは とじて、とまる');
+    await page.evaluate(() => { location.hash = '#/add'; }); await page.waitForTimeout(300);
+    ok(!(await page.isVisible('#goToSongNote')), 'ほかの モードには「きょくノート」は 出ない');
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
   // 17h. 曲調ごとの 音色（js/sound.js の VOICES）：ぜんぶ 鳴る・こと の 高さ・きょくふう の けんばんと 伴奏・伴奏の 型
   {
     const unlock = { ...MUSIC_ON, 'tamadoro.notes.song': 'hymn' };
@@ -1160,6 +1223,18 @@ async function answerAll(page) {
       return { acc: keysLesson.run.accepting, msg: document.getElementById('keysMessage').textContent };
     });
     ok(!intro.acc && intro.msg.includes('イントロ'), `とおし えんそうの まえに イントロ（うけつけない）${JSON.stringify(intro)}`);
+    const stage = await page.evaluate(() => {
+      const screen = document.getElementById('keysScreen');
+      const pile = document.createElement('img'); // つもった ドロップ
+      pile.className = 'coin keys-pile';
+      document.body.appendChild(pile);
+      const front = Number(getComputedStyle(screen.querySelector('.keys-audience')).zIndex) > Number(getComputedStyle(pile).zIndex);
+      pile.remove();
+      return { on: screen.classList.contains('on-stage'), sway: screen.querySelector('.keys-audience').classList.contains('sway'),
+        beat: screen.style.getPropertyValue('--beat'), front };
+    });
+    ok(stage.front, 'タマは つもった ドロップより 手前');
+    ok(stage.on && stage.sway && stage.beat === `${60 / 112}s`, `とおし えんそうは ステージ（まわりが 暗く なって スポットライト。タマが 曲の 拍で ゆれる）${JSON.stringify(stage)}`);
     await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 15000 });
     const ready = await page.evaluate(() => ({ msg: document.getElementById('keysMessage').textContent, chord: keysAccomp.chord, plays: window.plays.join() }));
     ok(ready.msg.includes('さあ どうぞ') && ready.chord === 'Am' && ready.plays === 'Am', `イントロの あと「さあ どうぞ！」。はじめの 和音が 鳴りつづけて まって いる ${JSON.stringify(ready)}`);
@@ -1188,11 +1263,13 @@ async function answerAll(page) {
       take: keysLesson.run.take.length, wrongs: keysLesson.run.take[0].wrongs.length, msg: document.getElementById('keysMessage').textContent }));
     ok(done.plays === 'Am,F,G,C,Am,F,G,C' && done.chord === null && !done.acc && done.take === total && done.wrongs === 2,
       `フレーズの はじめで その 和音へ。ひいた きろく（まちがえた 音は さいごの 2つ）${JSON.stringify(done)}`);
+    ok(await page.evaluate(() => document.querySelector('#keysScreen .keys-audience').classList.contains('clap') && document.getElementById('keysScreen').classList.contains('on-stage')),
+      'ひきおわると タマが 拍手（ステージは そのまま）');
     ok(done.msg.includes('えんそう おわり') && /ゆったり|ちょうどいい|いきいき/.test(done.msg) && /ぴったり|ロマンチック/.test(done.msg) && done.msg.includes('かざりの 音'),
       `えんそうの とくちょうを ほめる（ミスでは なく 味）${done.msg}`);
     ok(await page.isVisible('#keysAnswers .listen') && await page.isVisible('#keysAnswers .again') && await page.isVisible('#keysAnswers .another') && await page.isVisible('#keysAnswers .finish')
-      && (await page.$$eval('#keysAnswers button', bs => bs.map(b => b.textContent).join())) === 'もういちど きく,この 曲を もういちど,べつの 曲,えんそうを おわる',
-      'ひきおわったら「もういちど きく」「この 曲を もういちど」「べつの 曲」「えんそうを おわる」');
+      && (await page.$$eval('#keysAnswers button', bs => bs.map(b => b.textContent).join())) === 'もういちど きく,この 曲を もういちど,ノートに のこす,べつの 曲,えんそうを おわる',
+      'ひきおわったら「もういちど きく」「この 曲を もういちど」「ノートに のこす」「べつの 曲」「えんそうを おわる」');
     ok(await page.evaluate(() => { const sub = document.querySelector('#keysMessage .keys-message-sub'); return !!sub && /ゆれ|ぴったり/.test(sub.textContent) && !document.getElementById('keysMessage').firstChild.textContent.includes('ゆれ'); }),
       'えんそうの とくちょうは 2だんめに');
     // すぐに じぶんの えんそうが ながれる（イントロなし。さいごは アウトロ F → C）
@@ -1256,6 +1333,16 @@ async function answerAll(page) {
     for (let i = 0; i < total; i++) { await pressKey(page, await expected(page)); await page.waitForTimeout(20); }
     await page.waitForSelector('#keysAnswers .another', { timeout: 5000 });
     ok(await page.evaluate(() => keysLesson.run.take.length) === total, 'もういちど ひいた きろくで ながれる');
+    // ノートに のこす：名前を つけて きょくノートへ（ボタンは「のこしたよ！」に なって もう おせない）
+    await page.click('#keysAnswers .save'); await page.waitForTimeout(100);
+    const saved = await page.evaluate(() => {
+      const list = TamaSongNote.list();
+      const b = document.querySelector('#keysAnswers .save');
+      return { n: list.length, style: list[0] && list[0].style, take: list[0] && list[0].take.length, phrases: list[0] && list[0].phrases.length,
+        name: list[0] && TamaSongNote.nameOf(list[0]), msg: document.getElementById('keysMessage').textContent, disabled: b.disabled, text: b.textContent };
+    });
+    ok(saved.n === 1 && saved.style === 'komuro' && saved.take === total && saved.phrases === 8 && saved.disabled && saved.text === 'のこしたよ！'
+      && saved.msg.includes(`「${saved.name}」を きょくノートに のこしたよ`), `ノートに のこす ${JSON.stringify(saved)}`);
     // べつの 曲：じぶんの えんそうを とめて 拍手 → ごほうびの ドロップ（クリアの 画面は 出さない）→ べつの 曲で はじめから
     await page.waitForFunction(() => keysLesson.playback !== null, null, { timeout: 3000 });
     const before = await page.evaluate(() => {
@@ -1276,10 +1363,14 @@ async function answerAll(page) {
       modal: document.getElementById('completionModal').style.display }));
     ok(dropped.coins === before.coins + 1 && dropped.history === before.history + 1 && dropped.modal !== 'flex',
       `拍手の あと ごほうびの ドロップ。クリアの 画面は 出ない ${JSON.stringify(dropped)}`);
+    const zukan = await page.evaluate(() => ({ families: TamaSongNote.families().join(), drop: TamaStore.getCoins(10).slice(-1)[0].image }));
+    ok(cheering.msg.includes('はじめての ポップス風！ ずかんに のったよ') && zukan.families === 'pops' && zukan.drop === '/img/Gmaru.png',
+      `はじめての 系統は ずかんに のって、ごほうびの ドロップは 金 ${JSON.stringify(zukan)}`);
     await page.waitForTimeout(1600);
     const next = await page.evaluate(() => ({ newSong: keysLesson.run.song !== window.firstSong, index: keysLesson.run.index, performed: keysLesson.run.performed,
       coins: document.querySelectorAll('.reward-coin').length, modal: document.getElementById('completionModal').style.display,
       screen: document.getElementById('keysScreen').style.display, msg: document.getElementById('keysMessage').textContent }));
+    ok(await page.evaluate(() => !document.getElementById('keysScreen').classList.contains('on-stage')), 'べつの 曲の れんしゅうでは ステージの 明かりが もどる');
     ok(next.newSong && next.index === 1 && !next.performed && next.coins === before.coins + 1 && next.modal !== 'flex' && next.screen !== 'none' && next.msg.includes('1/8'),
       `ドロップの あと、べつの 曲で マスタークラスを はじめから ${JSON.stringify(next)}`);
     // えんそうを おわる：拍手 → ごほうびの ドロップ → レベルを えらぶ 画面へ（れんしゅうは とばして とおし えんそうから）

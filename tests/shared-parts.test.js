@@ -26,10 +26,14 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     const { page, errors } = await openPage(ctx, 'index.html#/sub', { sub_coins_1: JSON.stringify([{ image: '/img/Lmaru.png', date: '1/2' }]) });
     await page.click('#openDataModal');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportData')]);
-    ok(/^tamadoro_\d{8}\.txt$/.test(dl.suggestedFilename()), `セーブのファイル名 ${dl.suggestedFilename()}`);
+    ok(/^tamadoro_\d{8}\.json$/.test(dl.suggestedFilename()), `セーブのファイル名は .json ${dl.suggestedFilename()}`);
     const file = await dl.path();
-    const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
-    ok(saved.sub_coins_1 && JSON.parse(saved.sub_coins_1).length === 1, 'セーブにドロップが入っている');
+    const raw = fs.readFileSync(file, 'utf8');
+    const saved = JSON.parse(raw);
+    ok(saved.format === 'tamadoro-save' && saved.version === 2 && !!saved.savedAt, 'セーブは タマドロの セーブファイルの 形');
+    ok(Array.isArray(saved.data.sub_coins_1) && saved.data.sub_coins_1.length === 1 && saved.data.sub_coins_1[0].image === '/img/Lmaru.png',
+      'セーブに ドロップが ふつうの JSON（入れ子）で 入っている');
+    ok(raw.includes('\n  "data": {') && !raw.includes('\\"'), 'セーブは 改行・字下げ つきで、中に \\" が ない');
     ok(errors.length === 0, 'エラーなし ' + errors.join(' / '));
 
     const ctx2 = await newCtx();
@@ -88,6 +92,58 @@ const command = (page, c) => page.evaluate(c => { const t = document.getElementB
     ok(log.length === 1 && log[0].mode === 'multi' && log[0].imported, 'うわがき：いまの記録は消え、ファイルのドロップが記録に取りこまれる');
     ok(replaced.note === 'データをうわがきして よみこみました。', 'うわがき：通知');
     ok(merged.errors.length === 0 && replaced.errors.length === 0, 'ロードでエラーなし ' + [...merged.errors, ...replaced.errors].join(' / '));
+
+    // 新しい .json の セーブ → ロードで、もとの localStorage と まったく 同じに もどる（JSON では ない 文字も）
+    {
+      const ctx = await newCtx();
+      const odd = { ...before, 'tamadoro.music.enabled': 'true', 'tamadoro.notes.dataVersion': '5', plain_text: 'ひづけ ON', quoted: '"abc"', spaced: '[1, 2]' };
+      const { page } = await openPage(ctx, 'index.html', odd);
+      await page.click('#openDataModalHome');
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#exportData')]);
+      const saved = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
+      const want = await page.evaluate(() => ({ ...localStorage }));
+      await page.evaluate(() => localStorage.clear());
+      await page.click('#importData');
+      const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('#importReplace')]);
+      await chooser.setFiles(await dl.path()); await page.waitForTimeout(300);
+      const got = await page.evaluate(() => ({ ...localStorage }));
+      const same = Object.keys(want).every(k => got[k] === want[k]) && Object.keys(got).length === Object.keys(want).length;
+      ok(same && saved.text.plain_text === 'ひづけ ON' && saved.data.quoted === 'abc' && saved.text.spaced === '[1, 2]' && saved.data['tamadoro.music.enabled'] === true,
+        `.json の セーブ → ロードで もとどおり（JSON では ない 文字は text に そのまま）${JSON.stringify({ text: saved.text })}`);
+      ok(await page.evaluate(() => document.getElementById('fileInput').accept) === '.json,.txt,application/json,text/plain', 'ロードは .json も .txt も えらべる');
+      await ctx.close();
+    }
+
+    // 「たして」：きょくノートの 曲と ずかんは 入れかえずに あわせる（同じ 曲は 1つ・新しい じゅん）
+    {
+      const song = (id, style) => ({ id, date: '2026/11/8', style, rhythm: 'genki', phrases: [], take: [], pace: 'choudo', words: [], seed: 0 });
+      const nowState = { ...before, 'tamadoro.notes.songbook': JSON.stringify([song('3000-1', 'komuro'), song('1000-1', 'doyo')]), 'tamadoro.notes.families': JSON.stringify(['pops', 'doyo']) };
+      const noteFile = require('path').join(require('os').tmpdir(), 'tamadoro_note_test.json');
+      fs.writeFileSync(noteFile, JSON.stringify({ format: 'tamadoro-save', version: 2, savedAt: '', data: {
+        'tamadoro.notes.songbook': [song('2000-1', 'twofive'), { ...song('1000-1', 'doyo'), seed: 3 }],
+        'tamadoro.notes.families': ['jazz', 'pops'],
+        add_coins_1: [],
+      }, text: {} }, null, 2));
+      const loadNote = async button => {
+        const ctx = await newCtx();
+        const { page } = await openPage(ctx, 'index.html', nowState);
+        await page.click('#openDataModalHome');
+        await page.click('#importData');
+        const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click(button)]);
+        await chooser.setFiles(noteFile); await page.waitForTimeout(300);
+        const result = await page.evaluate(() => ({ ...localStorage }));
+        await ctx.close();
+        return result;
+      };
+      const m = await loadNote('#importMerge');
+      const songs = JSON.parse(m['tamadoro.notes.songbook']);
+      ok(songs.map(x => x.id).join() === '3000-1,2000-1,1000-1' && songs[2].seed === 3, `たして：きょくノートは 両方の 曲（同じ 曲は 1つ・ファイルの ほう。新しい じゅん）${songs.map(x => x.id).join()}`);
+      ok(JSON.parse(m['tamadoro.notes.families']).join() === 'pops,doyo,jazz', `たして：ずかんは 両方の 系統 ${m['tamadoro.notes.families']}`);
+      ok(m.add_coins_1 === '[]', 'たして：ほかの データは これまでどおり ファイルの ほうに 入れかわる');
+      const r = await loadNote('#importReplace');
+      ok(JSON.parse(r['tamadoro.notes.songbook']).map(x => x.id).join() === '2000-1,1000-1' && JSON.parse(r['tamadoro.notes.families']).join() === 'jazz,pops',
+        'うわがき：きょくノートも ずかんも ファイルの とおり');
+    }
 
     // こわれたファイルを「うわがき」でえらんでも、いまのデータは消えない
     fs.writeFileSync(oldFile, 'こわれたファイル');

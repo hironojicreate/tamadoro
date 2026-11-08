@@ -35,9 +35,54 @@ function showNotification(message) {
 }
 
 
-// セーブ：localStorage を丸ごと tamadoro_月日時分.txt に書き出す
+// セーブ：localStorage を丸ごと tamadoro_月日時分.json に書き出す
+//   { format: 'tamadoro-save', version: 2, savedAt, data: { キー: 中身（JSON の まま。読みやすい ように 入れ子で）},
+//     text: { キー: 文字（JSON では ない もの。そのまま）} }
+//   ロードは この 形と、まえの 形（.txt。{ キー: 文字 } だけ）の どちらも 読める（readSaveFile）
+const SAVE_FORMAT = 'tamadoro-save';
+
+function buildSaveFile() {
+    const data = {};
+    const text = {};
+    Object.keys(localStorage).sort().forEach(key => {
+        const raw = localStorage.getItem(key);
+        try {
+            const value = JSON.parse(raw);
+            if (JSON.stringify(value) === raw) { // もどしても 同じ 文字に なる ものだけ JSON の まま
+                data[key] = value;
+                return;
+            }
+        } catch (error) {
+            // JSON では ない 文字
+        }
+        text[key] = raw;
+    });
+    return { format: SAVE_FORMAT, version: 2, savedAt: new Date().toISOString(), data, text };
+}
+
+// セーブファイルの 中身 → { キー: localStorage に 入れる 文字 }（こわれていたら エラー）
+function readSaveFile(parsed) {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('セーブファイルではありません');
+    }
+    const items = {};
+    if (parsed.format === SAVE_FORMAT) {
+        const { data = {}, text = {} } = parsed;
+        if (typeof data !== 'object' || typeof text !== 'object') throw new Error('セーブファイルではありません');
+        Object.keys(data).forEach(key => { items[key] = JSON.stringify(data[key]); });
+        Object.keys(text).forEach(key => { items[key] = String(text[key]); });
+        return items;
+    }
+    // まえの 形（.txt）：{ キー: 文字 }
+    Object.keys(parsed).forEach(key => {
+        const value = parsed[key];
+        items[key] = typeof value === 'string' ? value : JSON.stringify(value);
+    });
+    return items;
+}
+
 document.getElementById('exportData').addEventListener('click', function () {
-    const blob = new Blob([JSON.stringify(localStorage)], { type: 'text/plain' });
+    const blob = new Blob([JSON.stringify(buildSaveFile(), null, 2)], { type: 'application/json' });
 
     const date = new Date();
     const pad = n => n.toString().padStart(2, '0');
@@ -46,14 +91,15 @@ document.getElementById('exportData').addEventListener('click', function () {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tamadoro_${timestamp}.txt`;
+    a.download = `tamadoro_${timestamp}.json`;
     a.click();
     URL.revokeObjectURL(url);
 });
 
 
-// ロード（ロードボタンは index.html にだけある）
-//   「たして」  ：ファイルにあるデータだけ入れかえ、ファイルにないデータはのこす
+// ロード（ロードボタンは index.html にだけある。.json も まえの .txt も 読める）
+//   「たして」  ：ファイルにあるデータだけ入れかえ、ファイルにないデータはのこす。
+//                 きょくノートの 曲・きょくふう ずかんは 入れかえずに 1つずつ あわせる（TamaStore.MERGERS）
 //   「うわがき」：いまのデータをぜんぶ消してから、ファイルのデータを入れる
 let importMode = 'merge';
 
@@ -88,16 +134,16 @@ document.getElementById('fileInput').addEventListener('change', function (event)
 
     reader.onload = function (e) {
         try {
-            const data = JSON.parse(e.target.result);
             // 中身をたしかめてから消す（こわれたファイルで、いまのデータだけ消えないように）
-            if (!data || typeof data !== 'object' || Array.isArray(data)) {
-                throw new Error('セーブファイルではありません');
-            }
+            const items = readSaveFile(JSON.parse(e.target.result));
             if (importMode === 'replace') {
                 localStorage.clear();
             }
-            Object.keys(data).forEach(key => {
-                localStorage.setItem(key, data[key]);
+            Object.keys(items).forEach(key => {
+                // 「たして」：きょくノートなどは 1つずつ あわせる（TamaStore.MERGERS）。ほかは ファイルの ほうに 入れかえる
+                const merge = TamaStore.MERGERS[key];
+                const now = localStorage.getItem(key);
+                localStorage.setItem(key, importMode === 'merge' && merge && now !== null ? merge(now, items[key]) : items[key]);
             });
             // むかしのアプリのファイルを「うわがき」で読んだときは、ドロップを記録に取りこむ
             History.migrate();

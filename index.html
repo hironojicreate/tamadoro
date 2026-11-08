@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.76</span>
+                <span id="version">Ver.6.3.81</span>
             </p>
         </footer>
     </div>
@@ -1193,6 +1193,7 @@
             <button id="toggleWeakMode" onclick="toggleWeakMode()" style="display: none;">🔥 にがてちょうせん！</button>
             <div class="nav-sub-row">
                 <button id="goToRecords" onclick="location.hash = `#/records/${currentMode.id}`">きろく</button>
+                <button id="goToSongNote" onclick="TamaSongNote.open()" style="display: none;">📖 きょくノート</button>
                 <button id="goToIndex" onclick="location.hash = (currentMode && currentMode.backTo) || '#/'">もどる</button>
             </div>
         </div>
@@ -1445,12 +1446,36 @@
             </div>
         </div>
         <div class="keys-stage">
+            <div class="keys-spot" aria-hidden="true"></div><!-- ステージの 光の すじ（マスタークラスの とおし えんそう） -->
             <div id="keysCards" class="keys-cards"></div>
             <div id="keysAnswers" class="keys-answers"></div>
             <p id="keysMessage" class="keys-message"></p>
             <p id="keysHint" class="keys-hint"></p>
         </div>
         <div id="keysKeyboard" class="keys-keyboard"></div>
+        <!-- ステージの 観客の タマ（マスタークラスの とおし えんそう。曲に あわせて ゆれて、おわったら 拍手。js/engines/keys.js の keysStage） -->
+        <div class="keys-audience" aria-hidden="true">
+            <svg viewBox="280 -10 272 134">
+                <g class="tama-body">
+                    <g stroke="#111111" stroke-width="1.8" stroke-linecap="round" fill="none">
+                        <path d="M 332,76 Q 310,73 292,79"/><path d="M 334,86 Q 312,86 295,95"/>
+                        <path d="M 484,76 Q 506,73 524,79"/><path d="M 482,86 Q 504,86 521,95"/>
+                    </g>
+                    <path class="tama-tail" d="M 505,115 C 514,102 522,88 520,76 C 518,67 510,67 508,74 C 506,80 513,83 508,87 C 501,92 490,82 493,66 C 496,49 514,43 528,51 C 543,60 544,86 526,115 Z" fill="#050505"/>
+                    <path d="M 346,105 C 322,94 322,64 338,44 C 341,25 344,7 355,3 C 365,-1 378,12 387,25 C 400,23 416,23 429,25 C 438,12 451,-1 461,3 C 472,7 475,25 478,44 C 494,64 494,94 470,105 Z" fill="#050505"/>
+                    <ellipse cx="375" cy="59" rx="15.5" ry="14.5" fill="#ffffff"/>
+                    <circle cx="379" cy="60" r="10.5" fill="#c58b18"/>
+                    <circle cx="372" cy="54" r="5" fill="#ffffff"/>
+                    <ellipse cx="441" cy="59" rx="15.5" ry="14.5" fill="#ffffff"/>
+                    <circle cx="445" cy="60" r="10.5" fill="#c58b18"/>
+                    <circle cx="438" cy="54" r="5" fill="#ffffff"/>
+                </g>
+                <!-- 拍手の とき うごく 手 -->
+                <ellipse class="tama-paw left" cx="364" cy="108" rx="14" ry="9" fill="#050505"/>
+                <ellipse class="tama-paw right" cx="452" cy="108" rx="14" ry="9" fill="#050505"/>
+            </svg>
+            <span class="tama-clap-mark left">♪</span><span class="tama-clap-mark right">✨</span>
+        </div>
     </div>
 
     <!-- がんばったねパネル（百マス Lv5） -->
@@ -1515,16 +1540,16 @@
             <h2>★おとなのひとに やりかたをきいてください★</h2>
             <p class="home-only">ゲットしたドロップのまいすうを、
                 <br>セーブ（ほぞん）したり、ロード（よみこみ）したりします。
-                <br>セーブファイルは、tamadoro_すうじ.txtです。
+                <br>セーブファイルは、tamadoro_すうじ.jsonです（まえの .txt も よみこめます）。
                 <br><b>※データは端末本体に保存されます。</b>
                 <br>※各計算ページからもセーブ機能できます。
             </p>
             <p class="mode-only">ゲットした ドロップのかずを、セーブ（ほぞん）します。
-                <br>セーブファイルは、tamadoro_すうじ.txtです。
+                <br>セーブファイルは、tamadoro_すうじ.jsonです（まえの .txt も よみこめます）。
                 <br><b>※データは端末本体に保存されます。</b>
             </p>
             <button id="exportData">データをセーブ</button>
-            <input type="file" id="fileInput" style="display: none;">
+            <input type="file" id="fileInput" accept=".json,.txt,application/json,text/plain" style="display: none;">
             <button id="importData" class="home-only">データをロード</button>
             <button id="toggleDateButton" class="mode-only">ひづけON</button>
             　<!--　←空白あり-->
@@ -1534,7 +1559,7 @@
                 style="display:none; max-width: 420px; margin: 14px auto 0; padding: 10px 14px; border: 1px dashed #999; border-radius: 10px; text-align: left;">
                 <p style="margin: 0 0 8px;"><b>よみこみかたを えらんでください。</b></p>
                 <button id="importMerge">いまのデータに たして よみこむ</button>
-                <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータは のこします。おなじ しゅるいのデータは、ファイルのほうに なります。</p>
+                <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータは のこします。おなじ しゅるいのデータは、ファイルのほうに なります（きょくノートの 曲と ずかんは、りょうほうを あわせます）。</p>
                 <button id="importReplace">ぜんぶ うわがきして よみこむ</button>
                 <p style="margin: 4px 0 10px; font-size: 0.85em;">いまのデータ（ドロップ・きろく・せってい）を ぜんぶ けしてから、ファイルのデータに おきかえます。</p>
                 <button id="importCancel">やめる</button>
@@ -1578,6 +1603,7 @@
     <script src="js/sing.js"></script>
     <script src="js/songs.js"></script>
     <script src="js/song-picker.js"></script>
+    <script src="js/song-note.js"></script>
     <script src="js/engines/keys.js"></script>
     <script src="js/engines/rhythm.js"></script>
     <script src="js/keypad.js"></script>

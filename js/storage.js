@@ -33,4 +33,8 @@ const TamaStore = {
     bestTimeKey(level) {
         return `${currentMode.bestTimePrefix}_level_${level}_best_time`;
     },
+
+    // 「いまのデータに たして よみこむ」で、入れかえずに あわせる データ（キー → (いま, ファイル) → あわせた もの。どれも 文字）
+    //   ここに ない データは、ファイルの ほうに 入れかわる。きょくノート（js/song-note.js）が 足す
+    MERGERS: {},
 };
