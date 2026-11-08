@@ -219,7 +219,7 @@ function keysChordFor(midi) {
 // くろいけんばん：♯・♭ の名前 [step（ド〜シ の 0〜6）, alter（♯ 1・♭ -1）]
 const KEYS_SHARPS = [[0, 1], [1, 1], [3, 1], [4, 1], [5, 1]];    // ド♯・レ♯・ファ♯・ソ♯・ラ♯
 const KEYS_FLATS = [[1, -1], [2, -1], [4, -1], [5, -1], [6, -1]]; // レ♭・ミ♭・ソ♭・ラ♭・シ♭
-// 白いけんばんに なる 名前（この じゅんばんで おしえる）：ミ♯（＝ファ）・ファ♭（＝ミ）・シ♯（＝たかいド）・ド♭（＝ひくいシ）
+// 白いけんばんに なる 名前（この じゅんばんで おしえる）：ミ♯（＝ファ）・ファ♭（＝ミ）・シ♯（＝ド）・ド♭（＝シ）。オクターブは くべつしない
 const KEYS_WHITE_SPELLS = [[2, 1], [3, -1], [6, 1], [0, -1]];
 
 const keysLesson = {
@@ -277,7 +277,13 @@ function keysSpelled([step, alter]) {
         chord: keysChordFor(midi),
         guide: { base: TamaNotes.keyOf(step, 0), dir: alter > 0 ? 'right' : 'left', black: TamaNotes.isBlack(midi) },
         onWhite: !TamaNotes.isBlack(midi), // ミ♯ などは 白いけんばん
+        anyOctave: true, // オクターブは くべつしない（シ♯ は どの ドを おしても 正解）
     };
+}
+
+// 同じ 音の なまえか（オクターブちがいも 同じ）
+function keysSamePitch(a, b) {
+    return (((a - b) % 12) + 12) % 12 === 0;
 }
 
 // ♯・♭ の ガイドの 矢印：黒いけんばんへは ななめ上（↗・↖）、白いけんばんへは よこ（→・←）
@@ -380,17 +386,19 @@ function keysBuildDeck(def) {
     if (def.style === 'enharmonic') return keysShuffleNoRepeat(keysSpelledDeck(pools[def.pool], { ...def, make: keysEnharmonic }));
     if (def.style === 'white-spell') return keysWhiteSpellDeck(def);
     if (def.style === 'black-mix') {
-        // pool から ばらばらに n こ
+        // pool から ばらばらに n こ（n が pool の かず までなら、同じ ものは 出ない）
         const pick = (pool, n) => {
             const out = [];
             while (out.length < n) out.push(...keysShuffle(pool));
             return out.slice(0, n);
         };
-        return keysShuffleNoRepeat([
+        // 前半は けんばんを おす 問題、後半は ボタン（カード）で こたえる 問題（part で わける）
+        const press = keysShuffleNoRepeat([
             ...pick(pools.both, def.spells).map(keysSpelled),
-            ...pick(pools.both, def.names).map(keysEnharmonic),
             ...pick(KEYS_WHITE_SPELLS, def.whites).map(keysSpelled),
-        ]);
+        ]).map(p => ({ ...p, part: 1 }));
+        const names = keysShuffleNoRepeat(pick(pools.both, def.names).map(keysEnharmonic)).map(p => ({ ...p, part: 2 }));
+        return [...press, ...names];
     }
     if (def.style === 'phrase') return keysPhraseDeck(def.count, def.melody);
     if (def.style === 'oni') {
@@ -598,7 +606,13 @@ function keysStopLevel() {
 
 function keysNextProblem() {
     const run = keysLesson.run;
-    if (run.index < run.deck.length) {
+    // 前半と 後半に わかれている ときは、前半で まちがえた 問題を 後半の まえに もういちど
+    const nextPart = run.index < run.deck.length ? run.deck[run.index].part : undefined;
+    const partEnds = run.index > 0 && nextPart !== undefined && nextPart !== run.deck[run.index - 1].part;
+    if (partEnds && run.reviewQueue.length > 0) {
+        run.problem = run.reviewQueue.shift();
+        run.isReview = true;
+    } else if (run.index < run.deck.length) {
         run.problem = run.deck[run.index];
         run.index++;
         run.isReview = false;
@@ -823,14 +837,16 @@ function keysOnPress(midi, inRange) {
 
     const expected = run.problem.notes[run.pos];
     const guide = run.problem.guide;
-    if (guide && midi === guide.base && midi !== expected) {
+    // くろいけんばんの ♯・♭ は オクターブを くべつしない（シ♯ は どの ドでも 正解）
+    const hit = midi === expected || (!!run.problem.anyOctave && keysSamePitch(midi, expected));
+    if (guide && !hit && keysSamePitch(midi, guide.base)) {
         // くろいけんばん：もとの音を おしたのは「おしい！」（まちがいに しない。そこから となりへ）
-        const base = TamaNotes.lessonName(midi);
+        const base = TamaNotes.namesOf(midi)[0];
         keyboard.balloon(midi, `そこが ${base}！`, { color: TamaNotes.color(midi) });
         keysShowMessage(`おしい！ そこが ${base}。${run.problem.names[0]}は その すぐ ${keysSideWord(guide)}`);
         return;
     }
-    if (midi === expected) {
+    if (hit) {
         keyboard.mark(midi, 'ok');
         if (run.problem.beckon) keyboard.clearGuide(); // 「ここを おしてね」の わっかを けす
         // カード（または 五線の 音符）を「読みおわり」に して、つぎを「いま」に。五線の 音符は キラリンと 光る
@@ -1282,7 +1298,7 @@ function keysShowBothNames(midi) {
     if (!problem.names) return;
     const keyboard = keysLesson.keyboard;
     if (problem.onWhite) {
-        keyboard.balloon(midi, `${problem.names[0]}は ${TamaNotes.lessonName(midi)}！`, { ms: 1600 });
+        keyboard.balloon(midi, `${problem.names[0]}は ${TamaNotes.namesOf(midi)[0]}！`, { ms: 1600 }); // 「シ♯は ド！」（オクターブは いわない）
     } else if (TamaNotes.isBlack(midi)) {
         keyboard.balloon(midi, TamaNotes.namesOf(midi).join('／'), { ms: 1600 });
     }

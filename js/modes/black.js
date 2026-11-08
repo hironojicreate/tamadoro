@@ -45,20 +45,22 @@
         locked: () => TamaStore.readJSON('keys_coins_7', []).length === 0,
         lockedMessage: 'しろい けんばんの Lv6 を クリアすると ひらくよ',
 
-        // さいごの Lv6 は 5こ、ほかは 3こで つぎが ひらく
-        coinsToUnlock: level => (level === 6 ? 5 : 3),
+        // どの レベルも、まえの レベルの ドロップ 3こで ひらく
+        coinsToUnlock: () => 3,
 
         // style:  'spell'（♯・♭ の名前の けんばんを おす）／'enharmonic'（「ド♯ ＝ ？♭」を ボタンで）／
-        //         'white-spell'（ミ♯ など 白いけんばんに なる 名前。はじめの 4もんは 矢印つき）／'black-mix'（ぜんぶ まぜて）
+        //         'white-spell'（ミ♯ など 白いけんばんに なる 名前。はじめの 4もんは 矢印つき。オクターブは くべつしない）／
+        //         'black-mix'（ぜんぶ まぜて。前半は けんばんを おす 問題、後半は ボタンで こたえる 問題）
+        // Lv1・2 は 入門（すぐ クリア）なので 10もん。Lv3 が 本番
         // pool:   'sharp'（ド♯・レ♯・ファ♯・ソ♯・ラ♯）／'flat'（レ♭・ミ♭・ソ♭・ラ♭・シ♭）／'both'
         // arrow:  もとの音を ふちどりして、おす けんばんの ほうへ 矢印（黒いけんばんへは ↗・↖、白いけんばんへは →・←）
         // narrowView: せまい 画面で 見せる けんばん
-        // 白いけんばんに なる 名前：ミ♯（＝ファ）・ファ♭（＝ミ）・シ♯（＝たかいド）・ド♭（＝ひくいシ）
+        // 白いけんばんに なる 名前：ミ♯（＝ファ）・ファ♭（＝ミ）・シ♯（＝ド）・ド♭（＝シ）
         levels: [
             { label: 'Lv1 ♯', comment: '♯は すぐ みぎどなり', drop: 'L',
-              style: 'spell', pool: 'sharp', repeat: 3, view: [F3, B4], narrowView: NARROW_ONE, active: [C4, B4], guide: 'all', arrow: true, hint: HINT_SHARP },
+              style: 'spell', pool: 'sharp', repeat: 2, view: [F3, B4], narrowView: NARROW_ONE, active: [C4, B4], guide: 'all', arrow: true, hint: HINT_SHARP },
             { label: 'Lv2 ♭', comment: '♭は すぐ ひだりどなり', drop: 'M',
-              style: 'spell', pool: 'flat', repeat: 3, view: [F3, B4], narrowView: NARROW_ONE, active: [C4, B4], guide: 'all', arrow: true, hint: HINT_FLAT },
+              style: 'spell', pool: 'flat', repeat: 2, view: [F3, B4], narrowView: NARROW_ONE, active: [C4, B4], guide: 'all', arrow: true, hint: HINT_FLAT },
             { label: 'Lv3 ♯と♭', comment: 'まぜて・やじるしなし', drop: 'B',
               style: 'spell', pool: 'both', count: 16, view: [F3, B4], narrowView: NARROW_ONE, active: [C4, B4], guide: 'all', hint: HINT_BOTH },
             { label: 'Lv4 2つの名前', comment: 'ド♯ ＝ ？♭', drop: 'A',

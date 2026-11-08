@@ -453,20 +453,27 @@ async function answerAll(page) {
   for (let l = 1; l <= 5; l++) blackAll[`black_coins_${l}`] = JSON.stringify(Array(5).fill({ image: '/img/Lmaru.png' }));
 
   // いまの問題を ぜんぶ正解する（「ド♯ ＝ ？♭」は ボタンで）
+  //   かえりちは 出た 問題の じゅんばん（'press'・'name'。もういちどの 問題は うしろに *）
   async function answerAllBlack(page) {
+    const order = [];
+    let last = null;
     for (let guard = 0; guard < 600; guard++) {
       const s = await page.evaluate(() => {
         const r = keysLesson.run;
         if (!r || r.finished) return { done: true };
         if (!r.accepting || !r.problem) return { wait: true };
-        return r.problem.type === 'name' ? { step: r.problem.answerStep } : { midi: r.problem.notes[r.pos] };
+        const id = `${r.index}/${r.isReview}/${r.reviewQueue.length}`;
+        const tag = (r.problem.type || 'press') + (r.isReview ? '*' : '');
+        return r.problem.type === 'name' ? { step: r.problem.answerStep, id, tag } : { midi: r.problem.notes[r.pos], id, tag };
       });
-      if (s.done) return;
+      if (s.done) return order;
+      if (s.id && s.id !== last) { order.push(s.tag); last = s.id; }
       if (s.wait) { await page.waitForTimeout(150); continue; }
       if (s.step !== undefined) await page.click(`#keysAnswers .keys-answer[data-step="${s.step}"]`);
       else await pressKey(page, s.midi);
       await page.waitForTimeout(40);
     }
+    return order;
   }
 
   // 12b. くろいけんばんを 作りなおした（版 2）：まえの 版の ドロップは 消える
@@ -489,7 +496,7 @@ async function answerAll(page) {
     ok(!(await page.textContent('#openingScreen')).includes('オニ'), '「オニ」という 名前は つかわない');
     await page.click('#level1'); await page.waitForTimeout(300);
     const deck = await page.evaluate(() => keysLesson.run.deck.map(p => p.key));
-    ok(deck.length === 15 && deck.every(k => k.endsWith('♯')), `Lv1 は ♯ だけ 15もん（${deck.join(' ')}）`);
+    ok(deck.length === 10 && deck.every(k => k.endsWith('♯')), `Lv1 は ♯ だけ 10もん（${deck.join(' ')}）`);
     const g = await page.evaluate(() => {
       const p = keysLesson.run.problem;
       const key = document.querySelector('#keysKeyboard .tk-guide');
@@ -514,7 +521,7 @@ async function answerAll(page) {
     await page.waitForTimeout(400);
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex' && await page.textContent('#modalTitle') === 'Lv1 ♯、クリア！', 'Lv1 クリア');
     const stats = await page.evaluate(() => History.getStats('black'));
-    ok(stats['ド♯'] && stats['ド♯'].n >= 3 && !stats['レ♭'], '♯の名前ごとに きろく（まちがえた問題は もういちど出るので 3かい以上）');
+    ok(stats['ド♯'] && stats['ド♯'].n >= 2 && !stats['レ♭'], '♯の名前ごとに きろく（2かいずつ 出る）');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
@@ -524,7 +531,7 @@ async function answerAll(page) {
     const { page, errors } = await openPage(browser, 'index.html#/black', blackAll);
     await page.click('#level2'); await page.waitForTimeout(300);
     const deck = await page.evaluate(() => keysLesson.run.deck.map(p => p.key));
-    ok(deck.length === 15 && deck.every(k => k.endsWith('♭')), 'Lv2 は ♭ だけ');
+    ok(deck.length === 10 && deck.every(k => k.endsWith('♭')), 'Lv2 は ♭ だけ 10もん');
     const g = await page.evaluate(() => {
       const p = keysLesson.run.problem;
       const key = document.querySelector('#keysKeyboard .tk-guide');
@@ -597,6 +604,14 @@ async function answerAll(page) {
     ok(g.guided === 64 && g.arrow === '→' && g.say.includes('くろい けんばんは ないよ'), `ミが ふちどりで →・「ミの すぐ みぎどなりに、くろい けんばんは ないよ」（${JSON.stringify(g)}）`);
     await pressKey(page, 65); await page.waitForTimeout(100);
     ok((await page.textContent('#keysKeyboard .tk-balloon[data-midi="65"]')) === 'ミ♯は ファ！', '正解すると「ミ♯は ファ！」');
+    // オクターブは くべつしない：シ♯ は ひくい ほうの ド（60）、ド♭ は たかい ほうの シ（71）でも 正解
+    const waitFor = key => page.waitForFunction(k => keysLesson.run.accepting && keysLesson.run.problem.key === k, key);
+    await waitFor('ファ♭'); await pressKey(page, 64);
+    await waitFor('シ♯'); await pressKey(page, 60); await page.waitForTimeout(100);
+    ok((await page.textContent('#keysKeyboard .tk-balloon[data-midi="60"]')) === 'シ♯は ド！', 'シ♯ は どの ドでも 正解（「シ♯は ド！」）');
+    await waitFor('ド♭'); await pressKey(page, 71); await page.waitForTimeout(100);
+    ok((await page.textContent('#keysKeyboard .tk-balloon[data-midi="71"]')) === 'ド♭は シ！', 'ド♭ は どの シでも 正解');
+    ok(await page.evaluate(() => problemState.mistakeCount) === 0, 'オクターブちがいは まちがいに しない');
     await answerAllBlack(page);
     await page.waitForTimeout(400);
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv5 クリア');
@@ -608,15 +623,29 @@ async function answerAll(page) {
   {
     const { page, errors } = await openPage(browser, 'index.html#/black', blackAll);
     ok(await page.isVisible('#level6'), 'Lv6 が ひらく');
+    ok(await page.evaluate(() => [2, 3, 4, 5, 6].every(l => MODES.black.coinsToUnlock(l) === 3)), 'どの レベルも ドロップ 3こで ひらく（Lv6 も）');
     await page.click('#level6'); await page.waitForTimeout(300);
     const deck = await page.evaluate(() => keysLesson.run.deck.map(p => ({ key: p.key, type: p.type || 'press', onWhite: !!p.onWhite, midi: p.notes[0] })));
     ok(deck.length === 16 && deck.filter(p => p.type === 'name').length === 4 && deck.filter(p => p.onWhite).length === 4, 'Lv6 は ♯♭ 8もん・2つの名前 4もん・白いけんばんの 名前 4もん');
+    ok(deck.slice(0, 12).every(p => p.type === 'press') && deck.slice(12).every(p => p.type === 'name'), '前半 12もんは けんばん、後半 4もんは ボタン');
+    ok(new Set(deck.map(p => p.key)).size === 16, `同じ 問題は 出ない（${deck.map(p => p.key).join(' ')}）`);
     const whites = deck.filter(p => p.onWhite);
     ok(whites.every(p => expectWhite[p.key] === p.midi), `白いけんばんに なる（${whites.map(p => `${p.key}=${p.midi}`).join(' ')}）`);
     ok((await page.$$('#keysKeyboard .tk-label')).length === 0 && await page.isVisible('#keysHelp'), '名前なし・「けんばんの よみかた」スイッチ');
     await page.click('#keysHelpCheckbox'); await page.waitForTimeout(100);
     ok((await page.$$('#keysKeyboard .tk-label')).length === 9, 'スイッチを ON に すると 名前（ひくいシ〜たかいド）');
-    await answerAllBlack(page);
+    // さいしょの 問題で まちがえる（こたえでも もとの音でもない けんばん）→ その 問題は 後半の まえに もういちど
+    const wrong = await page.evaluate(() => {
+      const p = keysLesson.run.problem;
+      const same = (a, b) => (((a - b) % 12) + 12) % 12 === 0;
+      for (let m = 60; m <= 71; m++) if (!same(m, p.notes[0]) && !same(m, p.guide.base)) return m;
+    });
+    await pressKey(page, wrong); await page.waitForTimeout(100);
+    ok(await page.evaluate(() => problemState.mistakeCount) === 1, 'Lv6：まちがい 1かい');
+    const order = await answerAllBlack(page);
+    const firstName = order.indexOf('name');
+    ok(order.length === 17 && order.slice(0, firstName).filter(t => t === 'press*').length === 1 && order.slice(firstName).every(t => t === 'name'),
+      `まちがえた けんばんの 問題は 後半（ボタン）の まえに もういちど（${order.join(' ')}）`);
     await page.waitForTimeout(400);
     ok(await page.$eval('#completionModal', e => e.style.display) === 'flex', 'Lv6 クリア');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
