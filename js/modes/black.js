@@ -50,7 +50,7 @@
 
         // style:  'spell'（♯・♭ の名前の けんばんを おす）／'enharmonic'（「ド♯ ＝ ？♭」を ボタンで）／
         //         'white-spell'（ミ♯ など 白いけんばんに なる 名前。はじめの 4もんは 矢印つき。オクターブは くべつしない）／
-        //         'black-mix'（ぜんぶ まぜて。前半は けんばんを おす 問題、後半は ボタンで こたえる 問題）
+        //         'black-mix'（ぜんぶ まぜて。前半は けんばんを おす 問題、後半は ボタンで こたえる 問題。後半には「ド♭ ＝ ？」も）
         // Lv1・2 は 入門（すぐ クリア）なので 10もん。Lv3 が 本番
         // pool:   'sharp'（ド♯・レ♯・ファ♯・ソ♯・ラ♯）／'flat'（レ♭・ミ♭・ソ♭・ラ♭・シ♭）／'both'
         // arrow:  もとの音を ふちどりして、おす けんばんの ほうへ 矢印（黒いけんばんへは ↗・↖、白いけんばんへは →・←）
@@ -69,7 +69,7 @@
               style: 'white-spell', guided: 4, count: 8, view: [F3, E5], narrowView: NARROW_WIDE, active: [B3, C5], guide: 'all',
               hint: 'ミと ファ、シと ドの あいだには くろい けんばんが ない' },
             { label: 'Lv6 まぜて', comment: 'ぜんぶ まぜて・なまえなし', drop: 'S',
-              style: 'black-mix', spells: 8, names: 4, whites: 4, view: [F3, E5], narrowView: NARROW_WIDE, active: [B3, C5], guide: 'none', labelSwitch: true,
+              style: 'black-mix', spells: 8, names: 4, whites: 4, whiteNames: 4, view: [F3, E5], narrowView: NARROW_WIDE, active: [B3, C5], guide: 'none', labelSwitch: true,
               hint: '♯は みぎどなり、♭は ひだりどなり。しろい けんばんの ことも あるよ' },
         ],
     };

@@ -312,18 +312,22 @@ function keysWhiteSpellDeck(def) {
 }
 
 // 「ド♯ ＝ ？♭」（同じ けんばんの もうひとつの名前を、ド〜シ の ボタンで こたえる）
+//   白いけんばんに なる 名前（ミ♯ など）は「ド♭ ＝ ？」で、♯・♭ の ない ド〜シ の ボタン（こたえは シ）
 function keysEnharmonic([step, alter]) {
     const midi = TamaNotes.keyOf(step, alter);
     const given = TamaNotes.spellName(step, alter);
-    const answerStep = alter > 0 ? (step + 1) % 7 : (step + 6) % 7;
-    const answer = TamaNotes.spellName(answerStep, -alter);
+    const onWhite = !TamaNotes.isBlack(midi);
+    const answerStep = onWhite ? TamaNotes.stepOf(midi) : alter > 0 ? (step + 1) % 7 : (step + 6) % 7;
+    const answerAlter = onWhite ? 0 : -alter;
+    const answer = TamaNotes.spellName(answerStep, answerAlter);
     return {
         type: 'name',
         notes: [midi],
         names: [given],
         colors: [TamaNotes.COLORS[step]],
         given,
-        accidental: alter > 0 ? '♭' : '♯',
+        answerAlter,
+        accidental: answerAlter < 0 ? '♭' : answerAlter > 0 ? '♯' : '',
         answerStep,
         answer,
         key: `${given}＝${answer}`,
@@ -393,11 +397,15 @@ function keysBuildDeck(def) {
             return out.slice(0, n);
         };
         // 前半は けんばんを おす 問題、後半は ボタン（カード）で こたえる 問題（part で わける）
+        //   後半には「ド♭ ＝ ？」（白いけんばんの 名前を ♯・♭ なしの ボタンで。whiteNames もん）も まぜる
         const press = keysShuffleNoRepeat([
             ...pick(pools.both, def.spells).map(keysSpelled),
             ...pick(KEYS_WHITE_SPELLS, def.whites).map(keysSpelled),
         ]).map(p => ({ ...p, part: 1 }));
-        const names = keysShuffleNoRepeat(pick(pools.both, def.names).map(keysEnharmonic)).map(p => ({ ...p, part: 2 }));
+        const names = keysShuffleNoRepeat([
+            ...pick(pools.both, def.names).map(keysEnharmonic),
+            ...pick(KEYS_WHITE_SPELLS, def.whiteNames || 0).map(keysEnharmonic),
+        ]).map(p => ({ ...p, part: 2 }));
         return [...press, ...names];
     }
     if (def.style === 'phrase') return keysPhraseDeck(def.count, def.melody);
@@ -694,14 +702,15 @@ function keysShowCards() {
     answers.innerHTML = '';
 
     if (problem.type === 'name') {
-        // 「ド♯ ＝ ？♭」：？の ところを、ド〜シ の ボタンで こたえる
+        // 「ド♯ ＝ ？♭」：？の ところを、ド〜シ の ボタンで こたえる（「ド♭ ＝ ？」は ♯・♭ なしの ド〜シ）
         cards.className = 'keys-cards enharmonic';
         cards.innerHTML = `<div class="keys-card">${keysNameSVG(notes[0], 'big', name(0), color(0))}</div>
             <div class="keys-equal">＝</div>
             <div class="keys-card keys-question" data-i="0">${keysNameSVG(notes[0], 'big', `？${problem.accidental}`, '#ff2929')}</div>`;
-        // ボタンは 黒いけんばんの 名前だけ（ド♭・ファ♭・ミ♯・シ♯ は 白いけんばんに なるので 出さない）
-        const alter = problem.accidental === '♭' ? -1 : 1;
-        answers.innerHTML = TamaNotes.NAMES.map((n, step) => (TamaNotes.isBlack(TamaNotes.keyOf(step, alter))
+        // ♯・♭ つきの ボタンは 黒いけんばんの 名前だけ（ド♭・ファ♭・ミ♯・シ♯ は 白いけんばんに なるので 出さない）。
+        // ♯・♭ なしの ときは ド〜シ の 7こ
+        const alter = problem.answerAlter;
+        answers.innerHTML = TamaNotes.NAMES.map((n, step) => (TamaNotes.isBlack(TamaNotes.keyOf(step, alter)) === (alter !== 0)
             ? `<button type="button" class="keys-answer" data-step="${step}" style="color: ${TamaNotes.COLORS[step]}">${n}${problem.accidental}</button>`
             : '')).join('');
         answers.querySelectorAll('.keys-answer').forEach(button => {
@@ -1323,7 +1332,7 @@ function keysOnName(step, button) {
         button.classList.remove('ng');
         void button.offsetWidth;
         button.classList.add('ng');
-        keysMistake(TamaNotes.spellName(step, problem.accidental === '♭' ? -1 : 1), problem.answer, problem.given);
+        keysMistake(TamaNotes.spellName(step, problem.answerAlter), problem.answer, problem.given);
     }
 }
 
