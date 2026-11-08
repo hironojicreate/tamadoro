@@ -98,6 +98,45 @@ async function answerAll(page) {
     await page.close();
   }
 
+  // 1b. ひみつの しかけ：さいしょの画面で Shift ＋「ひきざん」5かい（タブレットは「たしざん」を おさえて「ひきざん」5かい）で 出る・かくれる
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/');
+    const state = () => page.evaluate(() => ({ on: TamaMusic.enabled(), hash: location.hash, shown: getComputedStyle(document.getElementById('homeMusic')).display !== 'none' }));
+    for (let i = 0; i < 4; i++) { await page.click('#homeSub', { modifiers: ['Shift'] }); await page.waitForTimeout(60); }
+    const four = await state();
+    await page.click('#homeSub', { modifiers: ['Shift'] }); await page.waitForTimeout(150);
+    const five = await state();
+    ok(!four.on && four.hash === '#/' && five.on && five.shown && five.hash === '#/' && (await page.textContent('#notification')).includes('ON'),
+      `Shift ＋ ひきざん 5かいで おんがくのへやが 出る（4かいでは まだ。画面は うつらない）${JSON.stringify([four, five])}`);
+    for (let i = 0; i < 5; i++) { await page.click('#homeSub', { modifiers: ['Shift'] }); await page.waitForTimeout(60); }
+    const off = await state();
+    ok(!off.on && !off.shown && off.hash === '#/', 'もう いちど 5かいで かくれる');
+    // タブレット：たしざんを おさえた まま、べつの 指で ひきざんを 5かい（はなしても たしざんに うつらない）
+    await page.evaluate(() => {
+      const fire = (el, type, id) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', pointerId: id, isPrimary: id === 1 }));
+      const add = document.getElementById('homeAdd'), sub = document.getElementById('homeSub');
+      fire(add, 'pointerdown', 1);
+      for (let i = 0; i < 5; i++) { fire(sub, 'pointerdown', 2 + i); fire(sub, 'pointerup', 2 + i); sub.click(); }
+      fire(add, 'pointerup', 1);
+      add.click();
+    });
+    await page.waitForTimeout(150);
+    const tablet = await state();
+    ok(tablet.on && tablet.shown && tablet.hash === '#/', `タブレット：たしざんを おさえて ひきざん 5かいで 出る ${JSON.stringify(tablet)}`);
+    // ゆっくり おした ときは かぞえない
+    await page.evaluate(() => { TamaMusicSecret.GAP = 100; });
+    for (let i = 0; i < 5; i++) { await page.click('#homeSub', { modifiers: ['Shift'] }); await page.waitForTimeout(250); }
+    ok((await state()).on, 'あいだが あいた ときは かぞえない');
+    await page.evaluate(() => { TamaMusicSecret.GAP = 3000; });
+    // ふつうの クリックは いつもどおり
+    await page.waitForTimeout(900);
+    await page.click('#homeSub'); await page.waitForTimeout(300);
+    ok((await state()).hash === '#/sub', 'ふつうの クリックは ひきざんへ');
+    await page.evaluate(() => TamaMusic.setEnabled(false));
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
   // 2. おとあそび：10かい鳴らすと クリア（ドロップは そのレベルの色。金ではない）
   {
     const { page, errors } = await openPage(browser, 'index.html#/keys', MUSIC_ON);

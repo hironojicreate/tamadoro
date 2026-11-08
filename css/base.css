@@ -830,3 +830,10 @@ button.no-weak .weak-badge {
     z-index: 100;
     pointer-events: none;
 }
+/* ひみつの しかけ（js/music.js）：たしざんを おさえた ままに しても、iPad の メニューや 文字えらびが 出ないように */
+#homeAdd,
+#homeSub {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
