@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.71</span>
+                <span id="version">Ver.6.3.73</span>
             </p>
         </footer>
     </div>
@@ -1429,10 +1429,20 @@
         </button>
 
         <h1 class="page-title"></h1>
-        <!-- けんばんの よみかた：名前なしの レベル（labelSwitch）で、けんばんに 名前を 出す スイッチ（js/engines/keys.js） -->
-        <div class="help-checkbox keys-help" id="keysHelp" style="display: none;">
-            <input type="checkbox" id="keysHelpCheckbox" name="keysHelpCheckbox">
-            <label for="keysHelpCheckbox">けんばんの よみかた</label>
+        <!-- 右上の どうぐ：けんばんの おおきさ（スライダー）と けんばんの よみかた（スイッチ） -->
+        <div class="keys-tools">
+            <!-- けんばんの おおきさ：けんばんを そのまま 大きく・小さく（はしは 見きれて よい。js/engines/keys.js の keysZoom） -->
+            <label class="keys-zoom" for="keysZoom">
+                <span class="keys-zoom-label">けんばんの おおきさ</span>
+                <span class="keys-zoom-mark" aria-hidden="true">ー</span>
+                <input type="range" id="keysZoom" min="0.6" max="1.8" step="0.05" value="1" aria-label="けんばんの おおきさ">
+                <span class="keys-zoom-mark" aria-hidden="true">＋</span>
+            </label>
+            <!-- けんばんの よみかた：名前なしの レベル（labelSwitch）で、けんばんに 名前を 出す スイッチ（js/engines/keys.js） -->
+            <div class="help-checkbox keys-help" id="keysHelp" style="display: none;">
+                <input type="checkbox" id="keysHelpCheckbox" name="keysHelpCheckbox">
+                <label for="keysHelpCheckbox">けんばんの よみかた</label>
+            </div>
         </div>
         <div class="keys-stage">
             <div id="keysCards" class="keys-cards"></div>

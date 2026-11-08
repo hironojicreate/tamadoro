@@ -704,6 +704,18 @@ async function answerAll(page) {
     await page.mouse.move(640, 10); await page.waitForTimeout(400);
     ok(layout.kbBottom <= 10 && layout.kbHeight <= 270 && Math.abs(layout.w - layout.h) < 2 && layout.label === 'はじめにもどる' && layout.over && layout.z && wide > layout.w * 2,
       `けんばんは 画面の 下・はじめにもどる は まん丸で 上に かさなり、マウスで のびる ${JSON.stringify({ ...layout, wide })}`);
+    // けんばんの おおきさ（右上の スライダー）：はばも たかさも 同じ わりあい。上の 文字も いっしょに 上下。おぼえておく
+    const zoom = async () => page.evaluate(() => { const kb = document.getElementById('keysKeyboard').getBoundingClientRect(); const st = document.querySelector('#keysScreen .keys-stage').getBoundingClientRect();
+      return { w: kb.width, h: kb.height, top: kb.top, stage: st.bottom, value: document.getElementById('keysZoom').value }; });
+    const z1 = await zoom();
+    await page.evaluate(() => { const r = document.getElementById('keysZoom'); r.value = '1.5'; r.dispatchEvent(new Event('input')); });
+    const z2 = await zoom();
+    ok(z1.value === '1' && Math.abs(z2.w / z1.w - 1.5) < 0.02 && Math.abs(z2.h / z1.h - 1.5) < 0.02 && z2.top < z1.top && Math.abs((z1.top - z1.stage) - (z2.top - z2.stage)) < 2,
+      `けんばんの おおきさ：はばも たかさも 1.5ばい、上の 文字も いっしょに 上がる ${JSON.stringify([z1, z2])}`);
+    await page.reload(); await page.waitForTimeout(500);
+    await page.click('#level7'); await page.waitForTimeout(300);
+    ok(await page.evaluate(() => document.getElementById('keysZoom').value === '1.5' && localStorage.getItem('tamadoro.keys.zoom') === '1.5'), 'けんばんの おおきさは おぼえておく');
+    await page.evaluate(() => { const r = document.getElementById('keysZoom'); r.value = '1'; r.dispatchEvent(new Event('input')); });
     await page.click('#keysScreen .returnButton'); await page.waitForTimeout(300);
     await page.click('#level6'); await page.waitForTimeout(300);
     ok(!(await page.isChecked('#keysHelpCheckbox')) && (await labels()) === '', 'もう一度 ひらくと スイッチは OFF から');
