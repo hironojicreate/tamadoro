@@ -9,6 +9,7 @@
 //   TamaSound.loadSE(url)       効果音（mp3 など）を読みこむ → TamaSound.playSE(読みこんだもの)
 //   TamaSound.musicSession(on)  iPhone のマナーモードでも 音が出るようにする（おんがくの画面だけ）
 //   TamaSound.click・drum・heardTime  リズムの メトロノーム・たいこ・タップの 時刻（音の時計で）
+//   TamaSound.applause()        拍手（マスタークラスの えんそうの おわり）
 
 const TamaSound = {
     MUTE_KEY: 'tamadoro.sound.muted',
@@ -421,6 +422,74 @@ const TamaSound = {
         amp.connect(bus || this.master);
         osc.start(t);
         osc.stop(t + 0.5);
+    },
+
+    // 拍手（パチパチパチ…）。when 秒あとから、seconds 秒。かえすのは 鳴っている 長さ（秒）
+    //   1回の パチ ＝ みじかい ノイズを 帯域フィルタ（人の 手の 高さ）に とおして すぐ きえる 音。
+    //   何人もが ばらばらの はやさで たたく。はじめは だんだん ふえて、さいごは まばらに なって きえる
+    APPLAUSE_SECONDS: 2.4,
+
+    applause({ when = 0, gain = 1, bus = null, seconds = this.APPLAUSE_SECONDS } = {}) {
+        const ctx = this.live();
+        if (!ctx) return seconds;
+        const source = ctx.createBufferSource();
+        source.buffer = this.applauseBuffer(ctx, seconds);
+        const amp = ctx.createGain();
+        amp.gain.value = gain;
+        source.connect(amp);
+        amp.connect(bus || this.master);
+        source.start(when || ctx.currentTime);
+        return seconds;
+    },
+
+    // 拍手の 音を つくる（毎回 すこし ちがう 拍手に なる）
+    applauseBuffer(ctx, seconds) {
+        const rate = ctx.sampleRate;
+        const length = Math.ceil(seconds * rate);
+        const buffer = ctx.createBuffer(2, length, rate);
+        const left = buffer.getChannelData(0);
+        const right = buffer.getChannelData(1);
+        const people = 14;
+        for (let p = 0; p < people; p++) {
+            const pan = Math.random();                 // 0 ＝ 左、1 ＝ 右
+            const interval = 0.17 + Math.random() * 0.1; // この 人が たたく あいだ（びょう）
+            const pitch = 900 + Math.random() * 1500;    // この 人の 手の 音の 高さ（Hz）
+            let t = Math.random() * 0.35;                // はじめる まで（だんだん ふえる）
+            while (t < seconds - 0.05) {
+                const fade = t / seconds;
+                // さいごの 3わりは、まばらに なって 小さく
+                const loud = fade < 0.7 ? 1 : Math.max(0, 1 - (fade - 0.7) / 0.3);
+                if (Math.random() < 0.35 + 0.65 * loud) {
+                    this.addClap(left, right, rate, Math.floor(t * rate), pitch * (0.9 + Math.random() * 0.2),
+                        (0.5 + Math.random() * 0.5) * (0.25 + 0.75 * loud), pan);
+                }
+                t += interval * (0.85 + Math.random() * 0.3);
+            }
+        }
+        return buffer;
+    },
+
+    // パチ 1回：ノイズ → 帯域フィルタ（biquad）、1ミリびょうで たちあがって すぐ きえる
+    addClap(left, right, rate, start, freq, level, pan) {
+        const length = Math.min(Math.floor(0.09 * rate), left.length - start);
+        const w = 2 * Math.PI * freq / rate;
+        const alpha = Math.sin(w) / (2 * 1.4); // Q 1.4
+        const a0 = 1 + alpha;
+        const b0 = alpha / a0, b2 = -alpha / a0;
+        const a1 = -2 * Math.cos(w) / a0, a2 = (1 - alpha) / a0;
+        const decay = 0.008 + Math.random() * 0.01;
+        const gainL = level * Math.sqrt(1 - pan) * 0.5;
+        const gainR = level * Math.sqrt(pan) * 0.5;
+        let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+        for (let i = 0; i < length; i++) {
+            const t = i / rate;
+            const env = Math.min(1, t / 0.001) * Math.exp(-t / decay);
+            const x = (Math.random() * 2 - 1) * env;
+            const y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2;
+            x2 = x1; x1 = x; y2 = y1; y1 = y;
+            left[start + i] += y * gainL;
+            right[start + i] += y * gainR;
+        }
     },
 
     // ばんそうの和音（ひくめの音で、やさしく）
