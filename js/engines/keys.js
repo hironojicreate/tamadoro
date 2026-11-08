@@ -496,6 +496,37 @@ function keysShowLabels(def) {
     return def.guide === 'all' || (!!def.labelSwitch && document.getElementById('keysHelpCheckbox').checked);
 }
 
+// けんばんの おおきさ（右上の スライダー）：けんばんを はばも たかさも そのまま 大きく・小さく（はしは 見きれて よい）。
+//   上の 文字・がくふは けんばんの 上の はしに あわせて 上下する（CSS の --keys-zoom）。つもった ドロップも いっしょに 上下。
+//   きめた おおきさは おぼえておく
+const keysZoom = {
+    KEY: 'tamadoro.keys.zoom',
+    MIN: 0.6,
+    MAX: 1.8,
+
+    get() {
+        const value = Number(TamaStore.readJSON(this.KEY, 1));
+        return Number.isFinite(value) ? Math.min(this.MAX, Math.max(this.MIN, value)) : 1;
+    },
+
+    apply(value, save = true) {
+        const keyboard = document.getElementById('keysKeyboard');
+        const before = keyboard.getBoundingClientRect().top;
+        document.getElementById('keysScreen').style.setProperty('--keys-zoom', value);
+        document.getElementById('keysZoom').value = value;
+        if (save) TamaStore.writeJSON(this.KEY, value);
+        const shift = keyboard.getBoundingClientRect().top - before;
+        if (shift) {
+            document.querySelectorAll('.coin.keys-pile').forEach(coin => {
+                coin.style.top = `${parseFloat(coin.style.top) + shift}px`;
+            });
+        }
+    },
+};
+
+keysZoom.apply(keysZoom.get(), false);
+document.getElementById('keysZoom').addEventListener('input', event => keysZoom.apply(Number(event.target.value)));
+
 document.getElementById('keysHelpCheckbox').addEventListener('change', () => {
     const run = keysLesson.run;
     if (run && run.view) keysRenderKeyboard(run.view);
