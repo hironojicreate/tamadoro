@@ -675,9 +675,10 @@ html[data-mode="hundredgrid"] .drill-only {
     box-shadow: 0 0 12px rgba(255, 87, 34, 0.8);
 }
 
-/* 2段目：「もどる」「きろく」共通のぷっくりカプセルデザイン */
+/* 2段目：「もどる」「きろく」「きょくノート」共通のぷっくりカプセルデザイン */
 #goToIndex,
-#goToRecords {
+#goToRecords,
+#goToSongNote {
     position: static !important; /* records.css等の右下固定を強制解除 */
     right: auto !important;
     bottom: auto !important;
@@ -708,14 +709,21 @@ html[data-mode="hundredgrid"] .drill-only {
     background: linear-gradient(135deg, #ffb74d, #f57c00) !important;
 }
 
+/* 「きょくノート」（おんぷよみ）：おんがくの へやの むらさき */
+#goToSongNote {
+    background: linear-gradient(135deg, #a29bfe, #6c5ce7) !important;
+}
+
 #goToIndex:hover,
-#goToRecords:hover {
+#goToRecords:hover,
+#goToSongNote:hover {
     transform: scale(1.06);
     filter: brightness(1.08);
 }
 
 #goToIndex:active,
-#goToRecords:active {
+#goToRecords:active,
+#goToSongNote:active {
     transform: scale(0.95);
 }
 

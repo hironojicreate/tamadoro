@@ -714,6 +714,10 @@ html[data-mode="black"] .select-level-buttons button {
     background: linear-gradient(135deg, #55efc4, #00b894);
 }
 
+.keys-perform-button.save {
+    background: linear-gradient(135deg, #fdcb6e, #e17055);
+}
+
 /* せまい 画面：4つの ボタンを 2つずつ 2だんに */
 @media (max-width: 560px) {
     .keys-perform-button {
@@ -1817,4 +1821,103 @@ html[data-mode="rhythm"] .reward-coin {
     #keysScreen.on-stage .keys-audience.sway svg,
     .keys-audience.clap .tama-paw,
     .keys-audience.clap .tama-clap-mark { animation: none; }
+}
+
+
+/* ---------- きょくノート（js/song-note.js）：きょくふう ずかん と のこした 曲 ---------- */
+.zukan {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 6px;
+}
+
+.zukan-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 4px;
+    border: 2px dashed #dcd6ff;
+    border-radius: 10px;
+    background: #f7f5ff;
+    font-weight: 800;
+    font-size: 13px;
+    color: #b2bec3;
+    text-align: center;
+}
+
+.zukan-card.on {
+    border: 2px solid #fdcb6e;
+    background: linear-gradient(135deg, #fff6d5, #ffeaa7);
+    color: #6c5ce7;
+}
+
+.note-songs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.note-song {
+    padding: 8px 12px;
+    border: 2px solid #dcd6ff;
+    border-radius: 12px;
+    background: #fbfaff;
+}
+
+.note-song.playing {
+    border-color: #00b894;
+    background: #effcf8;
+}
+
+.note-song-name {
+    font-weight: 900;
+    font-size: 17px;
+    color: #6c5ce7;
+}
+
+.note-song-info,
+.note-song-words {
+    font-size: 12px;
+    color: #636e72;
+}
+
+.note-song-words {
+    color: #e17055;
+}
+
+.note-song-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.note-song-buttons button {
+    padding: 4px 14px;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 14px;
+    border-radius: 999px;
+    border: 2px solid #6c5ce7;
+    background: #fff;
+    color: #6c5ce7;
+    cursor: pointer;
+}
+
+.note-song-buttons .note-play {
+    border-color: #00b894;
+    background: #00b894;
+    color: #fff;
+}
+
+.note-song-buttons .note-remove {
+    border-color: #b2bec3;
+    color: #636e72;
+}
+
+.note-song-buttons .note-remove.sure {
+    border-color: #d63031;
+    background: #d63031;
+    color: #fff;
 }

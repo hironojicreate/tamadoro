@@ -420,7 +420,7 @@
 
         <footer>
             <p>&copy; 2024-2026 Rela All rights reserved.
-                <span id="version">Ver.6.3.78</span>
+                <span id="version">Ver.6.3.79</span>
             </p>
         </footer>
     </div>
@@ -1193,6 +1193,7 @@
             <button id="toggleWeakMode" onclick="toggleWeakMode()" style="display: none;">🔥 にがてちょうせん！</button>
             <div class="nav-sub-row">
                 <button id="goToRecords" onclick="location.hash = `#/records/${currentMode.id}`">きろく</button>
+                <button id="goToSongNote" onclick="TamaSongNote.open()" style="display: none;">📖 きょくノート</button>
                 <button id="goToIndex" onclick="location.hash = (currentMode && currentMode.backTo) || '#/'">もどる</button>
             </div>
         </div>
@@ -1602,6 +1603,7 @@
     <script src="js/sing.js"></script>
     <script src="js/songs.js"></script>
     <script src="js/song-picker.js"></script>
+    <script src="js/song-note.js"></script>
     <script src="js/engines/keys.js"></script>
     <script src="js/engines/rhythm.js"></script>
     <script src="js/keypad.js"></script>
