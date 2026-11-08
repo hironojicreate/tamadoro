@@ -923,7 +923,11 @@ function keysOnPerform(midi) {
     run.take.push({ t: performance.now(), wrongs: run.takeWrongs.slice(-2) });
     run.takeWrongs = [];
     const phrase = problem.starts.indexOf(run.pos);
-    if (phrase >= 0) keysAccomp.play(problem.chords[phrase]); // その 小節の 和音が つぎの 小節まで 鳴りつづける
+    if (phrase >= 0) {
+        keysAccomp.play(problem.chords[phrase]); // その 小節の 和音が つぎの 小節まで 鳴りつづける（ねもとの ベースも ドン）
+    } else {
+        keysAccomp.follow(); // ひいた 音に ベースが そっと ついてくる
+    }
     keysAccomp.poke();
     const note = document.querySelector(`#keysCards [data-i="${run.pos}"]`);
     if (note) {
@@ -1029,13 +1033,35 @@ function keysPerformAgain() {
 }
 
 // ---------- とおし えんそうの 伴奏（つづく 伴奏・イントロ・アウトロ） ----------
-//   つづく 伴奏：小節の さいしょの 音を ひくと その 小節の 和音が 鳴りはじめ、つぎの 小節まで 鳴りつづける（まって くれる）。
-//     のびる 音色（ストリングス・オルガン・しゃくはち）は のばす（6びょうごとに そっと 鳴らしなおす）。
-//     きえる 音色（ピアノ・エレピ・ピコピコ・オルゴール）は 曲の はやさで ゆっくり 分散和音（ド・ミ・ソ・ミ …）。
+//   つづく 伴奏（まって くれる 伴奏）：小節の さいしょの 音を ひくと その 小節の 和音が 鳴りはじめ、つぎの 小節まで 鳴りつづける。
+//     テンポで きざまない（子どもの ペースと ぶつからない）。和音は のばす 音色（パッド。keysPadVoice）で、
+//     メロディと ちがう 音色・メロディより 下の 高さ（6びょうごとに そっと 鳴らしなおす）。
+//     ベース（ひくい ピアノ）：和音が かわる ときに ねもとを ドン、そのあとは 子どもが 1音 ひくたびに 5度 → ねもと … と そっと ついてくる。
 //     keysAccomp.idle びょう だれも ひかないと きえる
-//   イントロ：伴奏だけで 2小節（1小節め：曲の さいごの 2つの 和音、2小節め：はじめの 和音と カウント 1・2・3・4）→「さあ どうぞ！」
+//   イントロ：伴奏だけで 2小節（1小節め：主和音、2小節め：はじめの 和音へ ひっぱる 和音（keysLeadChord）を のばして カウント 1・2・3・4）。
+//     2小節めの さいごの 半拍から うけつける（すこし はやく おしても 1音めに なる）→ 1音めと いっしょに はじめの 和音が 鳴る →「さあ どうぞ！」
 //   アウトロ：しめくくりの 1小節（下属和音 → 主和音「アーメン」。主和音で 分散和音を かけあがる）。じぶんの えんそうを きく の さいご
-const KEYS_INTRO_BEATS = 8;  // イントロは 2小節
+const KEYS_INTRO_BEATS = 8;    // イントロは 2小節
+const KEYS_EARLY_BEATS = 0.5;  // はいりの 拍より これだけ まえから うけつける（人は 拍より すこし まえに おしがち）
+const KEYS_BASS_VOICE = 'piano'; // ベースの 音色（ひくいので メロディと まざらない）
+
+// まって くれる 伴奏の 和音の 音色：のびる 音色で、メロディと ちがう もの（曲調の 伴奏の 音色が そうなら それ、ちがえば ストリングス）
+function keysPadVoice(song = keysLesson.run && keysLesson.run.song) {
+    if (!song) return 'strings';
+    const { melody, chord } = TamaSongs.soundOf(song.style);
+    const spec = TamaSound.VOICES[chord];
+    if (chord !== melody && spec && !spec.pluck && spec.fade === null) return chord;
+    return melody === 'strings' ? 'organ' : 'strings';
+}
+
+// 和音の ベース：[ねもと, 5度]（ひくい ほう。5度が ない 和音は ねもとだけ）
+function keysBassNotes(chord) {
+    const notes = TamaSongs.chordNotes(chord) || TamaSound.CHORDS[chord];
+    if (!notes) return [];
+    const root = notes[0] - 12;
+    const fifth = notes.find(m => m - notes[0] >= 6 && m - notes[0] <= 8);
+    return fifth ? [root, fifth - 12] : [root];
+}
 
 const keysAccomp = {
     bus: null,      // 伴奏・イントロ・アウトロの 音の みち（ほかの 画面へ いくと まとめて きる）
@@ -1044,6 +1070,7 @@ const keysAccomp = {
     timers: [],
     idleTimer: null,
     idle: 20,       // これだけ ひかないと きえる（びょう）
+    steps: 0,       // この 和音で ベースが ついてきた かず（5度・ねもと を かわりばんこに）
 
     output() {
         if (!this.bus) this.bus = TamaSound.bus();
@@ -1054,39 +1081,40 @@ const keysAccomp = {
         this.timers.push(setTimeout(fn, seconds * 1000));
     },
 
-    // その 和音を 鳴らしはじめる（同じ 和音なら そのまま）
+    // その 和音を のばしはじめて、ねもとの ベースを ドン（同じ 和音なら そのまま）
     play(chord) {
         if (chord === this.chord) return;
         this.stop();
         this.chord = chord;
-        const voice = keysVoice('chord');
-        const spec = TamaSound.VOICES[voice];
+        this.steps = 0;
+        if (!TamaSound.CHORDS[chord] && TamaSongs.chordNotes(chord)) TamaSound.CHORDS[chord] = TamaSongs.chordNotes(chord);
+        const voice = keysPadVoice();
         const notes = TamaSound.CHORDS[chord] || [];
         const bus = this.output();
-        if (spec && !spec.pluck && spec.fade === null) {
-            // のびる 音色：のばす（とぎれないように 6びょうごとに 鳴らしなおす）
-            const pad = first => {
-                const old = this.voices;
-                this.voices = notes.map((midi, i) => TamaSound.note(midi, { voice, gain: 0.16, when: 0.01 + (first ? i * 0.02 : 0), hold: 0.05, bus }));
-                old.forEach(v => v.release());
-                this.later(() => { if (this.chord === chord) pad(false); }, 6);
-            };
-            pad(true);
-        } else {
-            // きえる 音色：ポロロンと 鳴らして、曲の はやさで ゆっくり 分散和音
-            TamaSound.chord(chord, { when: 0.01, gain: 0.18, strum: 0.02, voice, bus });
-            const order = notes.length > 3 ? [0, 1, 2, 3, 2, 1] : [0, 1, 2, 1];
-            const beat = keysBeat();
-            let k = 0;
-            const step = () => {
-                if (this.chord !== chord) return;
-                TamaSound.note(notes[order[k % order.length]] + 12, { voice, gain: 0.09, when: 0.01, bus }).release();
-                k++;
-                this.later(step, beat);
-            };
-            this.later(step, beat);
-        }
+        // のばす（とぎれないように 6びょうごとに 鳴らしなおす）
+        const pad = first => {
+            const old = this.voices;
+            this.voices = notes.map((midi, i) => TamaSound.note(midi, { voice, gain: 0.16, when: 0.01 + (first ? i * 0.02 : 0), hold: 0.05, bus }));
+            old.forEach(v => v.release());
+            this.later(() => { if (this.chord === chord) pad(false); }, 6);
+        };
+        pad(true);
+        this.bass(0.26);
         this.poke();
+    },
+
+    // 子どもが 1音 ひいた：ベースが そっと ついてくる（5度 → ねもと → 5度 …）
+    follow() {
+        if (!this.chord) return;
+        this.steps++;
+        this.bass(0.15);
+    },
+
+    bass(gain) {
+        const notes = keysBassNotes(this.chord);
+        if (!notes.length) return;
+        const midi = notes[this.steps % notes.length];
+        TamaSound.note(midi, { voice: KEYS_BASS_VOICE, gain, when: 0.01, bus: this.output(), hold: 0.3 }).release();
     },
 
     // ひいた：しばらく ひかないと きえる タイマーを やりなおす
@@ -1126,17 +1154,34 @@ function keysCadence(style) {
     return { sub, tonic };
 }
 
-// イントロの 1小節め（曲の さいごの 2つの 和音）を at びょうから 鳴らす。2小節めの カウントは 小さな カチッ
+// イントロの 主和音（1小節め）：曲調の 調（C か Am）。5音音階の 曲調は 曲の さいごの 和音（音階の 音だけ）
+function keysIntroTonic(style) {
+    if (style.scale) return style.chords[style.chords.length - 1];
+    return style.key === 'Am' ? 'Am' : 'C';
+}
+
+// はじめの 和音へ ひっぱる 和音（イントロの 2小節め）：はじめの 和音の 5度 上の 7の和音（F → C7、C → G7、Am → E7）。
+//   5音音階の 曲調は 音階の 音だけで できる 和音（5度 上の 7の和音 → 5度 上の 空5度 → 4度 上の 空5度）
+function keysLeadChord(style) {
+    const NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const first = TamaSongs.parse(style.chords[0]);
+    const root = first ? first.root : 0;
+    const candidates = [`${NAMES[(root + 7) % 12]}7`, `${NAMES[(root + 7) % 12]}5`, `${NAMES[(root + 5) % 12]}5`];
+    const fits = name => !style.scale || TamaSongs.tones(name).every(t => style.scale.includes(t));
+    const lead = candidates.find(fits) || candidates[0];
+    if (!TamaSound.CHORDS[lead]) TamaSound.CHORDS[lead] = TamaSongs.chordNotes(lead);
+    return lead;
+}
+
+// イントロの 1小節め（主和音）を at びょうから 鳴らす。2小節めの カウントは 小さな カチッ
+//   （2小節めの ひっぱる 和音は keysAccomp.play で のばす）
 function keysIntroSounds(bus, at) {
     const run = keysLesson.run;
-    const chords = run.song.style.chords;
+    const tonic = keysIntroTonic(run.song.style);
     const beat = keysBeat();
-    const voice = keysVoice('chord');
-    [chords[chords.length - 2], chords[chords.length - 1]].forEach((chord, i) => {
-        const when = at + i * 2 * beat;
-        TamaSound.chord(chord, { when, gain: 0.17, strum: 0.02, bus, voice, hold: 2 * beat * 0.95 });
-        TamaSound.note(TamaSongs.chordNotes(chord)[0] - 12, { when, gain: 0.26, bus, voice, hold: 2 * beat * 0.95 }).release();
-    });
+    if (!TamaSound.CHORDS[tonic]) TamaSound.CHORDS[tonic] = TamaSongs.chordNotes(tonic);
+    TamaSound.chord(tonic, { when: at, gain: 0.16, strum: 0.02, bus, voice: keysPadVoice(), hold: 4 * beat * 0.9 });
+    TamaSound.note(keysBassNotes(tonic)[0], { when: at, gain: 0.26, bus, voice: KEYS_BASS_VOICE, hold: 2 * beat }).release();
     const ctx = TamaSound.live();
     if (ctx) for (let k = 0; k < 4; k++) TamaSound.click(ctx.currentTime + at + (4 + k) * beat, k === 0, bus);
 }
@@ -1156,7 +1201,7 @@ function keysOutro(bus, at, song = keysLesson.run.song) {
     return end + 1.2;
 }
 
-// とおし えんそうの はじまり：イントロ（2小節）→「さあ どうぞ！」。イントロの あいだは けんばんを うけつけない
+// とおし えんそうの はじまり：イントロ（2小節）→「さあ どうぞ！」。イントロの あいだは けんばんを うけつけない（さいごの 半拍から うけつける）
 // ---------- ステージ（とおし えんそうの あいだ） ----------
 //   まわりが 暗く なって がくふに スポットライト。タマが 観客として 曲に あわせて ゆれて、おわったら 拍手（css/music.css）。
 //   とおし えんそうの イントロから、その 曲を はなれる（べつの 曲・えんそうを おわる・ほかの 画面）まで
@@ -1199,12 +1244,14 @@ function keysPerformIntro() {
     keysStage(true); // まわりが 暗く なって スポットライト。タマが ゆれる
     keysIntroSounds(keysAccomp.output(), at);
     keysShowMessage('♪ イントロ ♪ よく きいてね');
-    keysLesson.later(() => keysAccomp.play(style.chords[0]), (at + 4 * beat) * 1000);
+    // 2小節め：はじめの 和音へ ひっぱる 和音を のばして カウント（はじめの 和音は 子どもの 1音めと いっしょに 鳴る）
+    keysLesson.later(() => keysAccomp.play(keysLeadChord(style)), (at + 4 * beat) * 1000);
     for (let k = 0; k < 4; k++) {
         keysLesson.later(() => keysShowMessage(`${'・'.repeat(k)}${k + 1}`), (at + (4 + k) * beat) * 1000);
     }
+    // はいりの 拍の すこし まえから うけつける（ちょうどで きると、すこし はやく おした 1音めが はじかれる）
+    keysLesson.later(() => { run.accepting = true; }, (at + (KEYS_INTRO_BEATS - KEYS_EARLY_BEATS) * beat) * 1000);
     keysLesson.later(() => {
-        run.accepting = true;
         keysShowMessage(`さあ どうぞ！ ${style.sub}を さいごまで ひこう。じぶんの ペースで いいよ`);
     }, (at + KEYS_INTRO_BEATS * beat) * 1000);
 }

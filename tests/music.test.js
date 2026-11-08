@@ -1317,7 +1317,22 @@ async function answerAll(page) {
       `とおし えんそう：ぜんぶの がくふ（2だん・コード名・小節線）${JSON.stringify(score)}`);
     const meter = await page.evaluate(() => ({ time: document.querySelectorAll('#keysCards .staff-time').length, rests: document.querySelectorAll('#keysCards .staff-rest').length }));
     ok(meter.time === 1 && meter.rests === 4, `ぜんぶの がくふは 4/4（はじめに 1つ）・4ぶきゅうふ 4つ ${JSON.stringify(meter)}`);
-    // イントロ（2小節）：その あいだは うけつけない →「さあ どうぞ！」。2小節めから はじめの 和音が 鳴りつづける
+    const leads = await page.evaluate(() => {
+      const by = id => TamaSongs.STYLES.find(s => s.id === id);
+      const ids = ['oudou', 'komuro', 'fifties', 'sad', 'twofive', 'yonanuki', 'minyo', 'kachashi'];
+      return {
+        lead: ids.map(id => `${id}:${keysLeadChord(by(id))}`).join(' '),
+        tonic: ['oudou', 'sad', 'yonanuki', 'minyo'].map(id => `${id}:${keysIntroTonic(by(id))}`).join(' '),
+        pad: ['oudou', 'twofive', 'fanfare', 'amen', 'cadence', 'blues', 'yonanuki'].map(id => `${id}:${keysPadVoice({ style: by(id) })}`).join(' '),
+        registered: ['C7', 'E7', 'G7', 'A7', 'G5', 'D5', 'F5'].every(c => Array.isArray(TamaSound.CHORDS[c])),
+      };
+    });
+    ok(leads.lead === 'oudou:C7 komuro:E7 fifties:G7 sad:E7 twofive:A7 yonanuki:G5 minyo:D5 kachashi:F5' && leads.registered,
+      `ひっぱる 和音：はじめの 和音の 5度 上の 7の和音（5音音階の 曲調は 音階の 音だけ）${leads.lead}`);
+    ok(leads.tonic === 'oudou:C sad:Am yonanuki:C minyo:A5', `イントロの 1小節めは 主和音（曲の おわりの 和音の ながれに しない）${leads.tonic}`);
+    ok(leads.pad === 'oudou:strings twofive:strings fanfare:strings amen:strings cadence:strings blues:organ yonanuki:shakuhachi',
+      `まって くれる 伴奏は のびる 音色で、メロディと ちがう もの ${leads.pad}`);
+    // イントロ（2小節）：その あいだは うけつけない →「さあ どうぞ！」。2小節めは はじめの 和音へ ひっぱる 和音（Am なら E7）を のばす
     const intro = await page.evaluate(() => {
       window.plays = [];
       const play = keysAccomp.play.bind(keysAccomp);
@@ -1339,16 +1354,43 @@ async function answerAll(page) {
     ok(stage.on && stage.sway && stage.beat === `${60 / 112}s`, `とおし えんそうは ステージ（まわりが 暗く なって スポットライト。タマが 曲の 拍で ゆれる）${JSON.stringify(stage)}`);
     await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 15000 });
     const ready = await page.evaluate(() => ({ msg: document.getElementById('keysMessage').textContent, chord: keysAccomp.chord, plays: window.plays.join() }));
-    ok(ready.msg.includes('さあ どうぞ') && ready.chord === 'Am' && ready.plays === 'Am', `イントロの あと「さあ どうぞ！」。はじめの 和音が 鳴りつづけて まって いる ${JSON.stringify(ready)}`);
+    ok(!ready.msg.includes('さあ どうぞ') && ready.chord === 'E7' && ready.plays === 'E7',
+      `はいりの 拍の すこし まえから うけつける（カウントの さいご）。ひっぱる 和音 E7 を のばして まって いる ${JSON.stringify(ready)}`);
+    await page.waitForFunction(() => document.getElementById('keysMessage').textContent.includes('さあ どうぞ'), null, { timeout: 3000 });
+    ok(await page.evaluate(() => keysAccomp.chord) === 'E7', '「さあ どうぞ！」の あとも、はじめの 和音は まだ 鳴らない（1音めと いっしょに）');
+    // 伴奏の 音を きろくする（まって くれる 伴奏：のばす 和音は ストリングス、ベースは ひくい ピアノ。きざまない）
+    await page.evaluate(() => {
+      window.notes = [];
+      const note = TamaSound.note.bind(TamaSound);
+      TamaSound.note = (midi, o = {}) => { window.notes.push({ midi, voice: o.voice || 'piano', gain: o.gain }); return note(midi, o); };
+      keysLesson.keyboard.sound = () => ({ release() {} }); // けんばんの 音は きろくしない
+    });
     // まちがえても とまらない（すすまないだけ）
     // まちがいは 正しい 音の 半音上・全音上（オクターブ ちがいの 同じ 音に ならないように。かざりの 音が 2つ）
     const wrong = await page.evaluate(() => keysLesson.run.problem.notes[0] + 1);
     for (let i = 0; i < 6; i++) { await pressKey(page, i % 2 ? wrong : wrong + 1); await page.waitForTimeout(30); }
     ok(await page.$eval('#mistakeModal', e => e.style.display) !== 'flex' && await page.evaluate(() => keysLesson.run.pos) === 0, 'とおし えんそうは まちがえても とまらない');
+    // 1音め：はじめの 和音（Am）が のびる 音色で 鳴って、ねもとの ベース（ひくい ラ）が ドン
+    await page.evaluate(() => { window.notes = []; });
+    await pressKey(page, await expected(page)); await page.waitForTimeout(60);
+    const entry = await page.evaluate(() => ({ chord: keysAccomp.chord, notes: window.notes, pad: keysPadVoice() }));
+    const padNotes = entry.notes.filter(n => n.voice === 'strings').map(n => n.midi).join();
+    const bass1 = entry.notes.filter(n => n.voice === 'piano').map(n => n.midi).join();
+    ok(entry.chord === 'Am' && entry.pad === 'strings' && padNotes === '45,48,52' && bass1 === '33',
+      `1音めと いっしょに はじめの 和音（ポップスでも のばす ストリングス）と ねもとの ベース ${JSON.stringify({ padNotes, bass1, chord: entry.chord })}`);
+    // 2音め：ベースが 5度で そっと ついてくる。ひかないと なにも 鳴らない（きざまない）
+    await page.evaluate(() => { window.notes = []; });
+    await pressKey(page, await expected(page)); await page.waitForTimeout(60);
+    const bass2 = await page.evaluate(() => window.notes.map(n => `${n.voice}:${n.midi}`).join());
+    await page.evaluate(() => { window.notes = []; });
+    await page.waitForTimeout(1200);
+    const quiet = await page.evaluate(() => window.notes.length);
+    ok(bass2 === 'piano:40' && quiet === 0, `ひいた 音に ベースが ついてくる（5度）。ひかない あいだは 鳴らない ${JSON.stringify({ bass2, quiet })}`);
     const total = await page.evaluate(() => keysLesson.run.problem.notes.length);
     // 2小節め まで ひいて、しばらく ひかないと 伴奏は きえる（テストでは 0.3びょう）
     const half = await page.evaluate(() => keysLesson.run.problem.starts[2]);
-    for (let i = 0; i < half; i++) { await pressKey(page, await expected(page)); await page.waitForTimeout(30); }
+    const done2 = await page.evaluate(() => keysLesson.run.pos); // うえで 2音 ひいた ぶん
+    for (let i = done2; i < half; i++) { await pressKey(page, await expected(page)); await page.waitForTimeout(30); }
     const mid = await page.evaluate(() => keysAccomp.chord);
     await page.evaluate(() => { keysAccomp.idle = 0.3; keysAccomp.poke(); });
     await page.waitForTimeout(600);
@@ -1363,7 +1405,7 @@ async function answerAll(page) {
     await page.waitForTimeout(150);
     const done = await page.evaluate(() => ({ plays: window.plays.filter((c, i, a) => i === 0 || c !== a[i - 1]).join(), chord: keysAccomp.chord, acc: keysLesson.run.accepting,
       take: keysLesson.run.take.length, wrongs: keysLesson.run.take[0].wrongs.length, msg: document.getElementById('keysMessage').textContent }));
-    ok(done.plays === 'Am,F,G,C,Am,F,G,C' && done.chord === null && !done.acc && done.take === total && done.wrongs === 2,
+    ok(done.plays === 'E7,Am,F,G,C,Am,F,G,C' && done.chord === null && !done.acc && done.take === total && done.wrongs === 2,
       `フレーズの はじめで その 和音へ。ひいた きろく（まちがえた 音は さいごの 2つ）${JSON.stringify(done)}`);
     ok(await page.evaluate(() => document.querySelector('#keysScreen .keys-audience').classList.contains('clap') && document.getElementById('keysScreen').classList.contains('on-stage')),
       'ひきおわると タマが 拍手（ステージは そのまま）');
