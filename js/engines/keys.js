@@ -544,6 +544,7 @@ function keysRetryLevel() {
 // やめるとき（はじめにもどる・ほかの画面へ）
 function keysStopLevel() {
     keysStopPlayback();
+    keysStage(false); // ステージの 明かりを もどす
     if (keysLesson.cheer) {
         keysLesson.cheer.disconnect(); // 拍手の とちゅうで やめたら 拍手も けす
         keysLesson.cheer = null;
@@ -887,6 +888,7 @@ function keysPerformDone() {
     keysAccomp.stop();
     const { traits } = TamaSongs.expressive(run.song.phrases, run.take, keysBeat());
     keysShowMessage(`えんそう おわり！ ${style.name}（${style.sub}）を ひけたよ！`, `${TamaSongs.traitWords(traits).join('・')} ♪`);
+    keysAudienceClap(KEYS_CLAP_MS); // タマが 拍手
     const answers = document.getElementById('keysAnswers');
     answers.innerHTML = `
         <button type="button" class="keys-perform-button listen">もういちど きく</button>
@@ -914,6 +916,7 @@ function keysPerformFinish(next) {
     document.getElementById('keysAnswers').innerHTML = ''; // 2かい おせないように
     run.round = (run.round || 0) + 1;                       // まだ ながれていない「じぶんの えんそう」も ながさない
     keysShowMessage('パチパチパチ…！ すてきな えんそうだったね！');
+    keysAudienceClap(); // タマも 拍手
     const bus = TamaSound.bus();
     keysLesson.cheer = bus;
     const seconds = TamaSound.applause({ bus });
@@ -1073,6 +1076,35 @@ function keysOutro(bus, at) {
 }
 
 // とおし えんそうの はじまり：イントロ（2小節）→「さあ どうぞ！」。イントロの あいだは けんばんを うけつけない
+// ---------- ステージ（とおし えんそうの あいだ） ----------
+//   まわりが 暗く なって がくふに スポットライト。タマが 観客として 曲に あわせて ゆれて、おわったら 拍手（css/music.css）。
+//   とおし えんそうの イントロから、その 曲を はなれる（べつの 曲・えんそうを おわる・ほかの 画面）まで
+const KEYS_CLAP_MS = 1800; // ひきおわった ときの タマの 拍手の ながさ
+
+function keysStage(on) {
+    const screen = document.getElementById('keysScreen');
+    const audience = screen.querySelector('.keys-audience');
+    screen.classList.toggle('on-stage', on);
+    if (on) screen.style.setProperty('--beat', `${keysBeat()}s`);
+    audience.classList.toggle('sway', on);
+    if (!on) audience.classList.remove('clap');
+}
+
+// タマの 拍手（ms ミリびょう。0 は おわるまで ずっと）。そのあいだは ゆれない
+function keysAudienceClap(ms = 0) {
+    const audience = document.querySelector('#keysScreen .keys-audience');
+    const turn = keysLesson.claps = (keysLesson.claps || 0) + 1; // あとの 拍手を まえの 拍手の おわりで とめない
+    audience.classList.add('clap');
+    audience.classList.remove('sway');
+    if (ms) {
+        keysLesson.later(() => {
+            if (keysLesson.claps !== turn) return;
+            audience.classList.remove('clap');
+            audience.classList.add('sway');
+        }, ms);
+    }
+}
+
 function keysPerformIntro() {
     const run = keysLesson.run;
     const style = run.song.style;
@@ -1083,6 +1115,7 @@ function keysPerformIntro() {
     run.take = [];       // ひいた きろく（音ごとの 時刻と、その まえに まちがえた 音）
     run.takeWrongs = [];
     keysAccomp.halt();
+    keysStage(true); // まわりが 暗く なって スポットライト。タマが ゆれる
     keysIntroSounds(keysAccomp.output(), at);
     keysShowMessage('♪ イントロ ♪ よく きいてね');
     keysLesson.later(() => keysAccomp.play(style.chords[0]), (at + 4 * beat) * 1000);

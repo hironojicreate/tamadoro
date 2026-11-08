@@ -1160,6 +1160,12 @@ async function answerAll(page) {
       return { acc: keysLesson.run.accepting, msg: document.getElementById('keysMessage').textContent };
     });
     ok(!intro.acc && intro.msg.includes('イントロ'), `とおし えんそうの まえに イントロ（うけつけない）${JSON.stringify(intro)}`);
+    const stage = await page.evaluate(() => {
+      const screen = document.getElementById('keysScreen');
+      return { on: screen.classList.contains('on-stage'), sway: screen.querySelector('.keys-audience').classList.contains('sway'),
+        beat: screen.style.getPropertyValue('--beat') };
+    });
+    ok(stage.on && stage.sway && stage.beat === `${60 / 112}s`, `とおし えんそうは ステージ（まわりが 暗く なって スポットライト。タマが 曲の 拍で ゆれる）${JSON.stringify(stage)}`);
     await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 15000 });
     const ready = await page.evaluate(() => ({ msg: document.getElementById('keysMessage').textContent, chord: keysAccomp.chord, plays: window.plays.join() }));
     ok(ready.msg.includes('さあ どうぞ') && ready.chord === 'Am' && ready.plays === 'Am', `イントロの あと「さあ どうぞ！」。はじめの 和音が 鳴りつづけて まって いる ${JSON.stringify(ready)}`);
@@ -1188,6 +1194,8 @@ async function answerAll(page) {
       take: keysLesson.run.take.length, wrongs: keysLesson.run.take[0].wrongs.length, msg: document.getElementById('keysMessage').textContent }));
     ok(done.plays === 'Am,F,G,C,Am,F,G,C' && done.chord === null && !done.acc && done.take === total && done.wrongs === 2,
       `フレーズの はじめで その 和音へ。ひいた きろく（まちがえた 音は さいごの 2つ）${JSON.stringify(done)}`);
+    ok(await page.evaluate(() => document.querySelector('#keysScreen .keys-audience').classList.contains('clap') && document.getElementById('keysScreen').classList.contains('on-stage')),
+      'ひきおわると タマが 拍手（ステージは そのまま）');
     ok(done.msg.includes('えんそう おわり') && /ゆったり|ちょうどいい|いきいき/.test(done.msg) && /ぴったり|ロマンチック/.test(done.msg) && done.msg.includes('かざりの 音'),
       `えんそうの とくちょうを ほめる（ミスでは なく 味）${done.msg}`);
     ok(await page.isVisible('#keysAnswers .listen') && await page.isVisible('#keysAnswers .again') && await page.isVisible('#keysAnswers .another') && await page.isVisible('#keysAnswers .finish')
@@ -1280,6 +1288,7 @@ async function answerAll(page) {
     const next = await page.evaluate(() => ({ newSong: keysLesson.run.song !== window.firstSong, index: keysLesson.run.index, performed: keysLesson.run.performed,
       coins: document.querySelectorAll('.reward-coin').length, modal: document.getElementById('completionModal').style.display,
       screen: document.getElementById('keysScreen').style.display, msg: document.getElementById('keysMessage').textContent }));
+    ok(await page.evaluate(() => !document.getElementById('keysScreen').classList.contains('on-stage')), 'べつの 曲の れんしゅうでは ステージの 明かりが もどる');
     ok(next.newSong && next.index === 1 && !next.performed && next.coins === before.coins + 1 && next.modal !== 'flex' && next.screen !== 'none' && next.msg.includes('1/8'),
       `ドロップの あと、べつの 曲で マスタークラスを はじめから ${JSON.stringify(next)}`);
     // えんそうを おわる：拍手 → ごほうびの ドロップ → レベルを えらぶ 画面へ（れんしゅうは とばして とおし えんそうから）

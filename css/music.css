@@ -1690,3 +1690,131 @@ html[data-mode="rhythm"] .reward-coin {
     color: #6c5ce7;
     cursor: pointer;
 }
+
+
+/* ---------- ステージ（マスタークラスの とおし えんそう。js/engines/keys.js の keysStage） ----------
+   まわりが ゆっくり 暗く なって、がくふに スポットライト（がくふの カードの 影を 画面いっぱいに ひろげる）。
+   けんばん・ボタン・ことばは 明るい まま。タマが 観客として 曲に あわせて ゆれて、おわったら 拍手 */
+#keysScreen .keys-cards.score .score-card {
+    transition: box-shadow 1.2s ease;
+    box-shadow: 0 0 0 0 rgba(255, 236, 170, 0), 0 0 0 200vmax rgba(14, 10, 36, 0);
+}
+
+#keysScreen.on-stage .keys-cards.score .score-card {
+    box-shadow: 0 0 46px 14px rgba(255, 236, 170, 0.6), 0 0 0 200vmax rgba(14, 10, 36, 0.84);
+}
+
+/* うえから さす 光の すじ */
+#keysScreen .keys-spot {
+    position: absolute;
+    top: -6vh;
+    left: 50%;
+    width: min(110vw, 1300px);
+    height: 100%;
+    transform: translateX(-50%);
+    clip-path: polygon(44% 0, 56% 0, 88% 100%, 12% 100%);
+    background: linear-gradient(to bottom, rgba(255, 246, 210, 0.32), rgba(255, 246, 210, 0.04) 85%, rgba(255, 246, 210, 0));
+    opacity: 0;
+    transition: opacity 1.2s ease;
+    pointer-events: none;
+}
+
+#keysScreen.on-stage .keys-spot {
+    opacity: 1;
+}
+
+#keysScreen.on-stage .keys-message { color: #ffeaa7; }
+#keysScreen.on-stage .keys-message-sub { color: #fab1a0; }
+#keysScreen.on-stage .keys-hint { color: #b2bec3; }
+#keysScreen.on-stage .keys-tools { opacity: 0.45; }
+
+/* 観客の タマ：けんばんの 左うえに すわる */
+#keysScreen .keys-audience {
+    position: absolute;
+    z-index: 3;
+    left: max(8px, calc(50vw - min(96vw, 1100px) * var(--keys-zoom) / 2 + 6px));
+    bottom: calc(var(--keys-height) * var(--keys-zoom) + 6px);
+    width: clamp(64px, 11vw, 140px);
+    opacity: 0;
+    transform: translateY(30%);
+    transition: opacity 1s ease, transform 1s ease;
+    pointer-events: none;
+}
+
+#keysScreen.on-stage .keys-audience {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.keys-audience svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/* 目が 光って 見える ように（暗い ところでも タマと わかる） */
+#keysScreen.on-stage .keys-audience svg {
+    filter: drop-shadow(0 0 6px rgba(255, 236, 170, 0.55));
+}
+
+/* ゆれる：1拍で 右、つぎの 1拍で 左（--beat は 曲の 1拍の 秒） */
+#keysScreen.on-stage .keys-audience.sway svg {
+    animation: tama-sway calc(var(--beat, 0.6s) * 2) ease-in-out infinite;
+    transform-origin: 50% 100%;
+}
+
+@keyframes tama-sway {
+    0%, 100% { transform: rotate(-6deg); }
+    50% { transform: rotate(6deg); }
+}
+
+/* 拍手：手を 上で パチパチ（ゆれは とまる） */
+.keys-audience .tama-paw {
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+}
+
+.keys-audience.clap .tama-paw {
+    stroke: #ffeaa7; /* 黒い 顔の 前でも 手が 見える ように */
+    stroke-width: 2;
+}
+
+.keys-audience.clap .tama-paw.left { animation: tama-clap-left 0.32s ease-in-out infinite; }
+.keys-audience.clap .tama-paw.right { animation: tama-clap-right 0.32s ease-in-out infinite; }
+
+@keyframes tama-clap-left {
+    0%, 100% { transform: translate(16px, -10px); }
+    50% { transform: translate(38px, -16px); }
+}
+
+@keyframes tama-clap-right {
+    0%, 100% { transform: translate(-16px, -10px); }
+    50% { transform: translate(-38px, -16px); }
+}
+
+.keys-audience .tama-clap-mark {
+    position: absolute;
+    top: -10%;
+    font-size: clamp(14px, 2vw, 24px);
+    color: #ffeaa7;
+    opacity: 0;
+}
+
+.keys-audience .tama-clap-mark.left { left: 4%; }
+.keys-audience .tama-clap-mark.right { right: 4%; }
+
+.keys-audience.clap .tama-clap-mark { animation: tama-clap-mark 0.64s ease-out infinite; }
+.keys-audience.clap .tama-clap-mark.right { animation-delay: 0.32s; }
+
+@keyframes tama-clap-mark {
+    0% { opacity: 0; transform: translateY(6px) scale(0.7); }
+    40% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-16px) scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #keysScreen.on-stage .keys-audience.sway svg,
+    .keys-audience.clap .tama-paw,
+    .keys-audience.clap .tama-clap-mark { animation: none; }
+}
