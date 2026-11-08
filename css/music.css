@@ -688,7 +688,7 @@ html[data-mode="black"] .select-level-buttons button {
     flex: none;
 }
 
-/* ひきおわったあとの ボタン（この きょくを もういちど・べつの きょく・えんそうを おわる） */
+/* ひきおわったあとの ボタン（もういちど きく・この 曲を もういちど・べつの 曲・えんそうを おわる） */
 .keys-perform-button {
     padding: 8px 18px;
     font-family: 'M PLUS Rounded 1c', sans-serif;
@@ -708,6 +708,21 @@ html[data-mode="black"] .select-level-buttons button {
 
 .keys-perform-button.again {
     background: linear-gradient(135deg, #74b9ff, #0984e3);
+}
+
+.keys-perform-button.listen {
+    background: linear-gradient(135deg, #55efc4, #00b894);
+}
+
+/* せまい 画面：4つの ボタンを 2つずつ 2だんに */
+@media (max-width: 560px) {
+    .keys-perform-button {
+        flex: 1 1 calc(50% - 10px);
+        max-width: 240px;
+        padding: 8px 8px;
+        font-size: 15px;
+        white-space: nowrap;
+    }
 }
 
 /* メッセージの 2だんめ（えんそうの とくちょう など） */
