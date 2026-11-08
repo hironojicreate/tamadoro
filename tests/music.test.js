@@ -1021,7 +1021,7 @@ async function answerAll(page) {
     await page.close();
   }
 
-  // 17h. 曲調ごとの 音色（js/sound.js の VOICES）：ぜんぶ 鳴る・こと の 高さ・きょくふう の けんばんと 伴奏
+  // 17h. 曲調ごとの 音色（js/sound.js の VOICES）：ぜんぶ 鳴る・こと の 高さ・きょくふう の けんばんと 伴奏・伴奏の 型
   {
     const unlock = { ...MUSIC_ON, 'tamadoro.notes.song': 'hymn' };
     for (let l = 1; l <= 9; l++) unlock[`notes_coins_${l}`] = JSON.stringify(Array(5).fill({ image: '/img/Lmaru.png' }));
@@ -1067,7 +1067,42 @@ async function answerAll(page) {
     // /song の 一覧に 音色と「おやすみ中」
     await command(page, '/song\n'); await page.waitForTimeout(200);
     const pickerText = await page.$eval('#songPicker', e => e.textContent);
-    ok(pickerText.includes('♪ オルガン／オルガン') && pickerText.includes('おきなわ（おやすみ中）'), '一覧に 音色（♪ メロディ／伴奏）と おきなわ（おやすみ中）');
+    ok(pickerText.includes('♪ オルガン／オルガン・のばす') && pickerText.includes('♪ オルゴール／ピアノ・ズン・チャッ') && pickerText.includes('おきなわ（おやすみ中）'),
+      '一覧に 音色と 伴奏の 型（♪ メロディ／伴奏・型）と おきなわ（おやすみ中）');
+    await page.click('#songPicker [data-close]'); await page.waitForTimeout(200);
+    // 「じぶんの えんそう」の 伴奏は 曲調ごとの 型（TamaSongs.ACCOMPS）
+    const accomps = await page.evaluate(() => Object.fromEntries(Object.keys(TamaSongs.FAMILIES).map(f =>
+      [f, TamaSongs.accompOf(TamaSongs.STYLES.find(s => s.family === f) || { family: f })])));
+    ok(accomps.pops === 'beat' && accomps.rock === 'beat' && accomps.doyo === 'oompah' && accomps.bossa === 'bossa' && accomps.blues === 'shuffle'
+      && accomps.game === 'arpeggio' && accomps.church === 'pad' && accomps.classic === 'basic' && accomps.jazz === 'basic',
+      `伴奏の 型：ポップス・ロックは 4分で きざむ、どうようは ズン・チャッ、ボサノバ・ブルースは はねる、ゲームは 分散和音、きょうかいは のばす ${JSON.stringify(accomps)}`);
+    // 型の とおりに 鳴る（ずれの ない きろくで）。拍の いちを 1小節ごとに しらべる
+    const timing = await page.evaluate(() => {
+      const run = keysLesson.run;
+      const check = (styleId, rhythm) => {
+        const style = TamaSongs.STYLES.find(s => s.id === styleId);
+        const phrases = TamaSongs.make(style, Math.random, rhythm);
+        run.song = { style, rhythm, phrases };
+        run.take = phrases.map(p => p.rhythm).join('').split('').map((m, k) => (m === '●' ? { t: k * 600, wrongs: [] } : null)).filter(x => x);
+        const beat = 60 / TamaSongs.RHYTHMS[rhythm].tempo;
+        const chords = [], basses = [];
+        const note = TamaSound.note.bind(TamaSound), chord = TamaSound.chord.bind(TamaSound);
+        let inChord = false; // 和音の 中の 音は ベースに かぞえない
+        TamaSound.chord = (n, o) => { chords.push(o.when); inChord = true; const r = chord(n, o); inChord = false; return r; };
+        TamaSound.note = (m, o) => { if (!inChord && o && o.gain !== undefined && m < 48) basses.push(Math.round(((o.when - 0.3) / beat) * 100) / 100); return note(m, o); };
+        keysPlayback();
+        keysStopPlayback();
+        TamaSound.note = note; TamaSound.chord = chord;
+        const inBar = list => [...new Set(list.filter(b => b < 4))].sort((a, b) => a - b).join(' ');
+        return { chords: inBar(chords.map(w => Math.round(((w - 0.3) / beat) * 100) / 100)), basses: inBar(basses) };
+      };
+      return { doyo: check('doyo', 'hazumu'), pops: check('komuro', 'genki'), blues: check('blues', 'genki'), church: check('hymn', 'utau'), classic: check('cadence', 'utau') };
+    });
+    ok(timing.doyo.basses === '0 2' && timing.doyo.chords === '1 3', `どうよう：ズン（ベース 1・3拍め）・チャッ（和音 2・4拍め）${JSON.stringify(timing.doyo)}`);
+    ok(timing.pops.chords === '0 1 2 3' && timing.pops.basses === '0 2', `ポップス：和音を 4分で きざむ ${JSON.stringify(timing.pops)}`);
+    ok(timing.blues.chords === '0 1.67 2 3.67' && timing.blues.basses === '0 1 2 3', `ブルース：はねる（うら拍は 3分の2 うしろ）・ベースは あるく ${JSON.stringify(timing.blues)}`);
+    ok(timing.church.chords === '0' && timing.church.basses === '0', `きょうかい：1小節 のばす ${JSON.stringify(timing.church)}`);
+    ok(timing.classic.chords === '0 2' && timing.classic.basses === '0 2', `ほかの 系統は いままでどおり（1拍め・3拍め）${JSON.stringify(timing.classic)}`);
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }
