@@ -1162,9 +1162,15 @@ async function answerAll(page) {
     ok(!intro.acc && intro.msg.includes('イントロ'), `とおし えんそうの まえに イントロ（うけつけない）${JSON.stringify(intro)}`);
     const stage = await page.evaluate(() => {
       const screen = document.getElementById('keysScreen');
+      const pile = document.createElement('img'); // つもった ドロップ
+      pile.className = 'coin keys-pile';
+      document.body.appendChild(pile);
+      const front = Number(getComputedStyle(screen.querySelector('.keys-audience')).zIndex) > Number(getComputedStyle(pile).zIndex);
+      pile.remove();
       return { on: screen.classList.contains('on-stage'), sway: screen.querySelector('.keys-audience').classList.contains('sway'),
-        beat: screen.style.getPropertyValue('--beat') };
+        beat: screen.style.getPropertyValue('--beat'), front };
     });
+    ok(stage.front, 'タマは つもった ドロップより 手前');
     ok(stage.on && stage.sway && stage.beat === `${60 / 112}s`, `とおし えんそうは ステージ（まわりが 暗く なって スポットライト。タマが 曲の 拍で ゆれる）${JSON.stringify(stage)}`);
     await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 15000 });
     const ready = await page.evaluate(() => ({ msg: document.getElementById('keysMessage').textContent, chord: keysAccomp.chord, plays: window.plays.join() }));

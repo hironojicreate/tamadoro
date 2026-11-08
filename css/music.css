@@ -1731,7 +1731,7 @@ html[data-mode="rhythm"] .reward-coin {
 /* 観客の タマ：けんばんの 左うえに すわる */
 #keysScreen .keys-audience {
     position: absolute;
-    z-index: 3;
+    z-index: 4; /* つもった ドロップ（.coin.keys-pile、3）より 手前。とんでくる ごほうびの ドロップ（6）より うしろ。クリックは とおす */
     left: max(8px, calc(50vw - min(96vw, 1100px) * var(--keys-zoom) / 2 + 6px));
     bottom: calc(var(--keys-height) * var(--keys-zoom) + 6px);
     width: clamp(64px, 11vw, 140px);
