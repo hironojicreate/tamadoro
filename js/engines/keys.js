@@ -165,6 +165,63 @@ function keysSongDeck() {
     return deck;
 }
 
+// ヘおん マスタークラス（左手）：js/left-hand.js で 曲を つくって、3〜8小節の 左手を 1小節ずつ れんしゅう → とおし えんそう。
+//   正解すると その 小節を 右手（メロディ）と いっしょに 鳴らす（左手が メロディを ささえる ことを 耳で）
+function keysLeftSongDeck(def) {
+    const song = TamaLeftHand.make(def.stage);
+    const bars = song.lh.length;
+    const deck = [];
+    let explained = false;
+    song.lh.forEach((bar, i) => {
+        if (bar.kind === 'REST') return;
+        const notes = bar.events.map(e => e.notes[0]);
+        const long = bar.events.some(e => e.beats >= 2);
+        deck.push({
+            notes,
+            rhythm: bar.events,
+            chord: bar.chord,
+            chordName: bar.chord,
+            counts: true,
+            rests: [],
+            leftBar: i,
+            key: notes.map(m => TamaNotes.lessonName(m)).join(''),
+            say: `${song.style.name}　${i + 1}/${bars}小節めの 左手${i >= bars - 2 ? '（おわりへ）' : ''}`
+                + (long && !explained ? '　白い 玉（2ぶ音符・全音符）は ながく のばす 音だよ' : ''),
+        });
+        if (long) explained = true;
+    });
+    deck.song = song;
+    return deck;
+}
+
+// ヘおん マスタークラス：右手（メロディ）の 音 [{ t：曲の はじめからの 拍, m }]
+function keysLeftMelody(song) {
+    const out = [];
+    song.phrases.forEach((ph, b) => {
+        let n = 0;
+        ph.rhythm.split('').forEach((mark, k) => { if (mark === '●') out.push({ t: b * 4 + k, m: ph.notes[n++] }); });
+    });
+    return out;
+}
+
+// ヘおん マスタークラス：小節 from〜to（to は ふくまない）を 右手と 左手で 鳴らす。かえすのは びょう
+function keysLeftPlayBars(song, from, to, { left = true, bus = null } = {}) {
+    const beat = keysBeat(song);
+    const start = 0.15;
+    keysLeftMelody(song).filter(n => n.t >= from * 4 && n.t < to * 4)
+        .forEach(n => TamaSound.note(n.m, { when: start + (n.t - from * 4) * beat, gain: 0.42, bus, hold: beat * 0.9 }).release());
+    if (left) {
+        for (let b = from; b < to; b++) {
+            let pos = 0;
+            song.lh[b].events.forEach(e => {
+                if (!e.rest) TamaSound.note(e.notes[0], { when: start + ((b - from) * 4 + pos) * beat, gain: 0.36, bus, hold: beat * e.beats * 0.92 }).release();
+                pos += e.beats;
+            });
+        }
+    }
+    return start + (to - from) * 4 * beat;
+}
+
 // とおし えんそうの 問題：ぜんぶの 音を ひとつながりに（starts：フレーズの はじまりの 音の ばんごう、
 //   rests：きゅうふの まえの 音の ばんごう）
 function keysPerformProblem(song) {
@@ -202,6 +259,7 @@ function keysLightRests(after) {
 
 // いまの きょくふう の 音色（part：'melody' けんばん・メロディ、'chord' 伴奏）。きょくふう でなければ ピアノ
 function keysVoice(part, song = keysLesson.run && keysLesson.run.song) {
+    if (song && song.left) return 'piano'; // ヘおん マスタークラス：ひとつの ピアノ曲（右手も 左手も ピアノ）
     return song ? TamaSongs.soundOf(song.style)[part] : 'piano';
 }
 
@@ -281,6 +339,7 @@ const keysLesson = {
             if (run === this.run) fn(); // そのあいだに やめた・やりなおした ときは なにもしない
         }, ms);
         this.timers.push(id);
+        return id;
     },
 
     stopTimers() {
@@ -430,6 +489,7 @@ function keysBuildDeck(def) {
     if (def.style === 'free') return [];
     if (def.style === 'tour') return def.tour === 'bass' ? keysBassTourDeck() : keysTourDeck(def);
     if (def.style === 'bassline') return keysBassLineDeck(def);
+    if (def.style === 'leftsong') return keysLeftSongDeck(def);
     if (def.style === 'song') return keysSongDeck();
     if (def.style === 'dango') return keysDangoDeck(def);
     const pools = { sharp: KEYS_SHARPS, flat: KEYS_FLATS, both: [...KEYS_SHARPS, ...KEYS_FLATS] };
@@ -691,7 +751,7 @@ function keysNextProblem() {
         run.problem = run.reviewQueue.shift();
         run.isReview = true;
     } else if (run.song && !run.performed) {
-        run.problem = keysPerformProblem(run.song);
+        run.problem = run.song.left ? keysLeftPerformProblem(run.song) : keysPerformProblem(run.song);
         run.performed = true;
         run.isReview = false;
     } else {
@@ -719,12 +779,17 @@ function keysNextProblem() {
     }
     run.accepting = true;
     if (run.problem.type === 'perform') keysPerformIntro(); // イントロの あいだは うけつけない
+    if (run.problem.type === 'leftperform') keysLeftIntro(); // はじめの 2小節は メロディだけ（うけつけない）
 }
 
 function keysUpdateRemaining() {
     const run = keysLesson.run;
     if (run.problem && run.problem.type === 'perform') {
         document.getElementById('keysRemaining').textContent = `とおし えんそう！ ${run.song.style.name}・${TamaSongs.RHYTHMS[run.song.rhythm].name}`;
+        return;
+    }
+    if (run.problem && run.problem.type === 'leftperform') {
+        document.getElementById('keysRemaining').textContent = `とおし えんそう！ ${run.song.style.name}・左手`;
         return;
     }
     const remaining = run.deck.length - run.index + run.reviewQueue.length + 1;
@@ -780,6 +845,14 @@ function keysShowCards() {
             button.addEventListener('click', () => keysOnName(Number(button.dataset.step), button));
         });
         keysShowMessage('おなじ けんばんの、もうひとつの なまえは？');
+        return;
+    }
+
+    if (problem.type === 'leftperform') {
+        // ぜんぶの がくふ：上の だんは アプリの 右手（ト音記号。うすく）、下の だんは 子どもの 左手（ヘ音記号）
+        const perRow = window.innerWidth < 700 ? 2 : 4;
+        cards.className = 'keys-cards staff phrase score left-score';
+        cards.innerHTML = `<div class="keys-card staff-card score-card">${keysLeftScore(run.song, perRow)}</div>`;
         return;
     }
 
@@ -917,6 +990,10 @@ function keysOnPress(midi, inRange, fromName = false) {
 
     if (run.problem.type === 'perform') {
         keysOnPerform(midi);
+        return;
+    }
+    if (run.problem.type === 'leftperform') {
+        keysOnLeftPerform(midi);
         return;
     }
 
@@ -1076,7 +1153,7 @@ function keysPerformFinish(next) {
     run.round = (run.round || 0) + 1;                       // まだ ながれていない「じぶんの えんそう」も ながさない
     // 図鑑に のせる。はじめての 系統なら ごほうびの ドロップは 金
     const family = run.song.style.family;
-    const first = TamaSongNote.addFamily(family);
+    const first = run.song.left ? false : TamaSongNote.addFamily(family); // ヘおん マスタークラスは ずかんに のせない（ト音の きょくふう ずかん）
     keysShowMessage('パチパチパチ…！ すてきな えんそうだったね！',
         first ? `はじめての ${TamaSongs.FAMILIES[family].name}風！ ずかんに のったよ。きんの ドロップ！` : '');
     keysAudienceClap(); // タマも 拍手
@@ -1096,6 +1173,160 @@ function keysPerformFinish(next) {
     }, seconds * 1000);
 }
 
+// ---------- ヘおん マスタークラス：とおし えんそう（子どもが 左手、アプリが 右手） ----------
+//   はじめの 2小節は 右手（メロディ）だけ（2小節めで カウント 1・2・3・4。入りは 半拍 まえから うけつける）→ 3小節めの 頭から 左手。
+//   右手は まって くれる：左手の 音を ひくと、つぎの 左手の 音までの メロディを 曲の はやさで ひく（はやく ひいたら、のこりは やめて つぎへ）。
+//   ひきおわると「左手つきで きく」「メロディだけ」（ききくらべ）・「この 曲を もういちど」・「べつの 曲」・「えんそうを おわる」
+const KEYS_LEFT_START = 8; // 左手が はいる 拍（3小節めの 1拍め）
+
+function keysLeftPerformProblem(song) {
+    const notes = [];
+    const times = [];
+    const beats = [];
+    song.lh.forEach((bar, b) => {
+        let pos = 0;
+        bar.events.forEach(e => {
+            if (!e.rest) { notes.push(e.notes[0]); times.push(b * 4 + pos); beats.push(e.beats); }
+            pos += e.beats;
+        });
+    });
+    return { type: 'leftperform', notes, times, beats, end: song.lh.length * 4, key: 'とおし えんそう', rests: [] };
+}
+
+// ぜんぶの がくふ：1だんごとに 上 ＝ 右手（ト音記号）、下 ＝ 左手（ヘ音記号）
+function keysLeftScore(song, perRow) {
+    const kind = TamaStaff.kind;
+    TamaStaff.kind = 'treble';
+    const top = TamaStaff.score(song.phrases, { perRow });
+    TamaStaff.kind = 'bass';
+    const bottom = TamaStaff.score(song.lh.map(b => ({ chord: b.chord, rhythm: b.events })), { perRow });
+    TamaStaff.kind = kind;
+    const rows = html => html.split(/(?=<svg class="staff score-row")/).filter(Boolean);
+    const bottoms = rows(bottom);
+    return rows(top).map((row, r) => `<div class="lh-system"><div class="lh-melody">${row}</div><div class="lh-bass">${bottoms[r] || ''}</div></div>`).join('');
+}
+
+// まって くれる 右手の、まだ 鳴っていない 音を とめる
+function keysLeftCancel() {
+    const run = keysLesson.run;
+    if (!run) return;
+    (run.leftTimers || []).forEach(clearTimeout);
+    run.leftTimers = [];
+}
+
+function keysLeftIntro() {
+    const run = keysLesson.run;
+    const song = run.song;
+    const beat = keysBeat();
+    const at = 0.3;
+    run.accepting = false;
+    run.round = (run.round || 0) + 1;
+    run.take = [];
+    keysLeftCancel();
+    keysAccomp.halt();
+    keysStage(true);
+    const bus = keysAccomp.output();
+    keysLeftMelody(song).filter(n => n.t < KEYS_LEFT_START)
+        .forEach(n => TamaSound.note(n.m, { when: at + n.t * beat, gain: 0.42, bus, hold: beat * 0.9 }).release());
+    const ctx = TamaSound.live();
+    if (ctx) for (let k = 0; k < 4; k++) TamaSound.click(ctx.currentTime + at + (4 + k) * beat, k === 0, bus);
+    keysShowMessage('♪ はじめの 2小節は メロディだけ。よく きいてね');
+    for (let k = 0; k < 4; k++) {
+        keysLesson.later(() => keysShowMessage(`${'・'.repeat(k)}${k + 1}`), (at + (4 + k) * beat) * 1000);
+    }
+    keysLesson.later(() => { run.accepting = true; }, (at + (KEYS_LEFT_START - KEYS_EARLY_BEATS) * beat) * 1000);
+    keysLesson.later(() => {
+        keysShowMessage('さあ どうぞ！ 左手で メロディを ささえよう。じぶんの ペースで いいよ');
+    }, (at + KEYS_LEFT_START * beat) * 1000);
+}
+
+function keysOnLeftPerform(midi) {
+    const run = keysLesson.run;
+    const problem = run.problem;
+    const keyboard = keysLesson.keyboard;
+    const expected = problem.notes[run.pos];
+    if (midi !== expected) {
+        keyboard.mark(midi, 'ng');
+        keyboard.balloon(midi, `${TamaNotes.lessonName(midi)}だよ`);
+        return;
+    }
+    keyboard.mark(midi, 'ok');
+    run.take.push({ t: performance.now() });
+    // 右手：この 左手の 音から つぎの 左手の 音までの メロディを、曲の はやさで（まえの のこりは やめる）
+    keysLeftCancel();
+    const from = problem.times[run.pos];
+    const to = run.pos + 1 < problem.notes.length ? problem.times[run.pos + 1] : problem.end;
+    const beat = keysBeat();
+    const bus = keysAccomp.output();
+    keysLeftMelody(run.song).filter(n => n.t >= from && n.t < to).forEach(n => {
+        run.leftTimers.push(keysLesson.later(() => TamaSound.note(n.m, { gain: 0.42, bus, hold: beat * 0.9 }).release(), (n.t - from) * beat * 1000));
+    });
+    const note = document.querySelector(`#keysCards .lh-bass [data-i="${run.pos}"]`);
+    if (note) {
+        note.classList.remove('current', 'next');
+        note.classList.add('done', 'sparkle');
+    }
+    run.pos++;
+    if (run.pos < problem.notes.length) {
+        const next = document.querySelector(`#keysCards .lh-bass [data-i="${run.pos}"]`);
+        if (next) {
+            next.classList.remove('next');
+            next.classList.add('current');
+            const system = next.closest('.lh-system');
+            if (system && system.scrollIntoView) system.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+        return;
+    }
+    // さいごの 音：のこりの メロディを ひいてから おわり
+    run.accepting = false;
+    keysLesson.later(keysLeftDone, ((to - from) * beat + 0.4) * 1000);
+}
+
+function keysLeftDone() {
+    const run = keysLesson.run;
+    run.accepting = false;
+    keysShowMessage(`えんそう おわり！ ${run.song.style.name}の 左手を ひけたよ！`, 'メロディだけ と 左手つき を ききくらべて みよう ♪');
+    keysAudienceClap(KEYS_CLAP_MS);
+    const answers = document.getElementById('keysAnswers');
+    answers.innerHTML = `
+        <button type="button" class="keys-perform-button listen">左手つきで きく</button>
+        <button type="button" class="keys-perform-button melody">メロディだけ</button>
+        <button type="button" class="keys-perform-button again">この 曲を もういちど</button>
+        <button type="button" class="keys-perform-button another">べつの 曲</button>
+        <button type="button" class="keys-perform-button finish">えんそうを おわる</button>`;
+    answers.querySelector('.listen').addEventListener('click', () => keysLeftPlayback(true));
+    answers.querySelector('.melody').addEventListener('click', () => keysLeftPlayback(false));
+    answers.querySelector('.again').addEventListener('click', keysPerformAgain);
+    answers.querySelector('.another').addEventListener('click', () => keysPerformFinish('another'));
+    answers.querySelector('.finish').addEventListener('click', () => keysPerformFinish('menu'));
+    const round = run.round;
+    keysLesson.later(() => { if (run.round === round && !keysLesson.playback) keysLeftPlayback(true); }, KEYS_AUTO_PLAYBACK * 1000);
+}
+
+// ききくらべ：曲の はやさで ぜんぶ（withLeft：左手つき。左手の 音符は その 拍で 光る）。とめるのは keysStopPlayback
+function keysLeftPlayback(withLeft) {
+    const run = keysLesson.run;
+    if (!run || !run.song) return;
+    keysStopPlayback();
+    const playback = { bus: TamaSound.bus(), timers: [], left: withLeft };
+    keysLesson.playback = playback;
+    const song = run.song;
+    const beat = keysBeat(song);
+    const seconds = keysLeftPlayBars(song, 0, song.lh.length, { left: withLeft, bus: playback.bus });
+    if (withLeft) {
+        const problem = keysLeftPerformProblem(song);
+        problem.times.forEach((t, i) => playback.timers.push(setTimeout(() => {
+            if (keysLesson.playback !== playback) return;
+            const el = document.querySelector(`#keysCards .lh-bass [data-i="${i}"]`);
+            if (!el) return;
+            el.classList.remove('sparkle');
+            void el.getBoundingClientRect();
+            el.classList.add('sparkle');
+        }, (0.15 + t * beat) * 1000)));
+    }
+    playback.timers.push(setTimeout(() => { if (keysLesson.playback === playback) keysStopPlayback(); }, (seconds + 1) * 1000));
+}
+
 // この 曲を もういちど：同じ 曲で イントロ（カウント）から ひきなおす
 function keysPerformAgain() {
     const run = keysLesson.run;
@@ -1105,7 +1336,8 @@ function keysPerformAgain() {
     keysShowCards(); // がくふを はじめの ようすに
     const first = document.querySelector('#keysCards .score-row');
     if (first && first.scrollIntoView) first.scrollIntoView({ block: 'nearest' });
-    keysPerformIntro();
+    if (run.problem.type === 'leftperform') keysLeftIntro();
+    else keysPerformIntro();
 }
 
 // ---------- とおし えんそうの 伴奏（つづく 伴奏・イントロ・アウトロ） ----------
@@ -1498,14 +1730,20 @@ function keysSolved() {
         run.reviewQueue.push(run.problem); // まちがえた問題は、さいごにもういちど
     }
 
-    TamaSound.chord(run.problem.chord, { voice: keysVoice('chord'), hold: 0.8 });
+    let pause = run.problem.pause || 900;
+    if (run.problem.leftBar !== undefined && run.song) {
+        // ヘおん マスタークラス：ひいた 左手を、右手（メロディ）と いっしょに 1小節 鳴らす
+        pause = keysLeftPlayBars(run.song, run.problem.leftBar, run.problem.leftBar + 1) * 1000 + 300;
+    } else {
+        TamaSound.chord(run.problem.chord, { voice: keysVoice('chord'), hold: 0.8 });
+    }
     document.getElementById('keysCards').classList.add('solved');
 
     if (!problemState.mistakeMade) {
         problemState.correctStreak++;
         keysPileCoin(problemState.correctStreak % 5 === 0); // 5問ごとに金のドロップ
     }
-    keysLesson.later(keysNextProblem, run.problem.pause || 900);
+    keysLesson.later(keysNextProblem, pause);
 }
 
 // pressed・correct は 名前（「ミ」「ド♯／レ♭」など）

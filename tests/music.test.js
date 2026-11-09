@@ -1975,8 +1975,8 @@ async function answerAll(page) {
     const { page, errors } = await openPage(browser, 'index.html#/music', nbAll);
     await page.click('#musicNotesBass'); await page.waitForTimeout(300);
     ok(await page.evaluate(() => location.hash) === '#/notesBass' && await page.isVisible('#openingScreen .title-notesBass'), 'おんぷよみ ヘおん の レベル選択（タイトル）');
-    ok((await page.$$eval('.select-level-buttons button', l => l.map(b => b.textContent).join(','))) === 'しくみ,Lv1 あいだの おだんご,Lv2 せんの おだんご,Lv3 おだんご まぜ,Lv4 おだんごの つづき,Lv5 ド〜ド,Lv6 うえの おと,Lv7 したの おと,Lv8 メロディ',
-      'レベルは しくみ ＋ Lv1〜Lv8（ト音記号と 同じ ならび。マスタークラスは まだ）');
+    ok((await page.$$eval('.select-level-buttons button', l => l.map(b => b.textContent).join(','))) === 'しくみ,Lv1 あいだの おだんご,Lv2 せんの おだんご,Lv3 おだんご まぜ,Lv4 おだんごの つづき,Lv5 ド〜ド,Lv6 うえの おと,Lv7 したの おと,Lv8 メロディ,マスタークラス1,マスタークラス2,マスタークラス3,マスタークラス4',
+      'レベルは しくみ ＋ Lv1〜Lv8（ト音記号と 同じ ならび）＋ マスタークラス1〜4（左手）');
     await page.click('#level1'); await page.waitForTimeout(300);
     const tour = await page.evaluate(() => ({ deck: keysLesson.run.deck.map(p => p.key), notes: keysLesson.run.deck[2].notes.join(), home: TamaNotes.home, kind: TamaStaff.kind,
       sing: keysLesson.run.def.sing, start: keysLesson.run.deck[1].say }));
@@ -2072,6 +2072,127 @@ async function answerAll(page) {
     ok(r.s2.dx === 24 && r.s2.half === 1, `2度の 和音は 玉を よこに ずらす・2ぶきゅうふ ${JSON.stringify(r.s2)}`);
     ok(r.sc.ids === '0,1,2,3,4,5' && r.sc.rests === '0,1' && r.sc.beats === '4,4,4,4' && r.sc.bars === 5, `ぜんぶの がくふ：音符と きゅうふの ばんごう・小節の 拍・小節線（さいごは 2本） ${JSON.stringify(r.sc)}`);
     ok(r.cn === '12休休', `拍の かず：2ぶきゅうふの 拍は うすく（${r.cn}）`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 39. ヘおん マスタークラス（左手）：js/left-hand.js の ルール（docs/handoff-music.md）で つくった 左手を たしかめる
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/', MUSIC_ON);
+    const r = await page.evaluate(() => {
+      const out = { songs: 0, problems: [] };
+      const bad = (stage, what) => { if (out.problems.length < 8) out.problems.push(`段階${stage}：${what}`); };
+      // 和音の 進行：白い けんばんだけ、6〜8小節は S → D → T、D → S は ない
+      Object.entries(TamaLeftHand.SONGS).forEach(([family, spec]) => {
+        const minor = TamaSongs.STYLES.find(s => s.id === spec.style).key === 'Am';
+        const fn = c => { const root = TamaSongs.parse(c).root; const d = minor ? 4 : 7; return root === d ? 'D' : [5, 2].includes(root) ? 'S' : 'T'; };
+        const f = spec.chords.map(fn);
+        if (f.slice(5).join('') !== 'SDT') bad(0, `${family} の おわりが S→D→T でない ${spec.chords.join(' ')}`);
+        f.forEach((x, i) => { if (i > 0 && f[i - 1] === 'D' && x === 'S') bad(0, `${family} に D→S`); });
+        spec.chords.forEach(c => { const q = TamaSongs.parse(c); q.intervals.forEach(iv => { if (!TamaLeftHand.white(q.root + iv)) bad(0, `${family} の ${c} に 黒い けんばん`); }); });
+      });
+      for (let stage = 1; stage <= 4; stage++) {
+        for (let k = 0; k < 40; k++) {
+          const song = TamaLeftHand.make(stage);
+          out.songs++;
+          const minor = song.style.key === 'Am';
+          const ev = [];
+          song.lh.forEach((bar, bi) => { let pos = 0; bar.events.forEach(e => { if (!e.rest) ev.push({ t: bi * 4 + pos, m: e.notes[0], beats: e.beats, bar: bi, first: pos === 0 }); pos += e.beats; }); });
+          if (!(song.lh[0].kind === 'REST' && song.lh[1].kind === 'REST')) bad(stage, '1〜2小節が やすみ でない');
+          ev.forEach(e => {
+            if (e.m < 41 || e.m > 59 || !TamaLeftHand.white(e.m)) bad(stage, `はんい ${e.m}`);
+            if (e.first && e.bar < 6 && e.m % 12 !== TamaSongs.parse(song.lh[e.bar].chord).root) bad(stage, `${e.bar + 1}小節めの 1拍めが ねもと でない`);
+          });
+          ev.slice(1).forEach((e, i) => {
+            const d = Math.abs(e.m - ev[i].m);
+            if (d > 7) bad(stage, `とびが 5度より 大きい ${ev[i].m}→${e.m}`);
+            if (e.bar === ev[i].bar && e.beats === 1 && ev[i].beats === 1 && d > 4) bad(stage, `4ぶどうしが 3度より 大きい ${ev[i].m}→${e.m}`);
+            if (TamaLeftHand.outerFaults(song.phrases, ev[i].t, ev[i].m, e.t, e.m)) bad(stage, `外声の 禁則 拍${e.t}`);
+          });
+          const b7 = song.lh[6].events, b8 = song.lh[7].events;
+          if (b7[0].notes[0] % 12 !== (minor ? 4 : 7) || b7[b7.length - 1].notes[0] % 12 !== (minor ? 4 : 7)) bad(stage, '7小節めが V の ねもとで はじまって おわらない');
+          if (b8[0].notes[0] % 12 !== (minor ? 9 : 0) || song.lh[7].kind !== 'QQH' || b8.some((e, i) => i > 0 && e.notes[0] === b8[i - 1].notes[0])) bad(stage, '8小節め');
+          const kinds = song.lh.slice(2, 6).map(b => b.kind);
+          if (!kinds.some(x => x === 'HQQ' || x === 'QQH')) bad(stage, `全・2ぶ ばかり ${kinds.join(',')}`);
+          if (kinds.filter(x => x === 'Q').length > 1) bad(stage, '4ぶ×4 が 2つ いじょう');
+          if (stage < 3 && kinds.includes('Q')) bad(stage, '段階1・2 に 4ぶ×4');
+          // 右手の 終止：7小節めの さいごの 音から 8小節めの はじめの 主音へ 2度
+          const p7 = song.phrases[6], p8 = song.phrases[7];
+          if (p8.rhythm[0] === '●' && p7.rhythm.endsWith('●') && p8.notes[0] % 12 === (minor ? 9 : 0) && Math.abs(p8.notes[0] - p7.notes[p7.notes.length - 1]) > 2) bad(stage, '右手の 終止が 2度で ない');
+          if (!TamaLeftHand.STAGES[stage].families.includes(song.family)) bad(stage, `系統 ${song.family}`);
+        }
+      }
+      return out;
+    });
+    ok(r.songs === 160 && r.problems.length === 0, `左手の ルール（160曲：はんい・1拍めの ねもと・とび・4ぶの とび・外声の 禁則・完全終止・8小節め・リズム・右手の 終止・和音の 進行）${r.problems.join(' / ')}`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
+  // 40. ヘおん マスタークラス：れんしゅう（1小節ずつ）→ とおし えんそう（はじめの 2小節は メロディだけ・まって くれる 右手）→ ききくらべ
+  {
+    const unlock = { ...nbAll };
+    for (let l = 1; l <= 13; l++) unlock[`notesBass_coins_${l}`] = JSON.stringify(Array(5).fill({ image: '/img/Lmaru.png' }));
+    const { page, errors } = await openPage(browser, 'index.html#/notesBass', unlock);
+    const labels = await page.$$eval('.select-level-buttons button', l => l.map(b => b.textContent));
+    ok(labels.length === 13 && labels.slice(9).join() === 'マスタークラス1,マスタークラス2,マスタークラス3,マスタークラス4', `マスタークラス 1〜4（${labels.slice(9).join(',')}）`);
+    ok(await page.evaluate(() => MODES.notesBass.coinsToUnlock(10) === 5 && MODES.notesBass.coinsToUnlock(11) === 3), 'マスタークラス1 は Lv8 の ドロップ 5こで ひらく');
+    await page.click('#level11'); await page.waitForTimeout(300);
+    const start = await page.evaluate(() => ({ deck: keysLesson.run.deck.length, left: keysLesson.run.song.left, stage: keysLesson.run.song.stage, kb: keysVoice('melody'),
+      clef: !!document.querySelector('#keysCards .staff-clef.bass'), counts: document.querySelectorAll('#keysCards .staff-count').length, msg: document.getElementById('keysMessage').textContent }));
+    ok(start.deck === 6 && start.left && start.stage === 2 && start.kb === 'piano' && start.clef && start.counts === 4 && start.msg.includes('3/8小節め'),
+      `れんしゅうは 3〜8小節の 左手 6もん（ヘ音記号・拍の かず・けんばんは ピアノ）${JSON.stringify(start)}`);
+    // 正解すると その 小節を 右手と いっしょに 鳴らす
+    await page.evaluate(() => { window.notes = []; const note = TamaSound.note.bind(TamaSound); TamaSound.note = (m, o = {}) => { window.notes.push(m); return note(m, o); }; });
+    for (let guard = 0; guard < 20; guard++) {
+      const st = await page.evaluate(() => { const r = keysLesson.run; return { acc: r.accepting, m: r.problem.notes[r.pos], idx: r.index }; });
+      if (st.idx > 1) break;
+      if (!st.acc) { await page.waitForTimeout(100); continue; }
+      await pressKey(page, st.m); await page.waitForTimeout(40);
+    }
+    await page.waitForTimeout(300);
+    const heard = await page.evaluate(() => { const song = keysLesson.run.song; const mel = keysLeftMelody(song).filter(n => n.t >= 8 && n.t < 12).map(n => n.m); return mel.every(m => window.notes.includes(m)); });
+    ok(heard, '正解すると その 小節を 右手（メロディ）と いっしょに 鳴らす');
+    // れんしゅうを ぜんぶ → とおし えんそう
+    for (let guard = 0; guard < 400; guard++) {
+      const st = await page.evaluate(() => { const r = keysLesson.run; return { type: r.problem && r.problem.type, acc: r.accepting, m: r.problem ? r.problem.notes[r.pos] : null }; });
+      if (st.type === 'leftperform') break;
+      if (!st.acc || st.m == null) { await page.waitForTimeout(120); continue; }
+      await pressKey(page, st.m); await page.waitForTimeout(30);
+    }
+    const perform = await page.evaluate(() => ({ acc: keysLesson.run.accepting, msg: document.getElementById('keysMessage').textContent, systems: document.querySelectorAll('#keysCards .lh-system').length,
+      treble: document.querySelectorAll('#keysCards .lh-melody .staff-clef:not(.bass)').length, bass: document.querySelectorAll('#keysCards .lh-bass .staff-clef.bass').length,
+      bassNotes: document.querySelectorAll('#keysCards .lh-bass .staff-note').length, notes: keysLesson.run.problem.notes.length, stage: document.getElementById('keysScreen').classList.contains('on-stage') }));
+    ok(!perform.acc && perform.msg.includes('メロディだけ') && perform.systems === 2 && perform.treble === 2 && perform.bass === 2 && perform.bassNotes === perform.notes && perform.stage,
+      `とおし えんそう：上は 右手（ト音記号）・下は 左手（ヘ音記号）。はじめの 2小節は メロディだけ（うけつけない）${JSON.stringify(perform)}`);
+    await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 15000 });
+    // 左手の 1音め → つぎの 左手の 音までの メロディが 鳴る（まって くれる 右手）
+    await page.evaluate(() => { window.notes = []; });
+    const first = await page.evaluate(() => { const p = keysLesson.run.problem; const mel = keysLeftMelody(keysLesson.run.song).filter(n => n.t >= p.times[0] && n.t < p.times[1]).map(n => n.m); return { m: p.notes[0], mel, wait: (p.times[1] - p.times[0]) * keysBeat() }; });
+    await pressKey(page, first.m); await page.waitForTimeout(first.wait * 1000 + 300);
+    const played = await page.evaluate(() => window.notes);
+    ok(first.mel.every(m => played.includes(m)), `左手を ひくと つぎの 左手の 音までの メロディ（${first.mel.join(',')}）→ 鳴った ${played.join(',')}`);
+    await page.waitForTimeout(800);
+    const waited = await page.evaluate(() => window.notes.length);
+    await page.waitForTimeout(800);
+    ok(await page.evaluate(() => window.notes.length) === waited, 'つぎの 左手を ひくまで 右手は まつ');
+    // さいごまで
+    for (let guard = 0; guard < 100; guard++) {
+      const st = await page.evaluate(() => { const r = keysLesson.run; return { acc: r.accepting, m: r.problem.notes[r.pos], done: r.pos >= r.problem.notes.length }; });
+      if (st.done) break;
+      if (!st.acc) { await page.waitForTimeout(80); continue; }
+      await pressKey(page, st.m); await page.waitForTimeout(60);
+    }
+    await page.waitForSelector('#keysAnswers .keys-perform-button.melody', { timeout: 10000 });
+    const done = await page.evaluate(() => ({ msg: document.getElementById('keysMessage').textContent, buttons: [...document.querySelectorAll('#keysAnswers button')].map(b => b.textContent).join(',') }));
+    ok(done.msg.includes('えんそう おわり') && done.buttons === '左手つきで きく,メロディだけ,この 曲を もういちど,べつの 曲,えんそうを おわる', `ひきおわったら ききくらべ ${JSON.stringify(done)}`);
+    await page.waitForTimeout(900);
+    ok(await page.evaluate(() => !!keysLesson.playback && keysLesson.playback.left === true), 'すぐに 左手つきで ながれる');
+    await page.click('#keysAnswers .melody'); await page.waitForTimeout(200);
+    ok(await page.evaluate(() => !!keysLesson.playback && keysLesson.playback.left === false), '「メロディだけ」で 右手だけを きく');
+    // この 曲を もういちど → はじめの 2小節から
+    await page.click('#keysAnswers .again'); await page.waitForTimeout(200);
+    ok(await page.evaluate(() => keysLesson.playback === null && keysLesson.run.pos === 0 && !keysLesson.run.accepting && document.getElementById('keysMessage').textContent.includes('メロディだけ')), 'この 曲を もういちど：はじめの 2小節（メロディだけ）から');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }

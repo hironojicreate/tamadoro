@@ -744,6 +744,49 @@ html[data-mode="black"] .select-level-buttons button {
     background: linear-gradient(135deg, #55efc4, #00b894);
 }
 
+.keys-perform-button.melody {
+    background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+}
+
+/* ヘおん マスタークラス：ぜんぶの がくふ。上の だん（アプリの 右手）は うすく、下の だん（子どもの 左手）を 読む */
+.keys-cards.left-score .lh-melody .staff-note .staff-head,
+.keys-cards.left-score .lh-melody .staff-note.current .staff-head,
+.keys-cards.left-score .lh-melody .staff-note.done .staff-head {
+    fill: #a4adbd;
+}
+
+.keys-cards.left-score .lh-melody .staff-note .staff-stem,
+.keys-cards.left-score .lh-melody .staff-note.current .staff-stem,
+.keys-cards.left-score .lh-melody .staff-rest-mark {
+    stroke: #a4adbd;
+}
+
+.keys-cards.left-score .lh-melody .staff-glow {
+    fill: none !important;
+}
+
+.keys-cards.left-score .lh-bass .staff-chord {
+    display: none; /* コード名は 上の だんに だけ */
+}
+
+.keys-cards.left-score .lh-system + .lh-system {
+    margin-top: 6px;
+}
+
+/* 1だんが 2つの 五線（右手・左手）なので、ト音の マスタークラスより ひくく（2だん ぜんぶが 見える ように） */
+.keys-cards.left-score .score-row {
+    height: min(12vh, 108px);
+}
+
+.keys-cards.left-score .lh-system,
+.keys-cards.left-score .lh-melody,
+.keys-cards.left-score .lh-bass {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: none;
+}
+
 .keys-perform-button.save {
     background: linear-gradient(135deg, #fdcb6e, #e17055);
 }
