@@ -10,7 +10,7 @@
     const F2 = 41, G2 = 43, A2 = 45, B2 = 47;
     const C3 = 48, D3 = 50, E3 = 52, F3 = 53, G3 = 55, A3 = 57, B3 = 59;
     const C4 = 60, D4 = 62, E4 = 64, G4 = 67;
-    const C2 = 36;
+    const C2 = 36, E2 = 40;
 
     const SPACE_DANGO = { notes: [C3, E3, G3], chord: 'C', name: 'せんの あいだの おだんご', intro: true };
     const LINE_DANGO = { notes: [D3, F3, A3], chord: 'Dm', name: 'せんに ささった おだんご', intro: true };
@@ -31,7 +31,7 @@
         bestTimePrefix: 'notesBass',
         menuCoinSize: '25px',
         deleteMessage: 'おんぷよみ（ヘおん）のデータを消去しました',
-        rescue: { type: 'slider', max: 9 },
+        rescue: { type: 'slider', max: 13 },
         maxMistakes: 5,
         perfectClear: {},
         existingCoinsLevels: [],
@@ -41,8 +41,8 @@
             best: 'これまでのさいこうは',
         },
 
-        // しくみ → Lv1 は ドロップ1こ、ほかは 3こで つぎが ひらく（マスタークラスは まだ。ユーザーと 相談）
-        coinsToUnlock: level => (level === 2 ? 1 : 3),
+        // しくみ → Lv1 は ドロップ1こ、マスタークラス1 は Lv8 の 5こ（ト音記号と 同じ）、ほかは 3こで つぎが ひらく
+        coinsToUnlock: level => (level === 2 ? 1 : level === 10 ? 5 : 3),
 
         // ならびは ト音記号の おんぷよみ と 同じ（js/modes/notes.js の せつめい）
         //   tourShift：しくみの 音を 1オクターブ 下（だい2かんの ド 〜 たかいド）、tourStart：さいしょの ドの せつめい
@@ -98,6 +98,19 @@
               hint: 'ドの 下は ひくいシ（2ほんめ）・ひくいラ（1つめの あいだ）・ひくいソ（1ぽんめ）・ひくいファ（五線の すぐ下）' },
             { label: 'Lv8 メロディ', comment: '3〜4おんの がくふ', drop: 'Y',
               style: 'phrase', count: 8, melody: 'leap', shift: -12, view: [F2, E4], active: [A2, C4], guide: 'none' },
+            // マスタークラス（左手）：アプリが 右手（メロディ）、子どもが 左手（ヘ音記号・単音）。js/left-hand.js の ルールで 曲を つくる
+            //   stage：段階（1 のばす・2 2ぶ音符・3 まぜて うごく・4 よく うごく）。段階ごとに その 系統から ランダム
+            //   1〜2小節は メロディだけ、3〜6小節は 段階の リズム、7〜8小節は 完全終止（V の ねもと → 主音）
+            ...[
+                ['マスタークラス1', 'のばす：きょうかい・にほん・サスフォー', 1],
+                ['マスタークラス2', '2ぶ音符：どうよう・ジャズ・モダン', 2],
+                ['マスタークラス3', 'まぜて うごく：ポップス・ロック・マイナー', 3],
+                ['マスタークラス4', 'よく うごく：クラシック・ゲーム・ボサノバ', 4],
+            ].map(([label, comment, stage]) => ({
+                label, comment, drop: 'S', style: 'leftsong', stage,
+                view: [E2, D4], narrowView: [F2, B3], active: [F2, B3], guide: 'none', labelSwitch: true,
+                hint: 'はじめの 2小節は メロディだけ。3小節めから 左手で メロディを ささえよう',
+            })),
         ],
     };
 })();
