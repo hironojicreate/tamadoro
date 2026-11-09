@@ -723,6 +723,7 @@ function keysStopLevel() {
         keysLesson.cheer = null;
     }
     keysAccomp.halt();
+    keysLeftHead.stop();
     keysLesson.stopTimers();
     keysLesson.run = null;
     if (keysLesson.keyboard) {
@@ -1193,18 +1194,42 @@ function keysLeftPerformProblem(song) {
     return { type: 'leftperform', notes, times, beats, end: song.lh.length * 4, key: 'とおし えんそう', rests: [] };
 }
 
-// ぜんぶの がくふ：1だんごとに 上 ＝ 右手（ト音記号）、下 ＝ 左手（ヘ音記号）
+// ぜんぶの がくふ：大譜表（上 ＝ 右手 ト音記号、下 ＝ 左手 ヘ音記号。行頭の 大括弧・つらぬく 小節線・たての せん。js/staff.js の grand）
 function keysLeftScore(song, perRow) {
-    const kind = TamaStaff.kind;
-    TamaStaff.kind = 'treble';
-    const top = TamaStaff.score(song.phrases, { perRow });
-    TamaStaff.kind = 'bass';
-    const bottom = TamaStaff.score(song.lh.map(b => ({ chord: b.chord, rhythm: b.events })), { perRow });
-    TamaStaff.kind = kind;
-    const rows = html => html.split(/(?=<svg class="staff score-row")/).filter(Boolean);
-    const bottoms = rows(bottom);
-    return rows(top).map((row, r) => `<div class="lh-system"><div class="lh-melody">${row}</div><div class="lh-bass">${bottoms[r] || ''}</div></div>`).join('');
+    return TamaStaff.grand(song.phrases, song.lh.map(b => ({ chord: b.chord, rhythm: b.events })), { perRow });
 }
+
+// どこを えんそうしているかの たての せん（大譜表）：拍 from から to まで 曲の はやさで よこに うごいて、to で とまる
+//   （とおし えんそう：左手を ひくと つぎの 左手の 音まで うごいて まつ。ききくらべ：さいごまで）。だんが かわったら その だんを 見せる
+const keysLeftHead = {
+    raf: null,
+    row: null,
+
+    run(from, to, beat, delay = 0) {
+        cancelAnimationFrame(this.raf);
+        const start = performance.now() + delay * 1000;
+        const step = () => {
+            const t = Math.min(to, from + Math.max(0, performance.now() - start) / 1000 / beat);
+            this.place(t);
+            if (t < to) this.raf = requestAnimationFrame(step);
+        };
+        step();
+    },
+
+    place(t) {
+        const svgs = [...document.querySelectorAll('#keysCards .grand-row')];
+        const row = TamaStaff.playhead(svgs, t);
+        if (row && row !== this.row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        this.row = row;
+    },
+
+    stop() {
+        cancelAnimationFrame(this.raf);
+        this.raf = null;
+        this.row = null;
+        document.querySelectorAll('#keysCards .lh-playhead.on').forEach(line => line.classList.remove('on'));
+    },
+};
 
 // まって くれる 右手の、まだ 鳴っていない 音を とめる
 function keysLeftCancel() {
@@ -1231,6 +1256,7 @@ function keysLeftIntro() {
     const ctx = TamaSound.live();
     if (ctx) for (let k = 0; k < 4; k++) TamaSound.click(ctx.currentTime + at + (4 + k) * beat, k === 0, bus);
     keysShowMessage('♪ はじめの 2小節は メロディだけ。よく きいてね');
+    keysLeftHead.run(0, KEYS_LEFT_START, beat, at); // たての せん：はじめの 2小節を すすんで、左手の 入りで まつ
     for (let k = 0; k < 4; k++) {
         keysLesson.later(() => keysShowMessage(`${'・'.repeat(k)}${k + 1}`), (at + (4 + k) * beat) * 1000);
     }
@@ -1261,6 +1287,7 @@ function keysOnLeftPerform(midi) {
     keysLeftMelody(run.song).filter(n => n.t >= from && n.t < to).forEach(n => {
         run.leftTimers.push(keysLesson.later(() => TamaSound.note(n.m, { gain: 0.42, bus, hold: beat * 0.9 }).release(), (n.t - from) * beat * 1000));
     });
+    keysLeftHead.run(from, to, beat); // たての せんも つぎの 左手の 音まで すすんで まつ
     const note = document.querySelector(`#keysCards .lh-bass [data-i="${run.pos}"]`);
     if (note) {
         note.classList.remove('current', 'next');
@@ -1272,7 +1299,7 @@ function keysOnLeftPerform(midi) {
         if (next) {
             next.classList.remove('next');
             next.classList.add('current');
-            const system = next.closest('.lh-system');
+            const system = next.closest('svg');
             if (system && system.scrollIntoView) system.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
         return;
@@ -1313,6 +1340,7 @@ function keysLeftPlayback(withLeft) {
     const song = run.song;
     const beat = keysBeat(song);
     const seconds = keysLeftPlayBars(song, 0, song.lh.length, { left: withLeft, bus: playback.bus });
+    keysLeftHead.run(0, song.lh.length * 4, beat, 0.15); // たての せんも いっしょに
     if (withLeft) {
         const problem = keysLeftPerformProblem(song);
         problem.times.forEach((t, i) => playback.timers.push(setTimeout(() => {
@@ -1650,6 +1678,7 @@ function keysStopPlayback() {
     const playback = keysLesson.playback;
     if (!playback) return;
     keysLesson.playback = null;
+    keysLeftHead.stop(); // ヘおん マスタークラスの たての せん
     playback.timers.forEach(clearTimeout);
     if (playback.bus) playback.bus.disconnect();
     if (playback.onEnd) playback.onEnd();

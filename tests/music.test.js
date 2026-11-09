@@ -2160,11 +2160,25 @@ async function answerAll(page) {
       if (!st.acc || st.m == null) { await page.waitForTimeout(120); continue; }
       await pressKey(page, st.m); await page.waitForTimeout(30);
     }
-    const perform = await page.evaluate(() => ({ acc: keysLesson.run.accepting, msg: document.getElementById('keysMessage').textContent, systems: document.querySelectorAll('#keysCards .lh-system').length,
-      treble: document.querySelectorAll('#keysCards .lh-melody .staff-clef:not(.bass)').length, bass: document.querySelectorAll('#keysCards .lh-bass .staff-clef.bass').length,
+    const perform = await page.evaluate(() => ({ acc: keysLesson.run.accepting, msg: document.getElementById('keysMessage').textContent, systems: document.querySelectorAll('#keysCards .grand-row').length,
+      treble: document.querySelectorAll('#keysCards .grand-row .lh-melody .staff-clef:not(.bass)').length, bass: document.querySelectorAll('#keysCards .grand-row .lh-bass .staff-clef.bass').length,
       bassNotes: document.querySelectorAll('#keysCards .lh-bass .staff-note').length, notes: keysLesson.run.problem.notes.length, stage: document.getElementById('keysScreen').classList.contains('on-stage') }));
     ok(!perform.acc && perform.msg.includes('メロディだけ') && perform.systems === 2 && perform.treble === 2 && perform.bass === 2 && perform.bassNotes === perform.notes && perform.stage,
-      `とおし えんそう：上は 右手（ト音記号）・下は 左手（ヘ音記号）。はじめの 2小節は メロディだけ（うけつけない）${JSON.stringify(perform)}`);
+      `とおし えんそう：大譜表（1つの 絵に 上 ＝ 右手 ト音記号・下 ＝ 左手 ヘ音記号）。はじめの 2小節は メロディだけ（うけつけない）${JSON.stringify(perform)}`);
+    // 大譜表：行頭の 大括弧、小節線は 上の 五線から 下の 五線まで つらぬく
+    const grand = await page.evaluate(() => [...document.querySelectorAll('#keysCards .grand-row')].map(svg => {
+      const lines = [...svg.querySelectorAll('.staff-lines line')].map(l => +l.getAttribute('y1'));
+      const top = Math.min(...lines), bottom = Math.max(...lines);
+      const bars = [...svg.querySelectorAll(':scope > line.staff-bar')];
+      return { brace: svg.querySelectorAll('.staff-brace').length, bars: bars.length, through: bars.every(l => +l.getAttribute('y1') === top && +l.getAttribute('y2') === bottom), staves: lines.length };
+    }));
+    ok(grand.every(g => g.brace === 1 && g.staves === 10 && g.through && g.bars >= 5), `大譜表：大括弧・小節線が 2つの 五線を つらぬく ${JSON.stringify(grand)}`);
+    // たての せん：はじめの 2小節で よこに うごく
+    const headAt = () => page.evaluate(() => { const on = document.querySelector('#keysCards .lh-playhead.on'); const m = on && /translate\(([\d.]+)/.exec(on.getAttribute('transform') || ''); return m ? +m[1] : null; });
+    const h1 = await headAt();
+    await page.waitForTimeout(600);
+    const h2 = await headAt();
+    ok(h1 !== null && h2 !== null && h2 > h1, `たての せんが よこに うごく ${h1} → ${h2}`);
     await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 15000 });
     // 左手の 1音め → つぎの 左手の 音までの メロディが 鳴る（まって くれる 右手）
     await page.evaluate(() => { window.notes = []; });
@@ -2174,8 +2188,10 @@ async function answerAll(page) {
     ok(first.mel.every(m => played.includes(m)), `左手を ひくと つぎの 左手の 音までの メロディ（${first.mel.join(',')}）→ 鳴った ${played.join(',')}`);
     await page.waitForTimeout(800);
     const waited = await page.evaluate(() => window.notes.length);
+    const stopAt = await headAt();
     await page.waitForTimeout(800);
     ok(await page.evaluate(() => window.notes.length) === waited, 'つぎの 左手を ひくまで 右手は まつ');
+    ok(stopAt !== null && await headAt() === stopAt, `たての せんも つぎの 左手の 音で まつ ${stopAt}`);
     // さいごまで
     for (let guard = 0; guard < 100; guard++) {
       const st = await page.evaluate(() => { const r = keysLesson.run; return { acc: r.accepting, m: r.problem.notes[r.pos], done: r.pos >= r.problem.notes.length }; });
@@ -2188,11 +2204,14 @@ async function answerAll(page) {
     ok(done.msg.includes('えんそう おわり') && done.buttons === '左手つきで きく,メロディだけ,この 曲を もういちど,べつの 曲,えんそうを おわる', `ひきおわったら ききくらべ ${JSON.stringify(done)}`);
     await page.waitForTimeout(900);
     ok(await page.evaluate(() => !!keysLesson.playback && keysLesson.playback.left === true), 'すぐに 左手つきで ながれる');
+    ok(await page.evaluate(() => document.querySelectorAll('#keysCards .lh-playhead.on').length === 1), 'きいている あいだも たての せんが うごく');
     await page.click('#keysAnswers .melody'); await page.waitForTimeout(200);
     ok(await page.evaluate(() => !!keysLesson.playback && keysLesson.playback.left === false), '「メロディだけ」で 右手だけを きく');
     // この 曲を もういちど → はじめの 2小節から
     await page.click('#keysAnswers .again'); await page.waitForTimeout(200);
     ok(await page.evaluate(() => keysLesson.playback === null && keysLesson.run.pos === 0 && !keysLesson.run.accepting && document.getElementById('keysMessage').textContent.includes('メロディだけ')), 'この 曲を もういちど：はじめの 2小節（メロディだけ）から');
+    await page.evaluate(() => keysStopLevel());
+    ok(await page.evaluate(() => document.querySelectorAll('.lh-playhead.on').length === 0), 'やめたら たての せんも きえる');
     ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
     await page.close();
   }

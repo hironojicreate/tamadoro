@@ -1,6 +1,6 @@
 # 引継ぎ：おんがくのへや（おんぷよみ・きょくふう・じゆうにひこう）
 
-最終更新：Ver.6.3.90（2026-11-09）
+最終更新：Ver.6.3.91（2026-11-09）
 
 この 文書は、つぎの 作業を はじめる ひと（Claude）への 引継ぎです。
 「いまの 状態」と「きまった こと」を 先に、さいごに「つぎの アイディア」を まとめています。
@@ -166,7 +166,7 @@
 - マスタークラスは まだ（ユーザーと 相談）
 - しくみは ト音の `keysTourDeck` を `tourShift`（-12）と `tourStart`（さいしょの ドの せつめい）で ずらして つかう。メロディは `shift: -12`
 
-## おんぷよみ／ヘおん の マスタークラス（左手）：きまった こと（Ver.6.3.89 で ルールを まとめ、Ver.6.3.90 で 入れた）
+## おんぷよみ／ヘおん の マスタークラス（左手）：きまった こと（Ver.6.3.89 で ルールを まとめ、Ver.6.3.91 で 入れた）
 
 ユーザーと 話して きめた ながれ：
 
@@ -244,6 +244,9 @@
 - エンジン（`js/engines/keys.js`）：`style: 'leftsong'`（`keysLeftSongDeck`）→ とおし えんそう `type: 'leftperform'`（`keysLeftPerformProblem`・`keysLeftIntro`・`keysOnLeftPerform`・`keysLeftDone`・`keysLeftPlayback`・`keysLeftScore`）。右手の まって くれる しくみは `run.leftTimers`（`keysLeftCancel`）
 - `js/modes/notes-bass.js` に マスタークラス1〜4（`stage: 1〜4`）
 - テスト：`tests/music.test.js` の 39（160曲で ルール）・40（ながれ）
+- **Ver.6.3.91 とおし えんそうの がくふを 大譜表に**（ユーザー：「どこを えんそうしているか 縦の ラインを 横に うごかす」「ト音譜表と ヘ音譜表を 行頭で つなぐ 括弧」「小節線を つらぬいて 上と 下を リンク」）
+  - `TamaStaff.grand(上, 下, { perRow })`（`js/staff.js`）：1だんを 1つの svg（`.grand-row`）に。上 ＝ 右手（`.lh-melody`）・下 ＝ 左手（`.lh-bass`。170 下げる）。行頭の 大括弧（`.staff-brace`）・はじめの たて線・小節線（さいごは おわりの 線）は 上の 五線の 上から 下の 五線の 下まで
+  - たての せん（`.lh-playhead`）：`TamaStaff.playhead(svgs, 拍)` で その 小節の 1拍めの 位置（`data-starts`）＋ 拍 × 50 へ。エンジンの `keysLeftHead` が 曲の はやさで うごかす（はじめの 2小節 → 左手を ひくと つぎの 左手の 音まで すすんで まつ → ききくらべは さいごまで）。だんが かわったら その だんを 見せる。やめると きえる
 
 ### じゅんびの ようす
 - 五線：全音符・2ぶ音符・和音・2ぶ／全きゅうふ を 描ける（Ver.6.3.88。`js/staff.js` の イベント `rhythm: [{ notes: [48], beats: 2 }, { rest: true, beats: 4 }, …]`）

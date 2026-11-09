@@ -340,6 +340,104 @@ const TamaStaff = {
         return rows.join('');
     },
 
+    // 大譜表（ピアノの がくふ）：上の だん ＝ ト音記号（upper）、下の だん ＝ ヘ音記号（lower）を 1つの 絵に（ヘおん マスタークラス）。
+    //   1だん（システム）ごとに 1つの svg。行頭は 2つの 五線を つなぐ 大括弧（ブレース）と たての せん、
+    //   小節線は 上から 下まで つらぬく。上の だんは .lh-melody、下の だんは .lh-bass（音符の data-i・きゅうふの data-r は だんごとに 曲の はじめから）。
+    //   どこを えんそうしているかの たての せん（.lh-playhead）を ふくむ。うごかすのは playhead(svg たち, 拍)
+    //   upper：[{ notes, rhythm: '●●●○', chord }]、lower：[{ rhythm: イベント, chord }]（どちらも 4/4）
+    GRAND_DY: 170,  // 下の だんを どれだけ 下に
+    NOTE_X: 50,     // 拍と 拍の あいだ（score・grand）
+    grand(upper, lower, { perRow = 4 } = {}) {
+        const NOTE_X = this.NOTE_X;
+        const BAR_PAD = 34;
+        const BAR_NEXT = 56;
+        const DY = this.GRAND_DY;
+        const top = this.TOP;                       // 上の だんの いちばん 上の 線
+        const bottom = this.TOP + 4 * this.GAP + DY; // 下の だんの いちばん 下の 線
+        const keep = this.kind;
+        const count = { upper: [0, 0], lower: [0, 0] }; // [音符, きゅうふ]
+        const systems = [];
+        const drawBar = (part, kind, phrase, x) => {
+            this.kind = kind;
+            const rhythm = phrase.rhythm || '●'.repeat(phrase.notes.length);
+            const events = this.events(rhythm, phrase.notes);
+            const svg = this.bar(rhythm, phrase.notes, x, NOTE_X, {
+                first: count[part][0], firstRest: count[part][1], state: i => (part === 'lower' && i === 0 ? 'current' : 'next'),
+            });
+            count[part][0] += events.filter(e => !e.rest).length;
+            count[part][1] += events.filter(e => e.rest).length;
+            return svg;
+        };
+        for (let start = 0; start < upper.length; start += perRow) {
+            const firstRow = start === 0;
+            const last = start + perRow >= upper.length;
+            let x = this.LEFT + (firstRow ? this.TIME_W : 0);
+            const ups = [];
+            const lows = [];
+            const bars = []; // 小節線（上から 下まで）
+            const starts = []; // その 小節の 1拍めの x（たての せんを うごかす）
+            let lineEnd = x;
+            upper.slice(start, start + perRow).forEach((phrase, k) => {
+                const i = start + k;
+                starts.push(x);
+                ups.push(`<text class="staff-chord" x="${x - 14}" y="48">${phrase.chord}</text>`);
+                ups.push(drawBar('upper', 'treble', phrase, x));
+                lows.push(drawBar('lower', 'bass', lower[i], x));
+                const barX = x + 3 * NOTE_X + BAR_PAD;
+                const end = last && i === upper.length - 1;
+                bars.push(end
+                    ? `<line class="staff-bar" x1="${barX - 7}" y1="${top}" x2="${barX - 7}" y2="${bottom}"/><line class="staff-bar end" x1="${barX}" y1="${top}" x2="${barX}" y2="${bottom}"/>`
+                    : `<line class="staff-bar" x1="${barX}" y1="${top}" x2="${barX}" y2="${bottom}"/>`);
+                lineEnd = barX + (end ? 3 : 1);
+                x = barX + BAR_NEXT;
+            });
+            const width = lineEnd + 8;
+            const staffLines = dy => [0, 1, 2, 3, 4].map(i =>
+                `<line x1="8" y1="${top + i * this.GAP + dy}" x2="${lineEnd}" y2="${top + i * this.GAP + dy}"/>`).join('');
+            this.kind = 'treble';
+            const trebleClef = this.clef();
+            const trebleTime = firstRow ? this.timeSignature() : '';
+            this.kind = 'bass';
+            const bassClef = this.clef();
+            const bassTime = firstRow ? this.timeSignature() : '';
+            // 大括弧（ブレース）：上の だんの 上から 下の だんの 下まで。まんなかで 左に とがる
+            const mid = (top + bottom) / 2;
+            const brace = `<path class="staff-brace" d="M -6,${top} C -22,${top + 30} -6,${mid - 50} -20,${mid} C -6,${mid + 50} -22,${bottom - 30} -6,${bottom}"/>`;
+            systems.push(`<svg class="staff grand-row" data-first-bar="${start}" data-starts="${starts.join(',')}" viewBox="-30 22 ${width + 30} ${DY + 230}" role="img" aria-label="がくふ ${systems.length + 1}だんめ（上 ト音記号・下 ヘ音記号）">
+                <g class="staff-lines">${staffLines(0)}${staffLines(DY)}</g>
+                ${brace}
+                <line class="staff-bar" x1="8" y1="${top}" x2="8" y2="${bottom}"/>
+                ${bars.join('')}
+                <g class="lh-melody">${trebleClef}${trebleTime}${ups.join('')}</g>
+                <g class="lh-bass" transform="translate(0, ${DY})">${bassClef}${bassTime}${lows.join('')}</g>
+                <line class="lh-playhead" x1="0" y1="${top - 26}" x2="0" y2="${bottom + 26}"/>
+            </svg>`);
+        }
+        this.kind = keep;
+        return systems.join('');
+    },
+
+    // 大譜表の たての せん（どこを えんそうしているか）を 拍 t（曲の はじめから。小数も）へ。その だんの せんだけ 見せる。
+    //   かえすのは せんの ある svg（ない ときは null）
+    playhead(svgs, t) {
+        let shown = null;
+        svgs.forEach(svg => {
+            const line = svg.querySelector('.lh-playhead');
+            const starts = svg.dataset.starts.split(',').map(Number);
+            const first = Number(svg.dataset.firstBar);
+            const bar = Math.floor(t / 4);
+            const k = bar - first;
+            if (t >= 0 && k >= 0 && k < starts.length) {
+                line.setAttribute('transform', `translate(${starts[k] + (t - bar * 4) * this.NOTE_X}, 0)`);
+                line.classList.add('on');
+                shown = svg;
+            } else {
+                line.classList.remove('on');
+            }
+        });
+        return shown;
+    },
+
     // 色を あわく（白に ちかづける。amount：0〜1）
     tint(hex, amount = 0.35) {
         const n = parseInt(hex.slice(1), 16);

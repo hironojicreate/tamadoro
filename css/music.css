@@ -769,22 +769,34 @@ html[data-mode="black"] .select-level-buttons button {
     display: none; /* コード名は 上の だんに だけ */
 }
 
-.keys-cards.left-score .lh-system + .lh-system {
-    margin-top: 6px;
-}
-
-/* 1だんが 2つの 五線（右手・左手）なので、ト音の マスタークラスより ひくく（2だん ぜんぶが 見える ように） */
-.keys-cards.left-score .score-row {
-    height: min(12vh, 108px);
-}
-
-.keys-cards.left-score .lh-system,
-.keys-cards.left-score .lh-melody,
-.keys-cards.left-score .lh-bass {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+/* 大譜表（上 右手・下 左手を 1つの 絵に）：2だん ぜんぶが 見える 高さ */
+.grand-row {
+    height: min(25vh, 216px);
+    width: auto;
+    max-width: 92vw;
     flex: none;
+}
+
+/* 行頭の 大括弧（ブレース） */
+.staff-brace {
+    fill: none;
+    stroke: #2d3436;
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* どこを えんそうしているかの たての せん（よこに うごく） */
+.lh-playhead {
+    stroke: #e84393;
+    stroke-width: 4;
+    stroke-linecap: round;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lh-playhead.on {
+    opacity: 0.7;
 }
 
 .keys-perform-button.save {
