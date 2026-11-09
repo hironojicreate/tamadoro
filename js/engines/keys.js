@@ -166,7 +166,8 @@ function keysSongDeck() {
 }
 
 // ヘおん マスタークラス（左手）：js/left-hand.js で 曲を つくって、3〜8小節の 左手を 1小節ずつ れんしゅう → とおし えんそう。
-//   正解すると その 小節を 右手（メロディ）と いっしょに 鳴らす（左手が メロディを ささえる ことを 耳で）
+//   れんしゅう中も 左手の 音を ひくたびに、つぎの 左手の 音までの 右手（メロディ）が 鳴る（keysLeftBarMelody。
+//   左手が メロディを ささえる ことを 耳で。ひきおわってから もういちど 鳴らす ことは しない）
 function keysLeftSongDeck(def) {
     const song = TamaLeftHand.make(def.stage);
     const bars = song.lh.length;
@@ -1019,6 +1020,8 @@ function keysOnPress(midi, inRange, fromName = false) {
             card.classList.add('done', 'sparkle');
         }
         keysLightRests(run.pos);
+        // ヘおん マスタークラス：左手に あわせて 右手（メロディ）も その ばで
+        if (run.problem.leftBar !== undefined && run.song) run.leftTail = keysLeftBarMelody(run.pos);
         run.pos++;
         if (run.pos < run.problem.notes.length) {
             const showNext = () => {
@@ -1230,6 +1233,29 @@ const keysLeftHead = {
         document.querySelectorAll('#keysCards .lh-playhead.on').forEach(line => line.classList.remove('on'));
     },
 };
+
+// ヘおん マスタークラスの 1小節 れんしゅう：pos ばんめの 左手の 音を ひいたら、その 音から つぎの 左手の 音まで
+//   （さいごの 音は 小節の おわりまで）の 右手を 曲の はやさで 鳴らす（とおし えんそうと 同じ まって くれる 右手）。
+//   かえすのは 鳴りおわるまでの びょう
+function keysLeftBarMelody(pos) {
+    const run = keysLesson.run;
+    const onsets = [];
+    let beats = 0;
+    run.problem.rhythm.forEach(e => {
+        if (!e.rest) onsets.push(beats);
+        beats += e.beats;
+    });
+    const bar = run.problem.leftBar * 4;
+    const from = bar + onsets[pos];
+    const to = bar + (pos + 1 < onsets.length ? onsets[pos + 1] : beats);
+    const beat = keysBeat();
+    const bus = keysAccomp.output();
+    keysLeftCancel();
+    keysLeftMelody(run.song).filter(n => n.t >= from && n.t < to).forEach(n => {
+        run.leftTimers.push(keysLesson.later(() => TamaSound.note(n.m, { gain: 0.42, bus, hold: beat * 0.9 }).release(), (n.t - from) * beat * 1000));
+    });
+    return (to - from) * beat;
+}
 
 // まって くれる 右手の、まだ 鳴っていない 音を とめる
 function keysLeftCancel() {
@@ -1761,8 +1787,8 @@ function keysSolved() {
 
     let pause = run.problem.pause || 900;
     if (run.problem.leftBar !== undefined && run.song) {
-        // ヘおん マスタークラス：ひいた 左手を、右手（メロディ）と いっしょに 1小節 鳴らす
-        pause = keysLeftPlayBars(run.song, run.problem.leftBar, run.problem.leftBar + 1) * 1000 + 300;
+        // ヘおん マスタークラス：右手は ひいている あいだに 鳴っている（keysLeftBarMelody）。さいごの 音の メロディが おわるまで まつ
+        pause = (run.leftTail || 0) * 1000 + 400;
     } else {
         TamaSound.chord(run.problem.chord, { voice: keysVoice('chord'), hold: 0.8 });
     }

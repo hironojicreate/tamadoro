@@ -346,14 +346,21 @@ const TamaStaff = {
     //   どこを えんそうしているかの たての せん（.lh-playhead）を ふくむ。うごかすのは playhead(svg たち, 拍)
     //   upper：[{ notes, rhythm: '●●●○', chord }]、lower：[{ rhythm: イベント, chord }]（どちらも 4/4）
     GRAND_DY: 170,  // 下の だんを どれだけ 下に
+    GRAND_UPPER: 0.7, // 上の だん（右手 ト音記号）の 大きさ（五線の はばと 玉を ちいさく。小節の はばは 下と 同じ）
     NOTE_X: 50,     // 拍と 拍の あいだ（score・grand）
     grand(upper, lower, { perRow = 4 } = {}) {
         const NOTE_X = this.NOTE_X;
         const BAR_PAD = 34;
         const BAR_NEXT = 56;
         const DY = this.GRAND_DY;
-        const top = this.TOP;                       // 上の だんの いちばん 上の 線
+        // 上の だんは、下の 線（ay）を 中心に ちいさく（scale）。x は 1/S で かいて、ちいさく したら 下の だんと 同じ x に なる
+        const S = this.GRAND_UPPER;
+        const ay = this.TOP + 4 * this.GAP;
+        const upY = y => ay + (y - ay) * S;          // 上の だんの y（ちいさく した あと）
+        const top = upY(this.TOP);                   // 上の だんの いちばん 上の 線
         const bottom = this.TOP + 4 * this.GAP + DY; // 下の だんの いちばん 下の 線
+        const shrink = `translate(0, ${ay * (1 - S)}) scale(${S})`;
+        const keepX = x => x * (1 - S) / S;          // その x の まわりの ものを ちいさく しても 同じ ところに おく ずらし
         const keep = this.kind;
         const count = { upper: [0, 0], lower: [0, 0] }; // [音符, きゅうふ]
         const systems = [];
@@ -361,7 +368,8 @@ const TamaStaff = {
             this.kind = kind;
             const rhythm = phrase.rhythm || '●'.repeat(phrase.notes.length);
             const events = this.events(rhythm, phrase.notes);
-            const svg = this.bar(rhythm, phrase.notes, x, NOTE_X, {
+            const k = part === 'upper' ? 1 / S : 1; // 上の だんは あとで ちいさく するので x を ひろげて かく
+            const svg = this.bar(rhythm, phrase.notes, x * k, NOTE_X * k, {
                 first: count[part][0], firstRest: count[part][1], state: i => (part === 'lower' && i === 0 ? 'current' : 'next'),
             });
             count[part][0] += events.filter(e => !e.rest).length;
@@ -373,6 +381,7 @@ const TamaStaff = {
             const last = start + perRow >= upper.length;
             let x = this.LEFT + (firstRow ? this.TIME_W : 0);
             const ups = [];
+            const chords = []; // コードの 名前（ちいさく しない）
             const lows = [];
             const bars = []; // 小節線（上から 下まで）
             const starts = []; // その 小節の 1拍めの x（たての せんを うごかす）
@@ -380,7 +389,7 @@ const TamaStaff = {
             upper.slice(start, start + perRow).forEach((phrase, k) => {
                 const i = start + k;
                 starts.push(x);
-                ups.push(`<text class="staff-chord" x="${x - 14}" y="48">${phrase.chord}</text>`);
+                chords.push(`<text class="staff-chord" x="${x - 14}" y="${top - 36}">${phrase.chord}</text>`);
                 ups.push(drawBar('upper', 'treble', phrase, x));
                 lows.push(drawBar('lower', 'bass', lower[i], x));
                 const barX = x + 3 * NOTE_X + BAR_PAD;
@@ -392,23 +401,25 @@ const TamaStaff = {
                 x = barX + BAR_NEXT;
             });
             const width = lineEnd + 8;
-            const staffLines = dy => [0, 1, 2, 3, 4].map(i =>
-                `<line x1="8" y1="${top + i * this.GAP + dy}" x2="${lineEnd}" y2="${top + i * this.GAP + dy}"/>`).join('');
+            const staffLines = (y0, gap) => [0, 1, 2, 3, 4].map(i =>
+                `<line x1="8" y1="${y0 + i * gap}" x2="${lineEnd}" y2="${y0 + i * gap}"/>`).join('');
             this.kind = 'treble';
-            const trebleClef = this.clef();
-            const trebleTime = firstRow ? this.timeSignature() : '';
+            // ト音記号・拍子記号は ちいさく しても 下の だんと 同じ x あたりに
+            const trebleClef = `<g transform="translate(${keepX(50)}, 0)">${this.clef()}</g>`;
+            const trebleTime = firstRow ? `<g transform="translate(${keepX(this.LEFT - 18)}, 0)">${this.timeSignature()}</g>` : '';
             this.kind = 'bass';
             const bassClef = this.clef();
             const bassTime = firstRow ? this.timeSignature() : '';
             // 大括弧（ブレース）：上の だんの 上から 下の だんの 下まで。まんなかで 左に とがる
             const mid = (top + bottom) / 2;
             const brace = `<path class="staff-brace" d="M -6,${top} C -22,${top + 30} -6,${mid - 50} -20,${mid} C -6,${mid + 50} -22,${bottom - 30} -6,${bottom}"/>`;
-            systems.push(`<svg class="staff grand-row" data-first-bar="${start}" data-starts="${starts.join(',')}" viewBox="-30 22 ${width + 30} ${DY + 230}" role="img" aria-label="がくふ ${systems.length + 1}だんめ（上 ト音記号・下 ヘ音記号）">
-                <g class="staff-lines">${staffLines(0)}${staffLines(DY)}</g>
+            const viewTop = top - 70;
+            systems.push(`<svg class="staff grand-row" data-first-bar="${start}" data-starts="${starts.join(',')}" viewBox="-30 ${viewTop} ${width + 30} ${this.TOP + DY + 152 - viewTop}" role="img" aria-label="がくふ ${systems.length + 1}だんめ（上 ト音記号・下 ヘ音記号）">
+                <g class="staff-lines">${staffLines(top, this.GAP * S)}${staffLines(this.TOP + DY, this.GAP)}</g>
                 ${brace}
                 <line class="staff-bar" x1="8" y1="${top}" x2="8" y2="${bottom}"/>
                 ${bars.join('')}
-                <g class="lh-melody">${trebleClef}${trebleTime}${ups.join('')}</g>
+                <g class="lh-melody">${chords.join('')}<g class="lh-small" transform="${shrink}">${trebleClef}${trebleTime}${ups.join('')}</g></g>
                 <g class="lh-bass" transform="translate(0, ${DY})">${bassClef}${bassTime}${lows.join('')}</g>
                 <line class="lh-playhead" x1="0" y1="${top - 26}" x2="0" y2="${bottom + 26}"/>
             </svg>`);

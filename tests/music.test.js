@@ -2142,8 +2142,27 @@ async function answerAll(page) {
       clef: !!document.querySelector('#keysCards .staff-clef.bass'), counts: document.querySelectorAll('#keysCards .staff-count').length, msg: document.getElementById('keysMessage').textContent }));
     ok(start.deck === 6 && start.left && start.stage === 2 && start.kb === 'piano' && start.clef && start.counts === 4 && start.msg.includes('3/8小節め'),
       `れんしゅうは 3〜8小節の 左手 6もん（ヘ音記号・拍の かず・けんばんは ピアノ）${JSON.stringify(start)}`);
-    // 正解すると その 小節を 右手と いっしょに 鳴らす
-    await page.evaluate(() => { window.notes = []; const note = TamaSound.note.bind(TamaSound); TamaSound.note = (m, o = {}) => { window.notes.push(m); return note(m, o); }; });
+    // れんしゅう中も 左手を ひくたびに、つぎの 左手の 音までの 右手（メロディ）が その ばで 鳴る（ひきおわってから 鳴らしなおさない）
+    await page.evaluate(() => {
+      window.notes = []; window.replays = 0;
+      const note = TamaSound.note.bind(TamaSound); TamaSound.note = (m, o = {}) => { window.notes.push(m); return note(m, o); };
+      const bars = keysLeftPlayBars; window.keysLeftPlayBars = (...a) => { window.replays++; return bars(...a); };
+    });
+    await page.waitForFunction(() => keysLesson.run.accepting, null, { timeout: 10000 });
+    const seg = await page.evaluate(() => {
+      const r = keysLesson.run; const p = r.problem; const ons = []; let b = 0;
+      p.rhythm.forEach(e => { if (!e.rest) ons.push(b); b += e.beats; });
+      ons.push(b); // さいごの 音は 小節の おわりまで
+      const mel = keysLeftMelody(r.song); const bar = p.leftBar * 4;
+      return { m: p.notes[0], first: mel.filter(n => n.t >= bar && n.t < bar + ons[1]).map(n => n.m), later: mel.filter(n => n.t >= bar + ons[1] && n.t < bar + 4).map(n => n.t),
+        wait: (ons[1] - ons[0]) * keysBeat(), bar };
+    });
+    await pressKey(page, seg.m); await page.waitForTimeout(seg.wait * 1000 + 300);
+    const firstHeard = await page.evaluate(() => window.notes.slice());
+    ok(seg.first.length > 0 && seg.first.every(m => firstHeard.includes(m)), `左手の 1音めで、つぎの 左手の 音までの メロディ（${seg.first.join(',')}）が 鳴る → ${firstHeard.join(',')}`);
+    const count = firstHeard.length;
+    await page.waitForTimeout(700);
+    ok(await page.evaluate(n => window.notes.length === n, count), 'つぎの 左手を ひくまで 右手は まつ');
     for (let guard = 0; guard < 20; guard++) {
       const st = await page.evaluate(() => { const r = keysLesson.run; return { acc: r.accepting, m: r.problem.notes[r.pos], idx: r.index }; });
       if (st.idx > 1) break;
@@ -2151,8 +2170,8 @@ async function answerAll(page) {
       await pressKey(page, st.m); await page.waitForTimeout(40);
     }
     await page.waitForTimeout(300);
-    const heard = await page.evaluate(() => { const song = keysLesson.run.song; const mel = keysLeftMelody(song).filter(n => n.t >= 8 && n.t < 12).map(n => n.m); return mel.every(m => window.notes.includes(m)); });
-    ok(heard, '正解すると その 小節を 右手（メロディ）と いっしょに 鳴らす');
+    const heard = await page.evaluate(() => { const song = keysLesson.run.song; const mel = keysLeftMelody(song).filter(n => n.t >= 8 && n.t < 12).map(n => n.m); return { all: mel.every(m => window.notes.includes(m)), replays: window.replays }; });
+    ok(heard.all && heard.replays === 0, `1小節 ひくと その 小節の メロディが ぜんぶ 鳴り、ひきおわってから 鳴らしなおさない ${JSON.stringify(heard)}`);
     // れんしゅうを ぜんぶ → とおし えんそう
     for (let guard = 0; guard < 400; guard++) {
       const st = await page.evaluate(() => { const r = keysLesson.run; return { type: r.problem && r.problem.type, acc: r.accepting, m: r.problem ? r.problem.notes[r.pos] : null }; });
