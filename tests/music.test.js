@@ -2030,6 +2030,52 @@ async function answerAll(page) {
     await page.close();
   }
 
+  // 38. 五線：全音符・2ぶ音符・和音・2ぶ／全きゅうふ（ヘおん マスタークラスの 左手の じゅんび。js/staff.js の イベント）
+  {
+    const { page, errors } = await openPage(browser, 'index.html#/music', MUSIC_ON);
+    const r = await page.evaluate(() => {
+      const box = document.createElement('div');
+      const draw = svg => { box.innerHTML = svg; return box; };
+      TamaStaff.kind = 'bass';
+      // '●○●●' は いままでどおり（4ぶ音符 1つは note、きゅうふは rest）
+      const asText = TamaStaff.bar('●○●●', [48, 52, 55], 100, 50);
+      const same = asText === TamaStaff.note(48, 100, 0, 'next') + TamaStaff.rest(150, 0) + TamaStaff.note(52, 200, 1, 'next') + TamaStaff.note(55, 250, 2, 'next');
+      const ev = TamaStaff.events('●○●●', [48, 52, 55]).map(e => (e.rest ? 'r' : e.notes.join('+'))).join(' ');
+      // 全音符の 和音（ドミソ）：玉 3つ・白い 穴 3つ・ぼう なし
+      const whole = draw(TamaStaff.bar([{ notes: [48, 52, 55], beats: 4 }], [], 100, 50));
+      const w = { heads: whole.querySelectorAll('.staff-head.whole').length, holes: whole.querySelectorAll('.staff-hole').length, stems: whole.querySelectorAll('.staff-stem').length, groups: whole.querySelectorAll('.staff-note.chord').length };
+      // ズン（2ぶの ド）・チャッ（2ぶの ミソ）：音符の まとまり 2つ（data-i 0・1）・白い 穴 3つ・ぼう 2本
+      const zun = draw(TamaStaff.bar([{ notes: [48], beats: 2 }, { notes: [52, 55], beats: 2 }], [], 100, 50, { first: 5 }));
+      const z = { ids: [...zun.querySelectorAll('.staff-note')].map(g => g.dataset.i).join(), holes: zun.querySelectorAll('.staff-hole').length, stems: zun.querySelectorAll('.staff-stem').length };
+      // 2度（ファ・ソ）は 玉を よこに ずらす
+      const second = draw(TamaStaff.bar([{ notes: [53, 55], beats: 2 }, { rest: true, beats: 2 }], [], 100, 50));
+      const xs = [...second.querySelectorAll('.staff-head')].map(e => Number(e.getAttribute('cx')));
+      const s2 = { dx: Math.abs(xs[0] - xs[1]), half: second.querySelectorAll('.staff-rest.long .staff-rest-block').length };
+      // 全きゅうふ・拍の かず・ぜんぶの がくふ（data-i は 音符の まとまり、data-r は きゅうふで かぞえる）
+      const bars = [
+        { chord: 'C', rhythm: [{ notes: [48, 52, 55], beats: 4 }] },
+        { chord: 'G7', rhythm: [{ notes: [47], beats: 2 }, { notes: [53, 55], beats: 2 }] },
+        { chord: 'C', rhythm: [{ rest: true, beats: 4 }] },
+        { chord: 'C', notes: [48, 52, 55], rhythm: '●●●○' },
+      ];
+      const score = draw(TamaStaff.score(bars, { perRow: 4 }));
+      const sc = { ids: [...score.querySelectorAll('.staff-note')].map(g => g.dataset.i).join(), rests: [...score.querySelectorAll('.staff-rest')].map(g => g.dataset.r).join(),
+        beats: bars.map(b => TamaStaff.beatsOf(b.rhythm)).join(), bars: score.querySelectorAll('.staff-bar').length };
+      const counts = draw(`<svg>${TamaStaff.counts([{ notes: [48], beats: 2 }, { rest: true, beats: 2 }], 100, 50)}</svg>`);
+      const cn = [...counts.querySelectorAll('.staff-count')].map(t => (t.classList.contains('rest') ? '休' : t.textContent)).join('');
+      TamaStaff.kind = 'treble';
+      return { same, ev, w, z, s2, sc, cn };
+    });
+    ok(r.same && r.ev === '48 r 52 55', `'●○●●' の 小節は いままでと 同じ 絵（${r.ev}）`);
+    ok(r.w.heads === 3 && r.w.holes === 3 && r.w.stems === 0 && r.w.groups === 1, `全音符の 和音：白い 玉 3つ・ぼう なし ${JSON.stringify(r.w)}`);
+    ok(r.z.ids === '5,6' && r.z.holes === 3 && r.z.stems === 2, `2ぶ音符：ズン（ド）・チャッ（ミソ）は 音符の まとまり 2つ ${JSON.stringify(r.z)}`);
+    ok(r.s2.dx === 24 && r.s2.half === 1, `2度の 和音は 玉を よこに ずらす・2ぶきゅうふ ${JSON.stringify(r.s2)}`);
+    ok(r.sc.ids === '0,1,2,3,4,5' && r.sc.rests === '0,1' && r.sc.beats === '4,4,4,4' && r.sc.bars === 5, `ぜんぶの がくふ：音符と きゅうふの ばんごう・小節の 拍・小節線（さいごは 2本） ${JSON.stringify(r.sc)}`);
+    ok(r.cn === '12休休', `拍の かず：2ぶきゅうふの 拍は うすく（${r.cn}）`);
+    ok(errors().length === 0, `エラーなし ${errors().join(' / ')}`);
+    await page.close();
+  }
+
   await browser.close();
   console.log(failures === 0 ? 'ALL PASSED' : `${failures} FAILED`);
   process.exit(failures === 0 ? 0 : 1);

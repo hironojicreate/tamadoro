@@ -15,6 +15,11 @@
 //   rhythm：'●●●○' のように わたすと、4/4拍子の 1小節（拍子記号・4ぶきゅうふ・おわりの 小節線）。
 //     ● に 音符、○ に 4ぶきゅうふ。きゅうふは data-r（0から）。音符の data-i は 音符だけで かぞえる
 //     counts：拍の 下に 1・2・3・4（4拍を いしきする。きゅうふの 拍は うすく）
+//   rhythm は イベントの ならび でも よい（ヘおん マスタークラスの 左手。全音符・2分音符・和音）：
+//     [{ notes: [48, 52, 55], beats: 4 }, { rest: true, beats: 2 }, …]（4拍で 1小節）
+//     notes が 2つ 以上は 和音（1本の ぼうに 玉を かさねる）。beats：1 ＝ 4ぶ音符、2 ＝ 2ぶ音符（白い 玉）、4 ＝ 全音符（ぼう なし）
+//     rest：1 ＝ 4ぶきゅうふ、2 ＝ 2ぶきゅうふ（3ぼんめの 上に のる 四角）、4 ＝ 全きゅうふ（4ほんめから さがる 四角）
+//     data-i は 音符の イベントで かぞえる（和音も 1つ）。'●●●○' は [{ notes: [音], beats: 1 } …] と 同じ
 //   TamaStaff.score(phrases, { perRow })：きょくふう メロディ（マスタークラス）の ぜんぶの がくふ（4/4拍子）。
 //     1だんに perRow 小節。1だんめの はじめに 4/4、小節の 上に コード名、小節の おわりに 小節線。
 //     音符の data-i・きゅうふの data-r は 曲の はじめから
@@ -113,32 +118,109 @@ const TamaStaff = {
         </g>`;
     },
 
-    // 1小節ぶんの 音符と きゅうふ（rhythm：'●●●○' など）。x0：1拍めの x、step：拍の あいだ
+    // リズム → イベントの ならび（'●●●○' と 音 → [{ notes: [音], beats: 1 }, …, { rest: true, beats: 1 }]）
+    events(rhythm, notes = []) {
+        if (Array.isArray(rhythm)) return rhythm;
+        let n = 0;
+        return rhythm.split('').map(mark => (mark === '●' ? { notes: [notes[n++]], beats: 1 } : { rest: true, beats: 1 }));
+    },
+
+    // 1小節の 拍の かず（イベントは beats の あわせ）
+    beatsOf(rhythm) {
+        return Array.isArray(rhythm) ? rhythm.reduce((sum, e) => sum + e.beats, 0) : rhythm.length;
+    },
+
+    // 1小節ぶんの 音符と きゅうふ（rhythm：'●●●○' か イベントの ならび）。x0：1拍めの x、step：拍の あいだ
     //   first：さいしょの 音符の data-i、firstRest：さいしょの きゅうふの data-r、state(i)：音符の ようす
     bar(rhythm, notes, x0, step, { first = 0, firstRest = 0, state = () => 'next' } = {}) {
         const parts = [];
         let n = 0;
         let r = 0;
-        rhythm.split('').forEach((mark, beat) => {
+        let beat = 0;
+        this.events(rhythm, notes).forEach(e => {
             const x = x0 + beat * step;
-            if (mark === '●') {
-                const i = first + n;
-                parts.push(this.note(notes[n], x, i, state(i)));
-                n++;
-            } else {
-                parts.push(this.rest(x, firstRest + r));
+            if (e.rest) {
+                const rx = e.beats === 4 ? x0 + 1.5 * step : x; // 全きゅうふは 小節の まんなか
+                parts.push(e.beats === 1 ? this.rest(x, firstRest + r) : this.longRest(rx, firstRest + r, e.beats));
                 r++;
+            } else {
+                const i = first + n;
+                // 4ぶ音符 1つは いままでと 同じ 絵。2ぶ・全音符・和音は chord で
+                parts.push(e.beats === 1 && e.notes.length === 1 ? this.note(e.notes[0], x, i, state(i)) : this.chord(e.notes, x, i, state(i), e.beats));
+                n++;
             }
+            beat += e.beats;
         });
         return parts.join('');
     },
 
+    // 2ぶきゅうふ（3ぼんめの 線の 上に のる 四角）・全きゅうふ（4ほんめの 線から さがる 四角）
+    longRest(x, r, beats) {
+        const y = beats === 4 ? this.TOP + this.GAP : this.TOP + 2 * this.GAP - 9;
+        return `<g class="staff-rest long" data-r="${r}">
+            <ellipse class="staff-glow" cx="${x}" cy="${y + 4}" rx="24" ry="22"/>
+            <rect class="staff-rest-block" x="${x - 11}" y="${y}" width="22" height="9"/>
+        </g>`;
+    },
+
+    // 和音・2ぶ音符・全音符（notes：下から でも 上から でも よい。beats：1・2・4）
+    //   ぼうは 玉の まんなかが 3ぼんめより 下なら 右に 上むき、上なら 左に 下むき。全音符は ぼう なし。
+    //   となりあう 音（2度）は、ぼうの むきに あわせて 片方の 玉を よこに ずらす
+    chord(notes, x, i, state, beats = 1) {
+        const midis = [...notes].sort((a, b) => a - b);
+        const ys = midis.map(m => this.y(m)); // 下（大きい y）から
+        const middle = this.TOP + 2 * this.GAP;
+        const up = (Math.max(...ys) + Math.min(...ys)) / 2 > middle;
+        const lows = this.ledgers(Math.max(...ys)).filter(ly => ly > this.TOP + 4 * this.GAP);
+        const highs = this.ledgers(Math.min(...ys)).filter(ly => ly < this.TOP);
+        const ledgers = [...lows, ...highs].map(ly =>
+            `<line class="staff-ledger" x1="${x - 22}" y1="${ly}" x2="${x + 22}" y2="${ly}"/>`).join('');
+        // 2度で くっつく 玉を ずらす（上むきは 上の 玉を 右へ、下むきは 下の 玉を 左へ）
+        const shifts = ys.map(() => 0);
+        for (let k = 1; k < ys.length; k++) {
+            if (ys[k - 1] - ys[k] === this.GAP / 2 && shifts[k - 1] === 0) {
+                if (up) shifts[k] = 24; else shifts[k - 1] = -24;
+            }
+        }
+        const open = beats >= 2;
+        const heads = ys.map((y, k) => {
+            const hx = x + shifts[k];
+            if (beats >= 4) {
+                return `<ellipse class="staff-head whole" cx="${hx}" cy="${y}" rx="14" ry="9.5"/>
+                    <ellipse class="staff-hole" cx="${hx}" cy="${y}" rx="7" ry="4.5" transform="rotate(-50 ${hx} ${y})"/>`;
+            }
+            return `<ellipse class="staff-head${open ? ' open' : ''}" cx="${hx}" cy="${y}" rx="12.5" ry="9" transform="rotate(-22 ${hx} ${y})"/>`
+                + (open ? `<ellipse class="staff-hole" cx="${hx}" cy="${y}" rx="8.5" ry="3.6" transform="rotate(-22 ${hx} ${y})"/>` : '');
+        }).join('');
+        const top = Math.min(...ys);
+        const bottom = Math.max(...ys);
+        const stem = beats >= 4 ? ''
+            : up
+                ? `<line class="staff-stem" x1="${x + 12}" y1="${bottom - 3}" x2="${x + 12}" y2="${top - 68}"/>`
+                : `<line class="staff-stem" x1="${x - 12}" y1="${top + 3}" x2="${x - 12}" y2="${bottom + 68}"/>`;
+        return `<g class="staff-note ${state}${midis.length > 1 ? ' chord' : ''}" data-i="${i}">
+            <ellipse class="staff-glow" cx="${x}" cy="${(top + bottom) / 2}" rx="26" ry="${(bottom - top) / 2 + 20}"/>
+            ${ledgers}
+            ${heads}
+            ${stem}
+            <text class="staff-star a" x="${x - 28}" y="${top - 14}">★</text>
+            <text class="staff-star b" x="${x + 24}" y="${top - 20}">★</text>
+            <text class="staff-star c" x="${x + 28}" y="${bottom + 18}">★</text>
+        </g>`;
+    },
+
     // 拍の かず 1・2・3・4（きゅうふの 拍は うすく。data-rc は その きゅうふの data-r。きゅうふが 光ると いっしょに 光る）
     counts(rhythm, x0, step) {
+        // 拍ごとに、きゅうふの 拍か（イベントの ながい きゅうふは その 拍 ぜんぶ）
+        const beats = [];
         let r = 0;
-        return rhythm.split('').map((mark, k) => {
-            const rest = mark === '○' ? ` rest" data-rc="${r++}` : '';
-            return `<text class="staff-count${rest}" x="${x0 + k * step}" y="254">${k + 1}</text>`;
+        this.events(rhythm).forEach(e => {
+            for (let k = 0; k < e.beats; k++) beats.push(e.rest ? r : null);
+            if (e.rest) r++;
+        });
+        return beats.map((rest, k) => {
+            const mark = rest !== null ? ` rest" data-rc="${rest}` : '';
+            return `<text class="staff-count${mark}" x="${x0 + k * step}" y="254">${k + 1}</text>`;
         }).join('');
     },
 
@@ -178,7 +260,8 @@ const TamaStaff = {
         const chord = chordName ? `<text class="staff-chord" x="${first - 6}" y="52">${chordName}</text>` : '';
         const label = this.kind === 'bass' ? 'ヘ音記号の 五線の 音符' : 'ト音記号の 五線の 音符';
         // 下の 加線が おおい 音（チューバの ひくいひくいファ など）は、絵を 下へ のばす
-        const height = Math.max(260, ...notes.map(m => this.y(m) + 32));
+        const all = rhythm && Array.isArray(rhythm) ? rhythm.flatMap(e => e.notes || []) : notes;
+        const height = Math.max(260, ...all.map(m => this.y(m) + 32));
         return `<svg class="staff${dango ? ' dango' : ''}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${label}">
             <g class="staff-lines">${lines}</g>
             ${this.clef()}
@@ -231,13 +314,14 @@ const TamaStaff = {
             let lineEnd = x;
             part.forEach((phrase, k) => {
                 const rhythm = phrase.rhythm || '●'.repeat(phrase.notes.length);
+                const events = this.events(rhythm, phrase.notes);
                 parts.push(`<text class="staff-chord" x="${x - 14}" y="48">${phrase.chord}</text>`);
                 parts.push(this.bar(rhythm, phrase.notes, x, NOTE_X, {
                     first: index, firstRest: restIndex, state: i => (i === 0 ? 'current' : 'next'),
                 }));
-                index += phrase.notes.length;
-                restIndex += rhythm.split('').filter(mark => mark === '○').length;
-                const barX = x + (rhythm.length - 1) * NOTE_X + BAR_PAD;
+                index += events.filter(e => !e.rest).length;
+                restIndex += events.filter(e => e.rest).length;
+                const barX = x + (this.beatsOf(rhythm) - 1) * NOTE_X + BAR_PAD;
                 const end = last && k === part.length - 1;
                 // 小節の おわりの せん（さいごは 2本：ほそい せんと ふとい せん）
                 parts.push(end ? this.barLine(barX - 7) + this.barLine(barX, true) : this.barLine(barX));

@@ -659,6 +659,20 @@ html[data-mode="black"] .select-level-buttons button {
     fill: #2d3436;
 }
 
+/* 2ぶ音符・全音符の 白い 玉（まわりは 音符の 色、なかは 白） */
+.staff-hole {
+    fill: #ffffff;
+}
+
+/* 2ぶきゅうふ・全きゅうふ（四角） */
+.staff-rest-block {
+    fill: #2d3436;
+}
+
+.staff-rest.on .staff-rest-block {
+    fill: #27ae60;
+}
+
 /* 4ぶきゅうふ（おやすみ）。その 拍に なると、すこし 光って みどりに（おさなくて いい） */
 .staff-rest-mark {
     fill: none;
