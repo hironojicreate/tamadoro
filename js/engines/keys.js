@@ -1021,7 +1021,7 @@ function keysOnPress(midi, inRange, fromName = false) {
         }
         keysLightRests(run.pos);
         // ヘおん マスタークラス：左手に あわせて 右手（メロディ）も その ばで
-        if (run.problem.leftBar !== undefined && run.song) run.leftTail = keysLeftBarMelody(run.pos);
+        if (run.problem.leftBar !== undefined && run.song) keysLeftBarMelody(run.pos);
         run.pos++;
         if (run.pos < run.problem.notes.length) {
             const showNext = () => {
@@ -1182,6 +1182,7 @@ function keysPerformFinish(next) {
 //   右手は まって くれる：左手の 音を ひくと、つぎの 左手の 音までの メロディを 曲の はやさで ひく（はやく ひいたら、のこりは やめて つぎへ）。
 //   ひきおわると「左手つきで きく」「メロディだけ」（ききくらべ）・「この 曲を もういちど」・「べつの 曲」・「えんそうを おわる」
 const KEYS_LEFT_START = 8; // 左手が はいる 拍（3小節めの 1拍め）
+const KEYS_LEFT_NEXT_MS = 450; // 1小節 れんしゅう：さいごの 音から つぎの 小節が 出るまで（もういちど 鳴らさず、テンポよく つぎへ）
 
 function keysLeftPerformProblem(song) {
     const notes = [];
@@ -1236,7 +1237,7 @@ const keysLeftHead = {
 
 // ヘおん マスタークラスの 1小節 れんしゅう：pos ばんめの 左手の 音を ひいたら、その 音から つぎの 左手の 音まで
 //   （さいごの 音は 小節の おわりまで）の 右手を 曲の はやさで 鳴らす（とおし えんそうと 同じ まって くれる 右手）。
-//   かえすのは 鳴りおわるまでの びょう
+//   さいごの 音の メロディは、つぎの 小節が 出ても そのまま 鳴る（つぎの 左手を ひいたら やめる）
 function keysLeftBarMelody(pos) {
     const run = keysLesson.run;
     const onsets = [];
@@ -1254,7 +1255,6 @@ function keysLeftBarMelody(pos) {
     keysLeftMelody(run.song).filter(n => n.t >= from && n.t < to).forEach(n => {
         run.leftTimers.push(keysLesson.later(() => TamaSound.note(n.m, { gain: 0.42, bus, hold: beat * 0.9 }).release(), (n.t - from) * beat * 1000));
     });
-    return (to - from) * beat;
 }
 
 // まって くれる 右手の、まだ 鳴っていない 音を とめる
@@ -1787,8 +1787,9 @@ function keysSolved() {
 
     let pause = run.problem.pause || 900;
     if (run.problem.leftBar !== undefined && run.song) {
-        // ヘおん マスタークラス：右手は ひいている あいだに 鳴っている（keysLeftBarMelody）。さいごの 音の メロディが おわるまで まつ
-        pause = (run.leftTail || 0) * 1000 + 400;
+        // ヘおん マスタークラス：右手は ひいている あいだに 鳴っている（keysLeftBarMelody）。テンポよく すぐ つぎの 小節へ
+        //   （さいごの 音の メロディは つぎの 小節が 出ても そのまま 鳴る。つぎの 左手を ひいたら そこで やめて、つぎの メロディ）
+        pause = KEYS_LEFT_NEXT_MS;
     } else {
         TamaSound.chord(run.problem.chord, { voice: keysVoice('chord'), hold: 0.8 });
     }
