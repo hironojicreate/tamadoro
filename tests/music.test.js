@@ -2164,12 +2164,20 @@ async function answerAll(page) {
     await page.waitForTimeout(700);
     ok(await page.evaluate(n => window.notes.length === n, count), 'つぎの 左手を ひくまで 右手は まつ');
     for (let guard = 0; guard < 20; guard++) {
-      const st = await page.evaluate(() => { const r = keysLesson.run; return { acc: r.accepting, m: r.problem.notes[r.pos], idx: r.index }; });
+      const st = await page.evaluate(() => { const r = keysLesson.run; return { acc: r.accepting, m: r.problem.notes[r.pos], idx: r.index, last: r.pos === r.problem.notes.length - 1 }; });
       if (st.idx > 1) break;
       if (!st.acc) { await page.waitForTimeout(100); continue; }
-      await pressKey(page, st.m); await page.waitForTimeout(40);
+      await pressKey(page, st.m);
+      if (st.last) {
+        // テンポよく：さいごの 音から すぐに つぎの 小節（もういちど 鳴らして またない）
+        const t0 = Date.now();
+        await page.waitForFunction(() => keysLesson.run.index > 1 && keysLesson.run.accepting, null, { timeout: 5000 });
+        const ms = Date.now() - t0;
+        ok(ms < 1000, `さいごの 音から つぎの 小節まで ${ms}ms（1びょう より みじかい）`);
+      }
+      await page.waitForTimeout(40);
     }
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(4 * await page.evaluate(() => keysBeat()) * 1000); // さいごの 音の メロディは つぎの 小節が 出ても 鳴る
     const heard = await page.evaluate(() => { const song = keysLesson.run.song; const mel = keysLeftMelody(song).filter(n => n.t >= 8 && n.t < 12).map(n => n.m); return { all: mel.every(m => window.notes.includes(m)), replays: window.replays }; });
     ok(heard.all && heard.replays === 0, `1小節 ひくと その 小節の メロディが ぜんぶ 鳴り、ひきおわってから 鳴らしなおさない ${JSON.stringify(heard)}`);
     // れんしゅうを ぜんぶ → とおし えんそう
